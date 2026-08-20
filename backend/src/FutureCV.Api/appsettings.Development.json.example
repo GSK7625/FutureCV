@@ -1,0 +1,11 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=futurecv_db;Username=YOUR_POSTGRES_USER;Password=YOUR_POSTGRES_PASSWORD"
+  }
+}
