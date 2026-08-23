@@ -1,5 +1,7 @@
 using FutureCV.Application.Common.Interfaces;
+using FutureCV.Infrastructure.Identity;
 using FutureCV.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +28,18 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(
             provider => provider.GetRequiredService<ApplicationDbContext>());
 
+        // ASP.NET Core Identity
+        services.AddIdentityCore<AppUser>(options =>
+            {
+                options.Password.RequireDigit           = true;
+                options.Password.RequiredLength         = 8;
+                options.Password.RequireUppercase       = false;
+                options.Password.RequireNonAlphanumeric = false;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<ApplicationDbContext>();
+
         return services;
     }
 }
+
