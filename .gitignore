@@ -90,3 +90,19 @@ ios/DerivedData/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ==========================================
+# Python / Backend AI
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
