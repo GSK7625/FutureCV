@@ -22,12 +22,15 @@ public class AuthService : IAuthService
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
+    private readonly IGoogleTokenValidator _googleTokenValidator;
     private readonly IValidator<RegisterCandidateRequest> _registerCandidateValidator;
     private readonly IValidator<RegisterEmployerRequest> _registerEmployerValidator;
     private readonly IValidator<LoginRequest> _loginValidator;
     private readonly IValidator<RefreshTokenRequest> _refreshTokenValidator;
     private readonly IValidator<ForgotPasswordRequest> _forgotPasswordValidator;
     private readonly IValidator<ResetPasswordRequest> _resetPasswordValidator;
+    private readonly IValidator<GoogleLoginRequest> _googleLoginValidator;
+    private readonly IValidator<GoogleRegisterEmployerRequest> _googleRegisterEmployerValidator;
 
     public AuthService(
         UserManager<AppUser> userManager,
@@ -36,12 +39,15 @@ public class AuthService : IAuthService
         IJwtTokenService jwtTokenService,
         IConfiguration configuration,
         IEmailService emailService,
+        IGoogleTokenValidator googleTokenValidator,
         IValidator<RegisterCandidateRequest> registerCandidateValidator,
         IValidator<RegisterEmployerRequest> registerEmployerValidator,
         IValidator<LoginRequest> loginValidator,
         IValidator<RefreshTokenRequest> refreshTokenValidator,
         IValidator<ForgotPasswordRequest> forgotPasswordValidator,
-        IValidator<ResetPasswordRequest> resetPasswordValidator)
+        IValidator<ResetPasswordRequest> resetPasswordValidator,
+        IValidator<GoogleLoginRequest> googleLoginValidator,
+        IValidator<GoogleRegisterEmployerRequest> googleRegisterEmployerValidator)
     {
         _userManager = userManager;
         _roleManager = roleManager;
@@ -49,12 +55,15 @@ public class AuthService : IAuthService
         _jwtTokenService = jwtTokenService;
         _configuration = configuration;
         _emailService = emailService;
+        _googleTokenValidator = googleTokenValidator;
         _registerCandidateValidator = registerCandidateValidator;
         _registerEmployerValidator = registerEmployerValidator;
         _loginValidator = loginValidator;
         _refreshTokenValidator = refreshTokenValidator;
         _forgotPasswordValidator = forgotPasswordValidator;
         _resetPasswordValidator = resetPasswordValidator;
+        _googleLoginValidator = googleLoginValidator;
+        _googleRegisterEmployerValidator = googleRegisterEmployerValidator;
     }
 
     public async Task<AuthResult<AuthResponse>> RegisterCandidateAsync(
@@ -595,5 +604,237 @@ public class AuthService : IAuthService
             AccessTokenExpiresAt: accessTokenExpiresAt,
             RefreshToken:         rawRefreshToken,
             Role:                 role);
+    }
+
+
+
+    public async Task<AuthResult<AuthResponse>> GoogleLoginAsync(
+        GoogleLoginRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = await _googleLoginValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+            return AuthResult.Failure<AuthResponse>(string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)), 400);
+
+        var payload = await _googleTokenValidator.ValidateAsync(request.GoogleIdToken);
+        if (payload == null)
+            return AuthResult.Failure<AuthResponse>("Invalid Google ID token.", 401);
+
+        var existingUser = await _userManager.FindByEmailAsync(payload.Email);
+        if (existingUser == null)
+            return AuthResult.Failure<AuthResponse>("User not found. Please register.", 404);
+
+        if (existingUser.IsDeleted)
+            return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+
+        var logins = await _userManager.GetLoginsAsync(existingUser);
+        if (!logins.Any(l => l.LoginProvider == "Google"))
+            return AuthResult.Failure<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK", 409); // Account exists with password, needs linking
+
+        var userRoles = await _userManager.GetRolesAsync(existingUser);
+        var mainRole = userRoles.FirstOrDefault() ?? "Candidate";
+
+        var authResponse = await GenerateAuthTokensAsync(existingUser, mainRole, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        return AuthResult.Success(authResponse);
+    }
+
+    public async Task<AuthResult<AuthResponse>> GoogleRegisterCandidateAsync(
+        GoogleLoginRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = await _googleLoginValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+            return AuthResult.Failure<AuthResponse>(string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)), 400);
+
+        var payload = await _googleTokenValidator.ValidateAsync(request.GoogleIdToken);
+        if (payload == null)
+            return AuthResult.Failure<AuthResponse>("Invalid Google ID token.", 401);
+
+        var targetRole = "Candidate";
+
+        using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var existingUser = await _userManager.FindByEmailAsync(payload.Email);
+            if (existingUser != null)
+            {
+                if (existingUser.IsDeleted)
+                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+
+                var logins = await _userManager.GetLoginsAsync(existingUser);
+                if (!logins.Any(l => l.LoginProvider == "Google"))
+                    return AuthResult.Failure<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK", 409);
+
+                if (await _userManager.IsInRoleAsync(existingUser, targetRole))
+                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+                
+                // Add Candidate role & profile to existing user
+                await _userManager.AddToRoleAsync(existingUser, targetRole);
+                var newCandidate = new Candidate
+                {
+                    UserId = existingUser.Id,
+                    FullName = payload.Name ?? payload.Email
+                };
+                _context.Candidates.Add(newCandidate);
+                var existingAuthResponse = await GenerateAuthTokensAsync(existingUser, targetRole, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return AuthResult.Success(existingAuthResponse, 201);
+            }
+
+            var user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = payload.Email,
+                Email = payload.Email,
+                EmailConfirmed = payload.EmailVerified,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                IsDeleted = false
+            };
+
+            var createResult = await _userManager.CreateAsync(user); // No password
+            if (!createResult.Succeeded)
+                return AuthResult.Failure<AuthResponse>(string.Join(" ", createResult.Errors.Select(e => e.Description)), 400);
+
+            var loginInfo = new UserLoginInfo("Google", payload.Subject, "Google");
+            await _userManager.AddLoginAsync(user, loginInfo);
+            await _userManager.AddToRoleAsync(user, targetRole);
+
+            var candidate = new Candidate
+            {
+                UserId = user.Id,
+                FullName = payload.Name ?? payload.Email
+            };
+            _context.Candidates.Add(candidate);
+
+            var authResponse = await GenerateAuthTokensAsync(user, targetRole, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return AuthResult.Success(authResponse, 201);
+        }
+        catch (DbUpdateException) // Catch unique constraint violations
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AuthResult.Failure<AuthResponse>("Registration failed due to a system error. Please try again.", 500);
+        }
+    }
+
+    public async Task<AuthResult<AuthResponse>> GoogleRegisterEmployerAsync(
+        GoogleRegisterEmployerRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = await _googleRegisterEmployerValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+            return AuthResult.Failure<AuthResponse>(string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)), 400);
+
+        var payload = await _googleTokenValidator.ValidateAsync(request.GoogleIdToken);
+        if (payload == null)
+            return AuthResult.Failure<AuthResponse>("Invalid Google ID token.", 401);
+
+        var targetRole = "Employer";
+
+        using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var existingUser = await _userManager.FindByEmailAsync(payload.Email);
+            if (existingUser != null)
+            {
+                if (existingUser.IsDeleted)
+                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+
+                var logins = await _userManager.GetLoginsAsync(existingUser);
+                if (!logins.Any(l => l.LoginProvider == "Google"))
+                    return AuthResult.Failure<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK", 409);
+
+                if (await _userManager.IsInRoleAsync(existingUser, targetRole))
+                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+                
+                // Multi-role logic: add Employer role to existing user
+                await _userManager.AddToRoleAsync(existingUser, targetRole);
+                var company = new Company
+                {
+                    Name = request.CompanyName,
+                    TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
+                    VerifiedStatus = "Unverified"
+                };
+                _context.Companies.Add(company);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var employer = new Employer
+                {
+                    UserId = existingUser.Id,
+                    FullName = payload.Name ?? payload.Email,
+                    Phone = request.Phone,
+                    CompanyId = company.Id
+                };
+                _context.Employers.Add(employer);
+
+                var existingAuthResponse = await GenerateAuthTokensAsync(existingUser, targetRole, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return AuthResult.Success(existingAuthResponse, 201);
+            }
+
+            var user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = payload.Email,
+                Email = payload.Email,
+                EmailConfirmed = payload.EmailVerified,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                IsDeleted = false
+            };
+
+            var createResult = await _userManager.CreateAsync(user);
+            if (!createResult.Succeeded)
+                return AuthResult.Failure<AuthResponse>(string.Join(" ", createResult.Errors.Select(e => e.Description)), 400);
+
+            var loginInfo = new UserLoginInfo("Google", payload.Subject, "Google");
+            await _userManager.AddLoginAsync(user, loginInfo);
+            await _userManager.AddToRoleAsync(user, targetRole);
+
+            var newCompany = new Company
+            {
+                Name = request.CompanyName,
+                TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
+                VerifiedStatus = "Unverified"
+            };
+            _context.Companies.Add(newCompany);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var newEmployer = new Employer
+            {
+                UserId = user.Id,
+                FullName = payload.Name ?? payload.Email,
+                Phone = request.Phone,
+                CompanyId = newCompany.Id
+            };
+            _context.Employers.Add(newEmployer);
+
+            var authResponse = await GenerateAuthTokensAsync(user, targetRole, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return AuthResult.Success(authResponse, 201);
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AuthResult.Failure<AuthResponse>("Registration failed due to a system error. Please try again.", 500);
+        }
     }
 }

@@ -160,6 +160,55 @@ public class AuthController : ControllerBase
             : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
     }
 
+    /// <summary>Log in using Google ID Token.</summary>
+    [HttpPost("google/login")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AuthResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.GoogleLoginAsync(request, cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Data)
+            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+    }
+
+    /// <summary>Register a Candidate using Google ID Token.</summary>
+    [HttpPost("google/register/candidate")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(AuthResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> GoogleRegisterCandidate([FromBody] GoogleLoginRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.GoogleRegisterCandidateAsync(request, cancellationToken);
+        return result.IsSuccess
+            ? StatusCode(result.StatusCode, result.Data)
+            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+    }
+
+    /// <summary>Register an Employer using Google ID Token and additional profile data.</summary>
+    [HttpPost("google/register/employer")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(AuthResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> GoogleRegisterEmployer([FromBody] GoogleRegisterEmployerRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.GoogleRegisterEmployerAsync(request, cancellationToken);
+        return result.IsSuccess
+            ? StatusCode(result.StatusCode, result.Data)
+            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
