@@ -3,6 +3,7 @@ using System;
 using FutureCV.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FutureCV.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260826105949_AddCompanyEmployerCandidateEntities")]
+    partial class AddCompanyEmployerCandidateEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -44,8 +47,7 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("DesiredPosition")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<int?>("DesiredSalaryMax")
                         .HasColumnType("integer");
@@ -55,16 +57,13 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Gender")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Phone")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("ProfileUpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -79,9 +78,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
 
                     b.ToTable("Candidates");
                 });
@@ -109,16 +105,14 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Scale")
                         .HasColumnType("text");
 
                     b.Property<string>("TaxCode")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -128,18 +122,12 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("VerifiedStatus")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Unverified");
+                        .HasColumnType("text");
 
                     b.Property<string>("WebsiteUrl")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TaxCode")
-                        .IsUnique();
 
                     b.ToTable("Companies");
                 });
@@ -161,16 +149,13 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Phone")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Position")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -181,9 +166,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
 
                     b.ToTable("Employers");
                 });
@@ -431,26 +413,11 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("FutureCV.Domain.Entities.Candidate", b =>
-                {
-                    b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
-                        .WithOne()
-                        .HasForeignKey("FutureCV.Domain.Entities.Candidate", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("FutureCV.Domain.Entities.Employer", b =>
                 {
                     b.HasOne("FutureCV.Domain.Entities.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
-                        .WithOne()
-                        .HasForeignKey("FutureCV.Domain.Entities.Employer", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

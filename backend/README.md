@@ -105,6 +105,15 @@ Khi thêm hoặc sửa đổi Entity trong tầng `FutureCV.Domain`:
    ```bash
    dotnet ef database update --project src/FutureCV.Infrastructure --startup-project src/FutureCV.Api
    ```
+4. Reset / Làm rỗng Database về trạng thái ban đầu:
+   - Rollback xóa toàn bộ bảng qua EF Core:
+     ```bash
+     dotnet ef database update 0 --project src/FutureCV.Infrastructure --startup-project src/FutureCV.Api
+     ```
+   - Tạo lại toàn bộ bảng rỗng (chạy lại migration):
+     ```bash
+     dotnet ef database update --project src/FutureCV.Infrastructure --startup-project src/FutureCV.Api
+     ```
 
 ---
 
