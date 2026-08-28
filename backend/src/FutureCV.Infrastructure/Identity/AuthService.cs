@@ -599,28 +599,57 @@ public class AuthService : IAuthService
             return AuthResult.Failure<MessageResponse>(errors, 400);
         }
 
+        // Explicit unlock — deterministic recovery, independent of ASP.NET Identity internal behavior.
+        // If unlock fails: password reset is already complete; do not rollback.
+        _ = await _userManager.SetLockoutEndDateAsync(user, null);
+        _ = await _userManager.ResetAccessFailedCountAsync(user);
+
         // Rotate SecurityStamp — invalidates ALL existing JWT + refresh tokens for this user
-        await _userManager.UpdateSecurityStampAsync(user);
+        _ = await _userManager.UpdateSecurityStampAsync(user);
 
         return AuthResult.Success(
             new MessageResponse("Password reset successful. You can now log in with your new password."));
     }
 
     public async Task<AuthResult<MessageResponse>> DisableUserAsync(
-        Guid userId,
+        Guid targetUserId,
+        Guid currentAdminId,
         CancellationToken cancellationToken = default)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString());
+        var user = await _userManager.FindByIdAsync(targetUserId.ToString());
         if (user is null)
+        {
             return AuthResult.Failure<MessageResponse>("User not found.", 404);
+        }
+
+        // Guard 1: Admin cannot disable their own account
+        if (targetUserId == currentAdminId)
+        {
+            return AuthResult.Failure<MessageResponse>(
+                "Cannot disable an active Admin account.", 400);
+        }
+
+        // Guard 2: Cannot disable any account with the Admin role
+        if (await _userManager.IsInRoleAsync(user, "Admin"))
+        {
+            return AuthResult.Failure<MessageResponse>(
+                "Cannot disable a system Admin account.", 400);
+        }
 
         user.IsDeleted = true;
         user.UpdatedAt = DateTimeOffset.UtcNow;
-        await _userManager.UpdateAsync(user);
+
+        // Verify IdentityResult — do not assume UpdateAsync always succeeds
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return AuthResult.Failure<MessageResponse>(
+                string.Join("; ", updateResult.Errors.Select(e => e.Description)), 500);
+        }
 
         // Revoke all active refresh tokens immediately (BR-07 / Session Invalidation)
         var activeTokens = await _context.RefreshTokens
-            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .Where(t => t.UserId == targetUserId && t.RevokedAt == null)
             .ToListAsync(cancellationToken);
 
         foreach (var token in activeTokens)
@@ -632,6 +661,36 @@ public class AuthService : IAuthService
 
         return AuthResult.Success(
             new MessageResponse("User account has been disabled and all active sessions were revoked."));
+    }
+
+    public async Task<AuthResult<MessageResponse>> EnableUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return AuthResult.Failure<MessageResponse>("User not found.", 404);
+        }
+
+        if (!user.IsDeleted)
+        {
+            return AuthResult.Failure<MessageResponse>("User account is currently active.", 400);
+        }
+
+        user.IsDeleted = false;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Verify IdentityResult — do not return success if DB update fails
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return AuthResult.Failure<MessageResponse>(
+                string.Join("; ", updateResult.Errors.Select(e => e.Description)), 500);
+        }
+
+        return AuthResult.Success(
+            new MessageResponse("User account has been re-enabled successfully."));
     }
 
     private async Task<AuthResponse> GenerateAuthTokensAsync(AppUser user, string role, CancellationToken cancellationToken)
