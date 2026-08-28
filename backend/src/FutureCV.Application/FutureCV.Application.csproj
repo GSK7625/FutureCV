@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- TargetFramework, Nullable, ImplicitUsings inherited from Directory.Build.props -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\FutureCV.Domain\FutureCV.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
