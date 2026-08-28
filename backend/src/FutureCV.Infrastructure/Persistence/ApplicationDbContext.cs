@@ -1,4 +1,5 @@
 using FutureCV.Application.Common.Interfaces;
+using FutureCV.Domain.Entities;
 using FutureCV.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -20,8 +21,10 @@ public class ApplicationDbContext
     {
     }
 
-    // Add DbSet<T> here as you create Domain entities.
-    // Example: public DbSet<Resume> Resumes => Set<Resume>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Company> Companies => Set<Company>();
+    public DbSet<Employer> Employers => Set<Employer>();
+    public DbSet<Candidate> Candidates => Set<Candidate>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => base.SaveChangesAsync(cancellationToken);
