@@ -1,15 +1,117 @@
 @import "tailwindcss";
 
+/*
+  FutureCV Design System: Midnight & Gold Professional
+  Tokens theo Docs Stitch midnight_gold_professional/DESIGN.md
+  Light mode là mặc định; CSS variables hỗ trợ dark mode sau này.
+*/
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  /* ── Colors ─────────────────────────────────────────────── */
+  --color-navy: #0b132b; /* Primary: header, primary button, text đậm */
+  --color-navy-secondary: #1c2541; /* Secondary: container phụ, sub-nav */
+  --color-gold: #c8963e; /* Accent duy nhất: CTA highlight, badge HOT/Premium */
+
+  --color-background: #f8f9fa; /* Level 0 */
+  --color-surface: #ffffff; /* Level 1 */
+  --color-surface-low: #f3f4f5;
+  --color-surface-high: #e7e8e9;
+  --color-border-subtle: #e9ecef;
+  --color-border-strong: #dee2e6;
+
+  --color-ink: #191c1d; /* text chính */
+  --color-ink-variant: #45464d; /* text phụ */
+  --color-ink-muted: #6c757d; /* text metadata, table headers */
+
+  --color-success: #2e7d6b; /* emerald desaturated */
+  --color-danger: #ba1a1a;
+  --color-warning: #b07d2b;
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif,
+    "Segoe UI Emoji", "Noto Color Emoji";
+
+  --text-display: 3rem; /* 48 */
+  --text-display--line-height: 3.5rem; /* 56 */
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 700;
+
+  --text-headline: 2rem; /* 32 */
+  --text-headline--line-height: 2.5rem; /* 40 */
+  --text-headline--letter-spacing: -0.01em;
+  --text-headline--font-weight: 600;
+
+  --text-headline-md: 1.5rem; /* 24 */
+  --text-headline-md--line-height: 2rem; /* 32 */
+  --text-headline-md--font-weight: 600;
+
+  --text-body-lg: 1.125rem; /* 18 */
+  --text-body-lg--line-height: 1.75rem; /* 28 */
+
+  --text-body: 1rem; /* 16 */
+  --text-body--line-height: 1.5rem; /* 24 */
+
+  --text-label: 0.875rem; /* 14 */
+  --text-label--line-height: 1.25rem; /* 20 */
+  --text-label--letter-spacing: 0.01em;
+  --text-label--font-weight: 500;
+
+  --text-label-sm: 0.75rem; /* 12 */
+  --text-label-sm--line-height: 1rem; /* 16 */
+  --text-label-sm--letter-spacing: 0.05em;
+  --text-label-sm--font-weight: 600;
+
+  /* ── Radius: ONE system ─────────────────────────────────── */
+  --radius-tag: 0.25rem; /* 4px: tags, checkbox */
+  --radius-default: 0.5rem; /* 8px: buttons, inputs, cards */
+  --radius-lg: 0.75rem; /* 12px: modal */
+  --radius-xl: 1rem; /* 16px: section lớn */
+
+  /* ── Elevation ──────────────────────────────────────────── */
+  --shadow-surface: 0 4px 20px rgba(11, 19, 43, 0.04); /* Level 1: card */
+  --shadow-overlay: 0 12px 32px rgba(11, 19, 43, 0.12); /* Level 2: modal, dropdown */
+
+  /* ── Spacing / layout ───────────────────────────────────── */
+  --spacing-gutter: 1.5rem; /* 24px */
+  --spacing-margin-desktop: 2.5rem; /* 40px */
+  --spacing-margin-mobile: 1rem; /* 16px */
+
+  --container-page: 80rem; /* 1280px */
+
+  /* ── Z-index scale (documented) ─────────────────────────── */
+  --z-nav: 50; /* sticky header/navbar */
+  --z-dropdown: 100;
+  --z-overlay: 200; /* modal backdrop */
+  --z-modal: 210;
+  --z-toast: 300;
+
+  /* ── Motion ─────────────────────────────────────────────── */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  @apply bg-background text-ink font-sans text-body antialiased;
+  color-scheme: light;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+::selection {
+  @apply bg-gold/25;
+}
+
+/* Focus ring thống nhất navy (theo DESIGN.md: focus border navy + glow 2px) */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
