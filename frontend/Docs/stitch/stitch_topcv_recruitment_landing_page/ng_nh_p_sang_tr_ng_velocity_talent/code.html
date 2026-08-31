@@ -1,0 +1,171 @@
+<!DOCTYPE html><html lang="vi" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Velocity Talent - Đăng nhập</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed-variant": "#3d4664",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-bright": "#f8f9fa",
+                      "on-secondary-fixed": "#111a36",
+                      "surface-container-highest": "#e1e3e4",
+                      "on-secondary": "#ffffff",
+                      "secondary": "#545d7c",
+                      "on-tertiary-fixed": "#2c1603",
+                      "on-background": "#191c1d",
+                      "tertiary-container": "#2c1603",
+                      "error-container": "#ffdad6",
+                      "error": "#ba1a1a",
+                      "secondary-fixed-dim": "#bdc5e9",
+                      "on-primary-fixed": "#131a33",
+                      "on-tertiary-container": "#a07d5f",
+                      "primary-fixed": "#dbe1ff",
+                      "background": "#f8f9fa",
+                      "primary-container": "#131a33",
+                      "on-primary-container": "#7b83a0",
+                      "inverse-surface": "#2e3132",
+                      "on-surface": "#191c1d",
+                      "secondary-container": "#d0d9fd",
+                      "tertiary-fixed": "#ffdcc1",
+                      "surface-container-low": "#f3f4f5",
+                      "on-primary-fixed-variant": "#3e4660",
+                      "on-tertiary-fixed-variant": "#5d4127",
+                      "inverse-primary": "#bec5e5",
+                      "primary": "#000000",
+                      "surface-container-high": "#e7e8e9",
+                      "surface-dim": "#d9dadb",
+                      "surface-variant": "#e1e3e4",
+                      "surface-container": "#edeeef",
+                      "on-secondary-container": "#555e7d",
+                      "surface": "#f8f9fa",
+                      "on-tertiary": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "on-primary": "#ffffff",
+                      "surface-tint": "#565d79",
+                      "primary-fixed-dim": "#bec5e5",
+                      "inverse-on-surface": "#f0f1f2",
+                      "tertiary-fixed-dim": "#e8bf9d",
+                      "secondary-fixed": "#dbe1ff",
+                      "outline-variant": "#c6c6ce",
+                      "on-error": "#ffffff",
+                      "on-surface-variant": "#45464d",
+                      "tertiary": "#000000",
+                      "outline": "#76767e",
+                      "navy": "#0B132B",
+                      "gold": "#C8963E"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "gutter": "24px",
+                      "margin-desktop": "40px",
+                      "container-max": "1280px",
+                      "unit": "8px"
+              },
+              "fontFamily": {
+                      "body-md": ["Hanken Grotesk"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "headline-lg-mobile": ["Hanken Grotesk"],
+                      "display-lg": ["Hanken Grotesk"],
+                      "label-md": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "label-sm": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+              }
+            }
+          }
+      }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-navy min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-body-md text-surface-bright">
+<!-- Background Pattern -->
+<div class="absolute inset-0 pointer-events-none opacity-10" style="background-image: radial-gradient(#C8963E 1px, transparent 1px); background-size: 32px 32px;"></div>
+<div class="w-full max-w-[480px] bg-surface-container-lowest text-on-surface rounded-xl shadow-2xl relative z-10 border border-outline-variant/30">
+<!-- Accent Top Border -->
+<div class="h-1 w-full bg-gold"></div>
+<div class="p-8 sm:p-10">
+<!-- Header -->
+<div class="text-center mb-10">
+<div class="flex items-center justify-center gap-2 text-navy mb-2">
+<span class="material-symbols-outlined text-4xl text-gold" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-headline-md text-2xl font-bold tracking-tight uppercase text-navy">FutureCV</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-2">Đăng nhập</h2>
+<p class="font-body-md text-body-md text-secondary">Chào mừng bạn quay trở lại với tương lai sự nghiệp.</p>
+</div>
+<!-- Social Login -->
+<div class="space-y-4 mb-8">
+<button class="w-full flex items-center justify-center gap-3 py-3 px-4 border border-outline-variant rounded-lg hover:border-gold hover:bg-surface-bright transition-colors text-on-surface font-label-md text-label-md">
+<span class="material-symbols-outlined text-xl text-on-surface-variant">login</span>
+                    Tiếp tục với Google
+                </button>
+<button class="w-full flex items-center justify-center gap-3 py-3 px-4 border border-outline-variant rounded-lg hover:border-gold hover:bg-surface-bright transition-colors text-on-surface font-label-md text-label-md">
+<span class="material-symbols-outlined text-xl text-on-surface-variant">qr_code_2</span>
+                    Tiếp tục với Facebook
+                </button>
+</div>
+<!-- Divider -->
+<div class="flex items-center gap-4 mb-8">
+<div class="flex-1 h-px bg-outline-variant"></div>
+<span class="font-label-sm text-label-sm text-secondary uppercase">Hoặc</span>
+<div class="flex-1 h-px bg-outline-variant"></div>
+</div>
+<!-- Form -->
+<form class="space-y-6">
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="email">Email / Số điện thoại</label>
+<input class="w-full px-4 py-3 border border-outline-variant rounded-lg focus:outline-none focus:border-navy focus:ring-2 focus:ring-navy/20 transition-all font-body-md text-body-md" id="email" placeholder="Nhập email hoặc số điện thoại của bạn" type="text">
+</div>
+<div>
+<div class="flex justify-between items-center mb-2">
+<label class="block font-label-md text-label-md text-on-surface" for="password">Mật khẩu</label>
+<a class="font-label-sm text-label-sm text-gold hover:underline" href="#">Quên mật khẩu?</a>
+</div>
+<div class="relative">
+<input class="w-full px-4 py-3 border border-outline-variant rounded-lg focus:outline-none focus:border-navy focus:ring-2 focus:ring-navy/20 transition-all font-body-md text-body-md pr-12" id="password" placeholder="••••••••" type="password">
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-navy transition-colors" type="button">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</div>
+<button class="w-full flex items-center justify-center gap-3 py-3 px-4 bg-navy text-white border border-navy rounded-lg font-label-md hover:bg-opacity-90 transition-all focus:outline-none focus:ring-2 focus:ring-navy shadow-md mt-4" type="submit">
+<span class="material-symbols-outlined text-xl text-gold">login</span>
+                        Đăng nhập
+                    </button>
+</form>
+<!-- Footer Links -->
+<div class="mt-8 text-center">
+<p class="font-body-md text-body-md text-secondary">
+                    Bạn chưa có tài khoản? <a class="text-gold font-semibold hover:underline" href="#">Đăng ký ngay</a>
+</p>
+</div>
+</div>
+<!-- Support Box (From SCREEN_3 reference) -->
+
+</div>
+
+
+</body></html>
