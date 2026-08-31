@@ -120,11 +120,11 @@ export const hrService = {
 
   async getMasterData(signal?: AbortSignal): Promise<HrMasterData> {
     const [categories, levels, employmentTypes, locations, skills] = await Promise.all([
-      fetcher<LookupOption[]>("/api/jobs/categories", { method: "GET", signal }),
-      fetcher<LookupOption[]>("/api/jobs/levels", { method: "GET", signal }),
-      fetcher<LookupOption[]>("/api/jobs/employment-types", { method: "GET", signal }),
-      fetcher<LookupOption[]>("/api/jobs/locations", { method: "GET", signal }),
-      fetcher<SkillOption[]>("/api/skills", { method: "GET", signal }),
+      fetcher<LookupOption[]>("/api/master-data/categories", { method: "GET", signal }),
+      fetcher<LookupOption[]>("/api/master-data/levels", { method: "GET", signal }),
+      fetcher<LookupOption[]>("/api/master-data/employment-types", { method: "GET", signal }),
+      fetcher<LookupOption[]>("/api/master-data/locations", { method: "GET", signal }),
+      fetcher<SkillOption[]>("/api/master-data/skills", { method: "GET", signal }),
     ]);
     return { categories, levels, employmentTypes, locations, skills };
   },
