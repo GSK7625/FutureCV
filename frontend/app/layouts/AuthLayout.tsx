@@ -22,8 +22,8 @@ export default function AuthLayout() {
       {/* Form bên trái */}
       <div className="flex items-center justify-center px-margin-mobile py-12 md:px-16">
         <div className="w-full max-w-md">
-          <Link to="/" className="mb-10 inline-block text-headline-md font-bold tracking-tight text-navy">
-            FutureCV
+          <Link to="/" className="mb-8 inline-block">
+            <img src="/Logo.png" alt="FutureCV" className="h-11 w-auto object-contain" />
           </Link>
           <Outlet />
         </div>

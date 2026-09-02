@@ -1,59 +1,91 @@
-import { Link } from "react-router";
-import { IconBookmark, IconMapPin } from "@tabler/icons-react";
-import { Badge } from "~/components/ui/Badge";
-import { formatSalary, timeAgo } from "~/utils";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { IconHeart, IconHeartFilled } from "@tabler/icons-react";
+import { formatSalary } from "~/utils";
 import type { Job } from "~/features/candidate/types";
 import { cn } from "~/lib/cn";
 
 export function JobCard({ job, className }: { job: Job; className?: string }) {
+  const [saved, setSaved] = useState(false);
+  const navigate = useNavigate();
+
+  const handleCardClick = () => {
+    navigate(`/jobs/${job.id}`);
+  };
+
   return (
     <article
+      onClick={handleCardClick}
       className={cn(
-        "relative flex h-full flex-col rounded-default border border-border-subtle bg-surface p-6 shadow-surface transition-shadow hover:shadow-md",
+        "group relative flex h-[116px] w-full cursor-pointer items-center gap-3 rounded-xl border border-border-subtle bg-surface p-3 shadow-sm transition-all duration-200 hover:border-gold/60 hover:shadow-md",
         className,
       )}
     >
-      <div className="mb-4 flex items-start gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-default border border-border-subtle bg-surface-low">
-          {job.companyLogo ? (
-            <img src={job.companyLogo} alt={job.company} className="h-full w-full object-contain p-2" />
-          ) : (
-            <span className="text-headline-md font-bold text-navy">
-              {job.company.charAt(0).toUpperCase()}
-            </span>
-          )}
-        </div>
-        <div className="min-w-0 flex-grow">
-          <h3 className="line-clamp-2 text-body font-semibold leading-snug text-navy">
-            <Link
-              to={`/candidate/jobs/${job.id}`}
-              className="transition-colors hover:text-gold"
-            >
-              {job.title}
-            </Link>
+      {/* Company Logo Avatar */}
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-subtle bg-surface-low p-1">
+        {job.companyLogo ? (
+          <img src={job.companyLogo} alt={job.company} className="h-full w-full object-contain" />
+        ) : (
+          <span className="text-base font-bold text-navy">
+            {job.company.charAt(0).toUpperCase()}
+          </span>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex h-full min-w-0 flex-grow flex-col justify-between py-0.5">
+        {/* Top: Badges, Title & Company */}
+        <div className="min-w-0">
+          <div className="flex min-h-[16px] items-center gap-1.5 flex-wrap">
+            {job.hot && (
+              <span className="rounded bg-danger/10 px-1.5 py-0.2 text-[10px] font-bold text-danger">
+                HOT
+              </span>
+            )}
+            {job.salaryMin && job.salaryMin >= 20 ? (
+              <span className="rounded bg-success/15 px-1.5 py-0.2 text-[10px] font-bold text-success">
+                TOP
+              </span>
+            ) : null}
+          </div>
+
+          <h3 className="line-clamp-1 text-label font-semibold text-navy transition-colors group-hover:text-gold mt-0.5">
+            {job.title}
           </h3>
-          <p className="mt-1 line-clamp-1 text-label text-ink-variant">{job.company}</p>
+
+          <p className="line-clamp-1 text-[12px] text-ink-muted">
+            {job.company}
+          </p>
         </div>
-      </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Badge variant="navy">{formatSalary(job.salaryMin, job.salaryMax)}</Badge>
-        <Badge variant="neutral">
-          <IconMapPin size={12} stroke={1.8} />
-          {job.location}
-        </Badge>
-        {job.hot && <Badge variant="gold" className="font-bold">HOT</Badge>}
-      </div>
+        {/* Bottom: Tags & Save Button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded bg-surface-low px-2 py-0.5 text-[11px] font-semibold text-ink">
+              {formatSalary(job.salaryMin, job.salaryMax)}
+            </span>
+            <span className="rounded bg-surface-low px-2 py-0.5 text-[11px] text-ink-muted">
+              {job.location}
+            </span>
+          </div>
 
-      <div className="mt-auto flex items-center justify-between border-t border-border-subtle pt-4 text-label-sm text-ink-muted">
-        <span>{timeAgo(job.postedAt)}</span>
-        <button
-          type="button"
-          aria-label="Lưu việc làm"
-          className="text-ink-muted transition-colors hover:text-gold"
-        >
-          <IconBookmark size={20} stroke={1.6} />
-        </button>
+          <button
+            type="button"
+            aria-label={saved ? "Bỏ lưu việc làm" : "Lưu việc làm"}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setSaved(!saved);
+            }}
+            className="text-ink-muted transition-colors hover:text-danger p-0.5"
+          >
+            {saved ? (
+              <IconHeartFilled size={16} className="text-danger" />
+            ) : (
+              <IconHeart size={16} stroke={1.6} />
+            )}
+          </button>
+        </div>
       </div>
     </article>
   );

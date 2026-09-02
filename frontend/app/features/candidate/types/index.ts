@@ -6,12 +6,24 @@ export interface Job {
   location: string;
   salaryMin?: number | null;
   salaryMax?: number | null;
+  salaryText?: string;
   jobType: string;
   experience: string;
   categories: string[];
   postedAt: string;
   hot?: boolean;
+  verified?: boolean;
+  level?: string;
+  deadline?: string;
+  quantity?: string;
+  gender?: string;
+  workAddress?: string;
+  companyWebsite?: string;
+  companySize?: string;
+  companyIndustry?: string;
+  matchRate?: number;
   description?: string;
+  descriptionList?: string[];
   requirements?: string[];
   benefits?: string[];
 }

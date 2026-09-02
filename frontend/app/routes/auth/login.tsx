@@ -41,33 +41,42 @@ export default function LoginPage() {
 
   return (
     <div>
-      <div className="mb-10">
-        <h1 className="text-headline text-ink">Đăng nhập</h1>
-        <p className="mt-2 text-ink-variant">Chào mừng bạn quay trở lại với tương lai sự nghiệp.</p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-ink">Đăng nhập</h1>
+        <p className="mt-1 text-label-sm text-ink-muted">Chào mừng bạn quay trở lại với tương lai sự nghiệp.</p>
       </div>
 
-      <div className="mb-8 flex flex-col gap-4">
-        <Button variant="secondary" size="lg" onClick={() => showToast("Đăng nhập Google sẽ ra mắt sớm.", "info")}>
-          <IconBrandGoogle size={20} />
-          Tiếp tục với Google
-        </Button>
-        <Button variant="secondary" size="lg" onClick={() => showToast("Đăng nhập Facebook sẽ ra mắt sớm.", "info")}>
-          <IconBrandFacebook size={20} />
-          Tiếp tục với Facebook
-        </Button>
+      <div className="mb-4 grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={() => showToast("Đăng nhập Google sẽ ra mắt sớm.", "info")}
+          className="flex h-10 items-center justify-center gap-2 rounded-default bg-navy px-3 text-label-sm font-semibold text-white shadow-sm transition-all hover:bg-navy-secondary active:scale-[0.98]"
+        >
+          <IconBrandGoogle size={18} />
+          Google
+        </button>
+        <button
+          type="button"
+          onClick={() => showToast("Đăng nhập Facebook sẽ ra mắt sớm.", "info")}
+          className="flex h-10 items-center justify-center gap-2 rounded-default bg-[#1877F2] px-3 text-label-sm font-semibold text-white shadow-sm transition-all hover:bg-[#166fe5] active:scale-[0.98]"
+        >
+          <IconBrandFacebook size={18} />
+          Facebook
+        </button>
       </div>
 
-      <div className="mb-8 flex items-center gap-4" aria-hidden>
+      <div className="mb-4 flex items-center gap-3" aria-hidden>
         <div className="h-px flex-1 bg-border-strong" />
-        <span className="text-label-sm uppercase text-ink-muted">Hoặc</span>
+        <span className="text-[11px] uppercase tracking-wider text-ink-muted">Hoặc</span>
         <div className="h-px flex-1 bg-border-strong" />
       </div>
 
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Field label="Email" htmlFor="login-email" error={errors.email} required>
           <Input
             id="login-email"
             type="email"
+            inputSize="md"
             autoComplete="email"
             placeholder="Nhập email của bạn"
             value={email}
@@ -80,6 +89,7 @@ export default function LoginPage() {
             <Input
               id="login-password"
               type={showPassword ? "text" : "password"}
+              inputSize="md"
               autoComplete="current-password"
               placeholder="••••••••"
               value={password}
@@ -89,10 +99,10 @@ export default function LoginPage() {
             <button
               type="button"
               aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-muted transition-colors hover:text-navy"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted transition-colors hover:text-navy"
               onClick={() => setShowPassword((v) => !v)}
             >
-              {showPassword ? <IconEyeOff size={20} stroke={1.6} /> : <IconEye size={20} stroke={1.6} />}
+              {showPassword ? <IconEyeOff size={18} stroke={1.6} /> : <IconEye size={18} stroke={1.6} />}
             </button>
           </div>
         </Field>
@@ -103,12 +113,16 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <Button type="submit" variant="primary" size="lg" disabled={login.isPending} className="mt-2">
-          {login.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
-        </Button>
+        <button
+          type="submit"
+          disabled={login.isPending}
+          className="mt-1 flex h-10 w-full items-center justify-center rounded-default bg-navy px-4 font-bold !text-white shadow-sm transition-all hover:bg-navy-secondary active:scale-[0.98] disabled:opacity-50"
+        >
+          <span className="font-bold !text-white">{login.isPending ? "Đang đăng nhập..." : "Đăng nhập"}</span>
+        </button>
       </form>
 
-      <p className="mt-8 text-center text-ink-variant">
+      <p className="mt-5 text-center text-label-sm text-ink-variant">
         Bạn chưa có tài khoản?{" "}
         <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
           Đăng ký ngay

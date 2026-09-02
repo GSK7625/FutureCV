@@ -210,7 +210,7 @@ export default function JobListPage() {
                         <div className="flex items-start justify-between gap-4">
                           <h3 className="line-clamp-2 font-semibold leading-snug text-navy">
                             <Link
-                              to={`/candidate/jobs/${job.id}`}
+                              to={`/jobs/${job.id}`}
                               className="transition-colors group-hover:text-gold"
                             >
                               {job.title}
