@@ -1,6 +1,10 @@
 using FutureCV.Application.Common.Interfaces;
+using FutureCV.Application.Features.Candidate.Interfaces;
+using FutureCV.Application.Features.Employer.Interfaces;
+using FutureCV.Infrastructure.Configurations;
 using FutureCV.Infrastructure.Identity;
 using FutureCV.Infrastructure.Persistence;
+using FutureCV.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -59,7 +63,18 @@ public static class DependencyInjection
         // Register Google Token Validator
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
 
+        // Register Cloudinary settings & file storage
+        services.Configure<CloudinarySettings>(configuration.GetSection("Cloudinary"));
+        services.AddScoped<CloudinaryFileStorage>(); // concrete type — needed by CandidateService for PDF-specific methods
+        services.AddScoped<IFileStorage>(sp => sp.GetRequiredService<CloudinaryFileStorage>());
+
+        // Register Profile & Admin services
+        services.AddScoped<ICandidateService, CandidateService>();
+        services.AddScoped<IEmployerService, EmployerService>();
+        services.AddScoped<FutureCV.Application.Features.Admin.Interfaces.IAdminService, AdminService>();
+
         return services;
     }
 }
+
 

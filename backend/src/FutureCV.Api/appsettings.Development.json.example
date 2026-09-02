@@ -27,5 +27,10 @@
   },
   "GoogleAuth": {
     "ClientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+  },
+  "Cloudinary": {
+      "CloudName": "YOUR_CLOUDINARY_CLOUD_NAME",
+      "ApiKey": "YOUR_CLOUDINARY_API_KEY",
+      "ApiSecret": "YOUR_CLOUDINARY_API_SECRET"
   }
 }

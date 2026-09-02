@@ -3,6 +3,7 @@ using System;
 using FutureCV.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FutureCV.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260830143446_AddProfileEntities")]
+    partial class AddProfileEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,49 +24,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.AuditLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EntityId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("EntityType")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("character varying(45)");
-
-                    b.Property<string>("PayloadJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("EntityType", "EntityId");
-
-                    b.ToTable("AuditLogs", (string)null);
-                });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.Candidate", b =>
                 {
@@ -135,68 +95,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.ToTable("Candidates");
                 });
 
-            modelBuilder.Entity("FutureCV.Domain.Entities.CandidateCv", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CandidateId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("FileSizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FileType")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("FileUrl")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsPrimary")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ParseStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTime?>("ParsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PublicId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CandidateId");
-
-                    b.HasIndex("CandidateId", "IsPrimary")
-                        .IsUnique()
-                        .HasFilter("\"IsPrimary\" = TRUE AND \"IsDeleted\" = FALSE");
-
-                    b.ToTable("CVs", (string)null);
-                });
-
             modelBuilder.Entity("FutureCV.Domain.Entities.CandidateSkill", b =>
                 {
                     b.Property<Guid>("CandidateId")
@@ -218,57 +116,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.HasIndex("SkillId");
 
                     b.ToTable("CandidateSkills", (string)null);
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.Certificate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CandidateId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CredentialUrl")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("CvId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ExpirationDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("IssueDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<string>("Organization")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CandidateId");
-
-                    b.HasIndex("CvId");
-
-                    b.ToTable("Certificates", (string)null);
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.Company", b =>
@@ -327,52 +174,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Companies");
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CvId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsVerifiedByUser")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ModelVersion")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("ParsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ParsedDataJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("RawText")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("VerifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CvId")
-                        .IsUnique();
-
-                    b.ToTable("CVParsers", (string)null);
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.Education", b =>
@@ -516,60 +317,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.HasIndex("CandidateId");
 
                     b.ToTable("Experiences", (string)null);
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.Project", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CandidateId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CvId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsCurrent")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<string>("ProjectUrl")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Role")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CandidateId");
-
-                    b.HasIndex("CvId");
-
-                    b.ToTable("Projects", (string)null);
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.RefreshToken", b =>
@@ -853,17 +600,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("FutureCV.Domain.Entities.CandidateCv", b =>
-                {
-                    b.HasOne("FutureCV.Domain.Entities.Candidate", "Candidate")
-                        .WithMany("CVs")
-                        .HasForeignKey("CandidateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Candidate");
-                });
-
             modelBuilder.Entity("FutureCV.Domain.Entities.CandidateSkill", b =>
                 {
                     b.HasOne("FutureCV.Domain.Entities.Candidate", "Candidate")
@@ -881,35 +617,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("Candidate");
 
                     b.Navigation("Skill");
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.Certificate", b =>
-                {
-                    b.HasOne("FutureCV.Domain.Entities.Candidate", "Candidate")
-                        .WithMany("Certificates")
-                        .HasForeignKey("CandidateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
-                        .WithMany()
-                        .HasForeignKey("CvId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Candidate");
-
-                    b.Navigation("Cv");
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
-                {
-                    b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
-                        .WithOne("CvParser")
-                        .HasForeignKey("FutureCV.Domain.Entities.CvParser", "CvId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cv");
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.Education", b =>
@@ -949,24 +656,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Candidate");
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.Project", b =>
-                {
-                    b.HasOne("FutureCV.Domain.Entities.Candidate", "Candidate")
-                        .WithMany("Projects")
-                        .HasForeignKey("CandidateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
-                        .WithMany()
-                        .HasForeignKey("CvId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Candidate");
-
-                    b.Navigation("Cv");
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.RefreshToken", b =>
@@ -1031,22 +720,11 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("FutureCV.Domain.Entities.Candidate", b =>
                 {
-                    b.Navigation("CVs");
-
-                    b.Navigation("Certificates");
-
                     b.Navigation("Educations");
 
                     b.Navigation("Experiences");
 
-                    b.Navigation("Projects");
-
                     b.Navigation("Skills");
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.CandidateCv", b =>
-                {
-                    b.Navigation("CvParser");
                 });
 #pragma warning restore 612, 618
         }

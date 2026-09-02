@@ -13,6 +13,16 @@ public interface IApplicationDbContext
     DbSet<Company> Companies { get; }
     DbSet<Employer> Employers { get; }
     DbSet<Candidate> Candidates { get; }
+    DbSet<Education> Educations { get; }
+    DbSet<Experience> Experiences { get; }
+    DbSet<Skill> Skills { get; }
+    DbSet<CandidateSkill> CandidateSkills { get; }
+    DbSet<CandidateCv> CandidateCvs { get; }
+    DbSet<CvParser> CvParsers { get; }
+    DbSet<Certificate> Certificates { get; }
+    DbSet<Project> Projects { get; }
+    DbSet<AuditLog> AuditLogs { get; }
+
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
