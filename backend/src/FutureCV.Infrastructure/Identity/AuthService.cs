@@ -66,7 +66,7 @@ public class AuthService : IAuthService
         _googleRegisterEmployerValidator = googleRegisterEmployerValidator;
     }
 
-    public async Task<AuthResult<AuthResponse>> RegisterCandidateAsync(
+    public async Task<ServiceResult<AuthResponse>> RegisterCandidateAsync(
         RegisterCandidateRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -74,7 +74,7 @@ public class AuthService : IAuthService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage));
-            return AuthResult.Failure<AuthResponse>(errors, 400);
+            return ServiceResult.Failure<AuthResponse>(errors);
         }
 
         var targetRole = "Candidate";
@@ -82,7 +82,8 @@ public class AuthService : IAuthService
         // Ensure role exists in DB
         if (!await _roleManager.RoleExistsAsync(targetRole))
         {
-            return AuthResult.Failure<AuthResponse>($"Role '{targetRole}' is not initialized in the system.", 500);
+            return ServiceResult.InfrastructureError<AuthResponse>(
+                $"Role '{targetRole}' is not initialized in the system.");
         }
 
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -93,14 +94,14 @@ public class AuthService : IAuthService
             if (existingUser is not null)
             {
                 if (existingUser.IsDeleted)
-                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+                    return ServiceResult.Forbidden<AuthResponse>("Tài khoản đã bị vô hiệu hóa.");
 
                 var isPasswordValid = await _userManager.CheckPasswordAsync(existingUser, request.Password);
                 if (!isPasswordValid)
-                    return AuthResult.Failure<AuthResponse>("Mật khẩu không đúng cho tài khoản đã tồn tại.", 400);
+                    return ServiceResult.Failure<AuthResponse>("Mật khẩu không đúng cho tài khoản đã tồn tại.");
 
                 if (await _userManager.IsInRoleAsync(existingUser, targetRole))
-                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+                    return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
 
                 // Add Candidate role & profile to existing user
                 await _userManager.AddToRoleAsync(existingUser, targetRole);
@@ -115,7 +116,7 @@ public class AuthService : IAuthService
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
-                return AuthResult.Success(existingAuthResponse, 201);
+                return ServiceResult.Success(existingAuthResponse);
             }
 
             var user = new AppUser
@@ -132,14 +133,14 @@ public class AuthService : IAuthService
             if (!createResult.Succeeded)
             {
                 var errors = string.Join(" ", createResult.Errors.Select(e => e.Description));
-                return AuthResult.Failure<AuthResponse>(errors, 400);
+                return ServiceResult.Failure<AuthResponse>(errors);
             }
 
             var roleResult = await _userManager.AddToRoleAsync(user, targetRole);
             if (!roleResult.Succeeded)
             {
                 var errors = string.Join(" ", roleResult.Errors.Select(e => e.Description));
-                return AuthResult.Failure<AuthResponse>(errors, 400);
+                return ServiceResult.Failure<AuthResponse>(errors);
             }
 
             var candidate = new Candidate
@@ -154,21 +155,22 @@ public class AuthService : IAuthService
 
             await transaction.CommitAsync(cancellationToken);
 
-            return AuthResult.Success(authResponse, 201);
+            return ServiceResult.Success(authResponse);
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+            return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
         }
         catch (Exception)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("Registration failed due to a system error. Please try again.", 500);
+            return ServiceResult.InfrastructureError<AuthResponse>(
+                "Registration failed due to a system error. Please try again.");
         }
     }
 
-    public async Task<AuthResult<AuthResponse>> RegisterEmployerAsync(
+    public async Task<ServiceResult<AuthResponse>> RegisterEmployerAsync(
         RegisterEmployerRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -176,14 +178,15 @@ public class AuthService : IAuthService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage));
-            return AuthResult.Failure<AuthResponse>(errors, 400);
+            return ServiceResult.Failure<AuthResponse>(errors);
         }
 
         var targetRole = "Employer";
 
         if (!await _roleManager.RoleExistsAsync(targetRole))
         {
-            return AuthResult.Failure<AuthResponse>($"Role '{targetRole}' is not initialized in the system.", 500);
+            return ServiceResult.InfrastructureError<AuthResponse>(
+                $"Role '{targetRole}' is not initialized in the system.");
         }
 
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -194,14 +197,14 @@ public class AuthService : IAuthService
             if (existingUser is not null)
             {
                 if (existingUser.IsDeleted)
-                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+                    return ServiceResult.Forbidden<AuthResponse>("Tài khoản đã bị vô hiệu hóa.");
 
                 var isPasswordValid = await _userManager.CheckPasswordAsync(existingUser, request.Password);
                 if (!isPasswordValid)
-                    return AuthResult.Failure<AuthResponse>("Mật khẩu không đúng cho tài khoản đã tồn tại.", 400);
+                    return ServiceResult.Failure<AuthResponse>("Mật khẩu không đúng cho tài khoản đã tồn tại.");
 
                 if (await _userManager.IsInRoleAsync(existingUser, targetRole))
-                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+                    return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
 
                 // Add Employer role & profile to existing user
                 await _userManager.AddToRoleAsync(existingUser, targetRole);
@@ -228,7 +231,7 @@ public class AuthService : IAuthService
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
-                return AuthResult.Success(existingAuthResponse, 201);
+                return ServiceResult.Success(existingAuthResponse);
             }
 
             var user = new AppUser
@@ -245,14 +248,14 @@ public class AuthService : IAuthService
             if (!createResult.Succeeded)
             {
                 var errors = string.Join(" ", createResult.Errors.Select(e => e.Description));
-                return AuthResult.Failure<AuthResponse>(errors, 400);
+                return ServiceResult.Failure<AuthResponse>(errors);
             }
 
             var roleResult = await _userManager.AddToRoleAsync(user, targetRole);
             if (!roleResult.Succeeded)
             {
                 var errors = string.Join(" ", roleResult.Errors.Select(e => e.Description));
-                return AuthResult.Failure<AuthResponse>(errors, 400);
+                return ServiceResult.Failure<AuthResponse>(errors);
             }
 
             // Create Company
@@ -280,21 +283,22 @@ public class AuthService : IAuthService
 
             await transaction.CommitAsync(cancellationToken);
 
-            return AuthResult.Success(authResponse, 201);
+            return ServiceResult.Success(authResponse);
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+            return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
         }
         catch (Exception)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("Registration failed due to a system error. Please try again.", 500);
+            return ServiceResult.InfrastructureError<AuthResponse>(
+                "Registration failed due to a system error. Please try again.");
         }
     }
 
-    public async Task<AuthResult<AuthResponse>> LoginAsync(
+    public async Task<ServiceResult<AuthResponse>> LoginAsync(
         LoginRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -302,24 +306,24 @@ public class AuthService : IAuthService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage));
-            return AuthResult.Failure<AuthResponse>(errors, 400);
+            return ServiceResult.Failure<AuthResponse>(errors);
         }
 
         // Always return 401 on missing user (avoid email enumeration)
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null)
-            return AuthResult.Failure<AuthResponse>("Invalid email or password.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>("Invalid email or password.");
 
         // Check soft-delete (admin disabled) before password check
         if (user.IsDeleted)
-            return AuthResult.Failure<AuthResponse>("Account has been disabled. Please contact support.", 403);
+            return ServiceResult.Forbidden<AuthResponse>("Account has been disabled. Please contact support.");
 
         // Check lockout (may have been locked by previous failed attempts)
         if (await _userManager.IsLockedOutAsync(user))
         {
             var until = user.LockoutEnd?.ToString("o") ?? "a while";
-            return AuthResult.Failure<AuthResponse>(
-                $"Account is locked until {until}. Please try again later.", 403);
+            return ServiceResult.Forbidden<AuthResponse>(
+                $"Account is locked until {until}. Please try again later.");
         }
 
         // Verify password
@@ -333,11 +337,11 @@ public class AuthService : IAuthService
             if (await _userManager.IsLockedOutAsync(user))
             {
                 var until = user.LockoutEnd?.ToString("o") ?? "a while";
-                return AuthResult.Failure<AuthResponse>(
-                    $"Too many failed attempts. Account is locked until {until}.", 403);
+                return ServiceResult.Forbidden<AuthResponse>(
+                    $"Too many failed attempts. Account is locked until {until}.");
             }
 
-            return AuthResult.Failure<AuthResponse>("Invalid email or password.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>("Invalid email or password.");
         }
 
         // Success — reset failed count
@@ -346,28 +350,32 @@ public class AuthService : IAuthService
         // Build JWT claims source
         var roles = await _userManager.GetRolesAsync(user);
         var jwtInfo = new JwtUserInfo(
-            UserId:        user.Id,
-            Email:         user.Email!,
-            Roles:         roles.AsReadOnly(),
+            UserId: user.Id,
+            Email: user.Email!,
+            Roles: roles.AsReadOnly(),
             SecurityStamp: user.SecurityStamp);
 
         var accessToken = _jwtTokenService.GenerateAccessToken(jwtInfo);
 
         // Parse expiry to return accurate ExpiresAt to client
         var expiryMinutes = int.TryParse(
-            _configuration["Jwt:AccessTokenExpiryMinutes"], out var m) ? m : 15;
+            _configuration["Jwt:AccessTokenExpiryMinutes"], out var m)
+            ? m
+            : 15;
         var accessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(expiryMinutes);
 
         // Generate & persist refresh token
         var rawRefreshToken = _jwtTokenService.GenerateRefreshToken();
         var tokenHash = _jwtTokenService.HashRefreshToken(rawRefreshToken);
         var expiryDays = int.TryParse(
-            _configuration["Jwt:RefreshTokenExpiryDays"], out var d) ? d : 7;
+            _configuration["Jwt:RefreshTokenExpiryDays"], out var d)
+            ? d
+            : 7;
 
         var refreshToken = new RefreshToken
         {
-            Id        = Guid.NewGuid(),
-            UserId    = user.Id,
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
             TokenHash = tokenHash,
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(expiryDays),
             CreatedAt = DateTimeOffset.UtcNow
@@ -376,18 +384,18 @@ public class AuthService : IAuthService
 
         // Update audit fields
         user.LastLoginAt = DateTimeOffset.UtcNow;
-        user.UpdatedAt   = DateTimeOffset.UtcNow;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
         await _userManager.UpdateAsync(user);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return AuthResult.Success(new AuthResponse(
-            AccessToken:         accessToken,
+        return ServiceResult.Success(new AuthResponse(
+            AccessToken: accessToken,
             AccessTokenExpiresAt: accessTokenExpiresAt,
-            RefreshToken:        rawRefreshToken,
-            Role:                roles.FirstOrDefault() ?? string.Empty));
+            RefreshToken: rawRefreshToken,
+            Role: roles.FirstOrDefault() ?? string.Empty));
     }
 
-    public async Task<AuthResult<AuthResponse>> RefreshTokenAsync(
+    public async Task<ServiceResult<AuthResponse>> RefreshTokenAsync(
         RefreshTokenRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -395,7 +403,7 @@ public class AuthService : IAuthService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage));
-            return AuthResult.Failure<AuthResponse>(errors, 400);
+            return ServiceResult.Failure<AuthResponse>(errors);
         }
 
         // 1. Look up stored refresh token by hash
@@ -404,14 +412,14 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
         if (storedToken is null)
-            return AuthResult.Failure<AuthResponse>("Invalid or expired refresh token.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>("Invalid or expired refresh token.");
 
         var userId = storedToken.UserId;
 
         // 2. Load user and check account status
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null || user.IsDeleted)
-            return AuthResult.Failure<AuthResponse>("Account has been disabled.", 403);
+            return ServiceResult.Forbidden<AuthResponse>("Account has been disabled.");
 
         // REUSE DETECTION: token was already revoked → possible token theft
         if (storedToken.IsRevoked)
@@ -423,18 +431,19 @@ public class AuthService : IAuthService
                 t.RevokedAt = DateTimeOffset.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
 
-            return AuthResult.Failure<AuthResponse>("Refresh token has already been used. All sessions revoked for security.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>(
+                "Refresh token has already been used. All sessions revoked for security.");
         }
 
         if (storedToken.IsExpired)
-            return AuthResult.Failure<AuthResponse>("Refresh token has expired. Please log in again.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>("Refresh token has expired. Please log in again.");
 
         // Build new token pair
         var roles = await _userManager.GetRolesAsync(user);
         var jwtInfo = new JwtUserInfo(
-            UserId:        user.Id,
-            Email:         user.Email!,
-            Roles:         roles.AsReadOnly(),
+            UserId: user.Id,
+            Email: user.Email!,
+            Roles: roles.AsReadOnly(),
             SecurityStamp: user.SecurityStamp);
 
         var newAccessToken = _jwtTokenService.GenerateAccessToken(jwtInfo);
@@ -447,34 +456,34 @@ public class AuthService : IAuthService
 
         var newRefreshToken = new RefreshToken
         {
-            Id        = Guid.NewGuid(),
-            UserId    = user.Id,
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
             TokenHash = newTokenHash,
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(expiryDays),
             CreatedAt = DateTimeOffset.UtcNow
         };
 
         // Rotate: revoke old, link to new
-        storedToken.RevokedAt         = DateTimeOffset.UtcNow;
+        storedToken.RevokedAt = DateTimeOffset.UtcNow;
         storedToken.ReplacedByTokenId = newRefreshToken.Id;
 
         _context.RefreshTokens.Add(newRefreshToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return AuthResult.Success(new AuthResponse(
-            AccessToken:          newAccessToken,
+        return ServiceResult.Success(new AuthResponse(
+            AccessToken: newAccessToken,
             AccessTokenExpiresAt: accessTokenExpiresAt,
-            RefreshToken:         newRawRefreshToken,
-            Role:                 roles.FirstOrDefault() ?? string.Empty));
+            RefreshToken: newRawRefreshToken,
+            Role: roles.FirstOrDefault() ?? string.Empty));
     }
 
-    public async Task<AuthResult<MessageResponse>> LogoutAsync(
+    public async Task<ServiceResult<MessageResponse>> LogoutAsync(
         Guid userId,
         string refreshToken,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
-            return AuthResult.Failure<MessageResponse>("Refresh token is required.", 400);
+            return ServiceResult.Failure<MessageResponse>("Refresh token is required.");
 
         var tokenHash = _jwtTokenService.HashRefreshToken(refreshToken);
         var storedToken = await _context.RefreshTokens
@@ -487,10 +496,10 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        return AuthResult.Success(new MessageResponse("Logged out."));
+        return ServiceResult.Success(new MessageResponse("Logged out."));
     }
 
-    public async Task<AuthResult<MessageResponse>> LogoutAllAsync(
+    public async Task<ServiceResult<MessageResponse>> LogoutAllAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
@@ -503,10 +512,10 @@ public class AuthService : IAuthService
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        return AuthResult.Success(new MessageResponse("Logged out from all devices."));
+        return ServiceResult.Success(new MessageResponse("Logged out from all devices."));
     }
 
-    public async Task<AuthResult<MessageResponse>> ForgotPasswordAsync(
+    public async Task<ServiceResult<MessageResponse>> ForgotPasswordAsync(
         ForgotPasswordRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -514,14 +523,14 @@ public class AuthService : IAuthService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage));
-            return AuthResult.Failure<MessageResponse>(errors, 400);
+            return ServiceResult.Failure<MessageResponse>(errors);
         }
 
         // Always return 200 — never reveal whether the email exists (anti-enumeration)
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null || user.IsDeleted)
         {
-            return AuthResult.Success(
+            return ServiceResult.Success(
                 new MessageResponse("If the email exists, a reset link has been sent."));
         }
 
@@ -529,7 +538,8 @@ public class AuthService : IAuthService
 
         // Build reset link for Frontend
         var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
-        var resetLink = $"{frontendUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
+        var resetLink =
+            $"{frontendUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
 
         var htmlBody = $@"
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
@@ -548,18 +558,19 @@ public class AuthService : IAuthService
 
         try
         {
-            await _emailService.SendEmailAsync(user.Email!, "FutureCV - Yêu cầu đặt lại mật khẩu", htmlBody, cancellationToken);
+            await _emailService.SendEmailAsync(user.Email!, "FutureCV - Yêu cầu đặt lại mật khẩu", htmlBody,
+                cancellationToken);
         }
         catch
         {
             // Log exception in production if email fails, but return anti-enumeration response
         }
 
-        return AuthResult.Success(
+        return ServiceResult.Success(
             new MessageResponse("If the email exists, a reset link has been sent."));
     }
 
-    public async Task<AuthResult<MessageResponse>> ResetPasswordAsync(
+    public async Task<ServiceResult<MessageResponse>> ResetPasswordAsync(
         ResetPasswordRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -567,7 +578,7 @@ public class AuthService : IAuthService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage));
-            return AuthResult.Failure<MessageResponse>(errors, 400);
+            return ServiceResult.Failure<MessageResponse>(errors);
         }
 
         // Return generic error for both "user not found" and "invalid token"
@@ -575,7 +586,7 @@ public class AuthService : IAuthService
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null || user.IsDeleted)
         {
-            return AuthResult.Failure<MessageResponse>("Invalid or expired reset token.", 400);
+            return ServiceResult.Failure<MessageResponse>("Invalid or expired reset token.");
         }
 
         // 1. Decode URL-encoded characters (like %2F -> /, %2B -> +) if user copied raw from URL
@@ -591,12 +602,12 @@ public class AuthService : IAuthService
             if (isTokenError)
             {
                 // Mask only token errors for security
-                return AuthResult.Failure<MessageResponse>("Invalid or expired reset token.", 400);
+                return ServiceResult.Failure<MessageResponse>("Invalid or expired reset token.");
             }
-            
+
             // It's likely a password policy error (e.g., missing uppercase, special char, etc.)
             var errors = string.Join(" ", result.Errors.Select(e => e.Description));
-            return AuthResult.Failure<MessageResponse>(errors, 400);
+            return ServiceResult.Failure<MessageResponse>(errors);
         }
 
         // Explicit unlock — deterministic recovery, independent of ASP.NET Identity internal behavior.
@@ -607,11 +618,11 @@ public class AuthService : IAuthService
         // Rotate SecurityStamp — invalidates ALL existing JWT + refresh tokens for this user
         _ = await _userManager.UpdateSecurityStampAsync(user);
 
-        return AuthResult.Success(
+        return ServiceResult.Success(
             new MessageResponse("Password reset successful. You can now log in with your new password."));
     }
 
-    public async Task<AuthResult<MessageResponse>> DisableUserAsync(
+    public async Task<ServiceResult<MessageResponse>> DisableUserAsync(
         Guid targetUserId,
         Guid currentAdminId,
         CancellationToken cancellationToken = default)
@@ -619,21 +630,21 @@ public class AuthService : IAuthService
         var user = await _userManager.FindByIdAsync(targetUserId.ToString());
         if (user is null)
         {
-            return AuthResult.Failure<MessageResponse>("User not found.", 404);
+            return ServiceResult.NotFound<MessageResponse>("User not found.");
         }
 
         // Guard 1: Admin cannot disable their own account
         if (targetUserId == currentAdminId)
         {
-            return AuthResult.Failure<MessageResponse>(
-                "Cannot disable an active Admin account.", 400);
+            return ServiceResult.Failure<MessageResponse>(
+                "Cannot disable an active Admin account.");
         }
 
         // Guard 2: Cannot disable any account with the Admin role
         if (await _userManager.IsInRoleAsync(user, "Admin"))
         {
-            return AuthResult.Failure<MessageResponse>(
-                "Cannot disable a system Admin account.", 400);
+            return ServiceResult.Failure<MessageResponse>(
+                "Cannot disable a system Admin account.");
         }
 
         user.IsDeleted = true;
@@ -643,8 +654,8 @@ public class AuthService : IAuthService
         var updateResult = await _userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
-            return AuthResult.Failure<MessageResponse>(
-                string.Join("; ", updateResult.Errors.Select(e => e.Description)), 500);
+            return ServiceResult.InfrastructureError<MessageResponse>(
+                string.Join("; ", updateResult.Errors.Select(e => e.Description)));
         }
 
         // Revoke all active refresh tokens immediately (BR-07 / Session Invalidation)
@@ -659,23 +670,23 @@ public class AuthService : IAuthService
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        return AuthResult.Success(
+        return ServiceResult.Success(
             new MessageResponse("User account has been disabled and all active sessions were revoked."));
     }
 
-    public async Task<AuthResult<MessageResponse>> EnableUserAsync(
+    public async Task<ServiceResult<MessageResponse>> EnableUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null)
         {
-            return AuthResult.Failure<MessageResponse>("User not found.", 404);
+            return ServiceResult.NotFound<MessageResponse>("User not found.");
         }
 
         if (!user.IsDeleted)
         {
-            return AuthResult.Failure<MessageResponse>("User account is currently active.", 400);
+            return ServiceResult.Failure<MessageResponse>("User account is currently active.");
         }
 
         user.IsDeleted = false;
@@ -685,38 +696,43 @@ public class AuthService : IAuthService
         var updateResult = await _userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
-            return AuthResult.Failure<MessageResponse>(
-                string.Join("; ", updateResult.Errors.Select(e => e.Description)), 500);
+            return ServiceResult.InfrastructureError<MessageResponse>(
+                string.Join("; ", updateResult.Errors.Select(e => e.Description)));
         }
 
-        return AuthResult.Success(
+        return ServiceResult.Success(
             new MessageResponse("User account has been re-enabled successfully."));
     }
 
-    private async Task<AuthResponse> GenerateAuthTokensAsync(AppUser user, string role, CancellationToken cancellationToken)
+    private async Task<AuthResponse> GenerateAuthTokensAsync(AppUser user, string role,
+        CancellationToken cancellationToken)
     {
         var roles = new[] { role };
         var jwtInfo = new JwtUserInfo(
-            UserId:        user.Id,
-            Email:         user.Email!,
-            Roles:         roles.AsReadOnly(),
+            UserId: user.Id,
+            Email: user.Email!,
+            Roles: roles.AsReadOnly(),
             SecurityStamp: user.SecurityStamp);
 
         var accessToken = _jwtTokenService.GenerateAccessToken(jwtInfo);
 
         var expiryMinutes = int.TryParse(
-            _configuration["Jwt:AccessTokenExpiryMinutes"], out var m) ? m : 15;
+            _configuration["Jwt:AccessTokenExpiryMinutes"], out var m)
+            ? m
+            : 15;
         var accessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(expiryMinutes);
 
         var rawRefreshToken = _jwtTokenService.GenerateRefreshToken();
         var tokenHash = _jwtTokenService.HashRefreshToken(rawRefreshToken);
         var expiryDays = int.TryParse(
-            _configuration["Jwt:RefreshTokenExpiryDays"], out var d) ? d : 7;
+            _configuration["Jwt:RefreshTokenExpiryDays"], out var d)
+            ? d
+            : 7;
 
         var refreshToken = new RefreshToken
         {
-            Id        = Guid.NewGuid(),
-            UserId    = user.Id,
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
             TokenHash = tokenHash,
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(expiryDays),
             CreatedAt = DateTimeOffset.UtcNow
@@ -724,60 +740,63 @@ public class AuthService : IAuthService
         _context.RefreshTokens.Add(refreshToken);
 
         user.LastLoginAt = DateTimeOffset.UtcNow;
-        user.UpdatedAt   = DateTimeOffset.UtcNow;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
         await _userManager.UpdateAsync(user);
 
         return new AuthResponse(
-            AccessToken:          accessToken,
+            AccessToken: accessToken,
             AccessTokenExpiresAt: accessTokenExpiresAt,
-            RefreshToken:         rawRefreshToken,
-            Role:                 role);
+            RefreshToken: rawRefreshToken,
+            Role: role);
     }
 
 
-
-    public async Task<AuthResult<AuthResponse>> GoogleLoginAsync(
+    public async Task<ServiceResult<AuthResponse>> GoogleLoginAsync(
         GoogleLoginRequest request,
         CancellationToken cancellationToken = default)
     {
         var validationResult = await _googleLoginValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
-            return AuthResult.Failure<AuthResponse>(string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)), 400);
+            return ServiceResult.Failure<AuthResponse>(string.Join(" ",
+                validationResult.Errors.Select(e => e.ErrorMessage)));
 
         var payload = await _googleTokenValidator.ValidateAsync(request.GoogleIdToken);
         if (payload == null)
-            return AuthResult.Failure<AuthResponse>("Invalid Google ID token.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>("Invalid Google ID token.");
 
         var existingUser = await _userManager.FindByEmailAsync(payload.Email);
         if (existingUser == null)
-            return AuthResult.Failure<AuthResponse>("User not found. Please register.", 404);
+            return ServiceResult.NotFound<AuthResponse>("User not found. Please register.");
 
         if (existingUser.IsDeleted)
-            return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+            return ServiceResult.Forbidden<AuthResponse>("Tài khoản đã bị vô hiệu hóa.");
 
         var logins = await _userManager.GetLoginsAsync(existingUser);
         if (!logins.Any(l => l.LoginProvider == "Google"))
-            return AuthResult.Failure<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK", 409); // Account exists with password, needs linking
+            return
+                ServiceResult.Conflict<AuthResponse>(
+                    "REQUIRE_PASSWORD_LOGIN_TO_LINK"); // Account exists with password, needs linking
 
         var userRoles = await _userManager.GetRolesAsync(existingUser);
         var mainRole = userRoles.FirstOrDefault() ?? "Candidate";
 
         var authResponse = await GenerateAuthTokensAsync(existingUser, mainRole, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
-        return AuthResult.Success(authResponse);
+        return ServiceResult.Success(authResponse);
     }
 
-    public async Task<AuthResult<AuthResponse>> GoogleRegisterCandidateAsync(
+    public async Task<ServiceResult<AuthResponse>> GoogleRegisterCandidateAsync(
         GoogleLoginRequest request,
         CancellationToken cancellationToken = default)
     {
         var validationResult = await _googleLoginValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
-            return AuthResult.Failure<AuthResponse>(string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)), 400);
+            return ServiceResult.Failure<AuthResponse>(string.Join(" ",
+                validationResult.Errors.Select(e => e.ErrorMessage)));
 
         var payload = await _googleTokenValidator.ValidateAsync(request.GoogleIdToken);
         if (payload == null)
-            return AuthResult.Failure<AuthResponse>("Invalid Google ID token.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>("Invalid Google ID token.");
 
         var targetRole = "Candidate";
 
@@ -788,15 +807,15 @@ public class AuthService : IAuthService
             if (existingUser != null)
             {
                 if (existingUser.IsDeleted)
-                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+                    return ServiceResult.Forbidden<AuthResponse>("Tài khoản đã bị vô hiệu hóa.");
 
                 var logins = await _userManager.GetLoginsAsync(existingUser);
                 if (!logins.Any(l => l.LoginProvider == "Google"))
-                    return AuthResult.Failure<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK", 409);
+                    return ServiceResult.Conflict<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK");
 
                 if (await _userManager.IsInRoleAsync(existingUser, targetRole))
-                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
-                
+                    return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
+
                 // Add Candidate role & profile to existing user
                 await _userManager.AddToRoleAsync(existingUser, targetRole);
                 var newCandidate = new Candidate
@@ -808,7 +827,7 @@ public class AuthService : IAuthService
                 var existingAuthResponse = await GenerateAuthTokensAsync(existingUser, targetRole, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return AuthResult.Success(existingAuthResponse, 201);
+                return ServiceResult.Success(existingAuthResponse);
             }
 
             var user = new AppUser
@@ -824,7 +843,8 @@ public class AuthService : IAuthService
 
             var createResult = await _userManager.CreateAsync(user); // No password
             if (!createResult.Succeeded)
-                return AuthResult.Failure<AuthResponse>(string.Join(" ", createResult.Errors.Select(e => e.Description)), 400);
+                return ServiceResult.Failure<AuthResponse>(string.Join(" ",
+                    createResult.Errors.Select(e => e.Description)));
 
             var loginInfo = new UserLoginInfo("Google", payload.Subject, "Google");
             await _userManager.AddLoginAsync(user, loginInfo);
@@ -841,31 +861,33 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            return AuthResult.Success(authResponse, 201);
+            return ServiceResult.Success(authResponse);
         }
         catch (DbUpdateException) // Catch unique constraint violations
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+            return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
         }
         catch (Exception)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("Registration failed due to a system error. Please try again.", 500);
+            return ServiceResult.InfrastructureError<AuthResponse>(
+                "Registration failed due to a system error. Please try again.");
         }
     }
 
-    public async Task<AuthResult<AuthResponse>> GoogleRegisterEmployerAsync(
+    public async Task<ServiceResult<AuthResponse>> GoogleRegisterEmployerAsync(
         GoogleRegisterEmployerRequest request,
         CancellationToken cancellationToken = default)
     {
         var validationResult = await _googleRegisterEmployerValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
-            return AuthResult.Failure<AuthResponse>(string.Join(" ", validationResult.Errors.Select(e => e.ErrorMessage)), 400);
+            return ServiceResult.Failure<AuthResponse>(string.Join(" ",
+                validationResult.Errors.Select(e => e.ErrorMessage)));
 
         var payload = await _googleTokenValidator.ValidateAsync(request.GoogleIdToken);
         if (payload == null)
-            return AuthResult.Failure<AuthResponse>("Invalid Google ID token.", 401);
+            return ServiceResult.Unauthorized<AuthResponse>("Invalid Google ID token.");
 
         var targetRole = "Employer";
 
@@ -876,15 +898,15 @@ public class AuthService : IAuthService
             if (existingUser != null)
             {
                 if (existingUser.IsDeleted)
-                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+                    return ServiceResult.Forbidden<AuthResponse>("Tài khoản đã bị vô hiệu hóa.");
 
                 var logins = await _userManager.GetLoginsAsync(existingUser);
                 if (!logins.Any(l => l.LoginProvider == "Google"))
-                    return AuthResult.Failure<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK", 409);
+                    return ServiceResult.Conflict<AuthResponse>("REQUIRE_PASSWORD_LOGIN_TO_LINK");
 
                 if (await _userManager.IsInRoleAsync(existingUser, targetRole))
-                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
-                
+                    return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
+
                 // Multi-role logic: add Employer role to existing user
                 await _userManager.AddToRoleAsync(existingUser, targetRole);
                 var company = new Company
@@ -908,7 +930,7 @@ public class AuthService : IAuthService
                 var existingAuthResponse = await GenerateAuthTokensAsync(existingUser, targetRole, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return AuthResult.Success(existingAuthResponse, 201);
+                return ServiceResult.Success(existingAuthResponse);
             }
 
             var user = new AppUser
@@ -924,7 +946,8 @@ public class AuthService : IAuthService
 
             var createResult = await _userManager.CreateAsync(user);
             if (!createResult.Succeeded)
-                return AuthResult.Failure<AuthResponse>(string.Join(" ", createResult.Errors.Select(e => e.Description)), 400);
+                return ServiceResult.Failure<AuthResponse>(string.Join(" ",
+                    createResult.Errors.Select(e => e.Description)));
 
             var loginInfo = new UserLoginInfo("Google", payload.Subject, "Google");
             await _userManager.AddLoginAsync(user, loginInfo);
@@ -952,17 +975,18 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            return AuthResult.Success(authResponse, 201);
+            return ServiceResult.Success(authResponse);
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+            return ServiceResult.Conflict<AuthResponse>("ACCOUNT_ALREADY_EXISTS");
         }
         catch (Exception)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure<AuthResponse>("Registration failed due to a system error. Please try again.", 500);
+            return ServiceResult.InfrastructureError<AuthResponse>(
+                "Registration failed due to a system error. Please try again.");
         }
     }
 }

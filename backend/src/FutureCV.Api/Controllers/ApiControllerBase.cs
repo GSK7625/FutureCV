@@ -25,11 +25,12 @@ public abstract class ApiControllerBase : ControllerBase
 
         return result.ErrorType switch
         {
-            ServiceErrorType.NotFound      => NotFound(new { message = result.ErrorMessage }),
-            ServiceErrorType.Forbidden     => StatusCode(403, new { message = result.ErrorMessage }),
-            ServiceErrorType.Conflict      => Conflict(new { message = result.ErrorMessage }),
-            ServiceErrorType.Infrastructure => StatusCode(500, new { message = result.ErrorMessage }),
-            _                              => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.NotFound        => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized    => Unauthorized(new { message = result.ErrorMessage }),
+            ServiceErrorType.Forbidden       => StatusCode(403, new { message = result.ErrorMessage }),
+            ServiceErrorType.Conflict        => Conflict(new { message = result.ErrorMessage }),
+            ServiceErrorType.Infrastructure  => StatusCode(500, new { message = result.ErrorMessage }),
+            _                                => BadRequest(new { message = result.ErrorMessage }),
         };
     }
 
