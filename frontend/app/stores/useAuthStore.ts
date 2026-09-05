@@ -10,6 +10,9 @@ export interface AuthUser {
   role: Role;
 }
 
+export type User = AuthUser;
+
+
 interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;

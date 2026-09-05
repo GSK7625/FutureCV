@@ -1,0 +1,383 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Job Detail &amp; AI-powered Application - FutureCV</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#f0f1f2",
+                        "tertiary": "#000000",
+                        "on-secondary-container": "#555e7d",
+                        "on-background": "#191c1d",
+                        "on-surface-variant": "#45464d",
+                        "on-error-container": "#93000a",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#e1e3e4",
+                        "secondary-fixed": "#dbe1ff",
+                        "on-primary-container": "#7b83a0",
+                        "outline-variant": "#c6c6ce",
+                        "on-tertiary": "#ffffff",
+                        "primary-container": "#131a33",
+                        "outline": "#76767e",
+                        "surface-tint": "#565d79",
+                        "surface-bright": "#f8f9fa",
+                        "secondary": "#545d7c",
+                        "on-tertiary-fixed": "#2c1603",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#2e3132",
+                        "primary-fixed": "#dbe1ff",
+                        "on-secondary-fixed-variant": "#3d4664",
+                        "tertiary-fixed": "#ffdcc1",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#e8bf9d",
+                        "on-tertiary-container": "#a07d5f",
+                        "inverse-primary": "#bec5e5",
+                        "surface": "#f8f9fa",
+                        "tertiary-container": "#2c1603",
+                        "surface-container": "#edeeef",
+                        "primary": "#000000",
+                        "surface-container-high": "#e7e8e9",
+                        "on-tertiary-fixed-variant": "#5d4127",
+                        "on-primary-fixed-variant": "#3e4660",
+                        "surface-dim": "#d9dadb",
+                        "on-surface": "#191c1d",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#d0d9fd",
+                        "on-error": "#ffffff",
+                        "surface-container-low": "#f3f4f5",
+                        "on-secondary-fixed": "#111a36",
+                        "on-primary-fixed": "#131a33",
+                        "surface-container-highest": "#e1e3e4",
+                        "secondary-fixed-dim": "#bdc5e9",
+                        "background": "#f8f9fa",
+                        "primary-fixed-dim": "#bec5e5",
+                        "on-primary": "#ffffff",
+                        // Custom Brand Colors
+                        "brand-midnight": "#0B132B",
+                        "brand-gold": "#C8963E",
+                        "brand-gold-light": "#f4ebd9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-desktop": "40px",
+                        "container-max": "1280px",
+                        "unit": "8px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.background'); }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .shadow-soft { box-shadow: 0px 4px 20px rgba(11, 19, 43, 0.04); }
+        .shadow-hover:hover { box-shadow: 0px 8px 24px rgba(11, 19, 43, 0.08); transform: translateY(-2px); transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="font-body-md text-on-surface antialiased selection:bg-brand-gold selection:text-white">
+<!-- TopNavBar -->
+<header class="bg-surface-container-lowest dark:bg-surface-container-lowest docked full-width top-0 sticky border-b border-outline-variant shadow-sm z-50">
+<div class="flex justify-between items-center max-w-container-max mx-auto px-margin-desktop w-full h-16">
+<div class="flex items-center gap-8">
+<a class="font-headline-md text-headline-md font-bold text-primary dark:text-primary" href="#">FutureCV</a>
+<nav class="hidden md:flex gap-6">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 cursor-pointer active:opacity-80" href="#">Việc làm</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80" href="#">Tạo CV</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80" href="#">Công ty</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80" href="#">Cẩm nang</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors duration-200">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-surface-container overflow-hidden border border-outline-variant cursor-pointer">
+<img alt="User avatar" class="w-full h-full object-cover" data-alt="A modern, high-end professional headshot of a software engineer, smiling subtly, well-lit studio lighting, corporate tech aesthetic, midnight blue and gold accents in background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuPKSpMmtTCD66TXqNl-28XQGBYYv7crsAdlt_mAImBHd1AtqDCsu9H9nJVXVA8F7PCm-kG8ITpziNvmuxNJbdcqphmyC19mrroVMTxidLIyiMIHzSC9_MUnoIj4Hw1o5pHO30Y37CNa335AhSnSvdm1_L5A5tI67-OuAUUhR9v77AUsXhgL6fn58Y00AMrMCFubs8zsNsFSx_OFLLNIXVht1zAUpm98H4Ph6kOe9HqRdP1a63-e8Prada8RIwMrXgxekYWBFS41Pg">
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 font-label-md text-label-md text-on-surface-variant mb-6">
+<a class="hover:text-primary transition-colors" href="#">Trang chủ</a>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<a class="hover:text-primary transition-colors" href="#">Việc làm Công nghệ thông tin</a>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-primary font-bold">Senior Fullstack Engineer (React / Node.js)</span>
+</nav>
+<!-- Job Header Banner -->
+<section class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-soft p-6 md:p-8 mb-8 relative overflow-hidden">
+<!-- Decorative bg accent -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-brand-gold-light rounded-bl-full opacity-50 -z-0"></div>
+<div class="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+<div class="flex gap-6 items-start">
+<div class="w-24 h-24 rounded-lg bg-surface flex-shrink-0 border border-outline-variant p-2 flex items-center justify-center">
+<img alt="VNG Tech Logo" class="max-w-full max-h-full object-contain" data-alt="A clean, minimalist tech company logo featuring sharp geometric lines in midnight blue, isolated on a pristine white background, high-end corporate identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVOhLbqZe5ZsqmMuUftlZPZymtsFc9y5zYl4U7dGonhlBXN9hWwVv1iaaY7qvb2N5ZCIIczKB_lED3yeQBJQOMPAUS-SL2D8ZSth6_93UFXMToWxKqiY2nSdefhTv8El_uUCq06UIuUlUBMpAqXnOu_vgKS686hYJ8wD__9bCTWKVxklcBsXGNAToUk3t-WTIB_lQsZQg9wJTS7YLarZcNIJtrDH8dMKvCUtKDKeGtGwdU2jCdPKIGDGKJMHECGFYuKM_tVJySHajZ">
+</div>
+<div>
+<div class="font-label-md text-label-md text-on-surface-variant mb-1">VNG Tech Corporation</div>
+<h1 class="font-headline-lg text-headline-lg text-brand-midnight flex items-center gap-2 mb-4">
+                            Senior Fullstack Engineer (React / Node.js &amp; Cloud)
+                            <span class="material-symbols-outlined text-brand-gold" style="font-variation-settings: &quot;FILL&quot; 1;" title="Verified Employer">verified</span>
+</h1>
+<div class="flex flex-wrap gap-3">
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-md border border-outline-variant font-label-sm text-label-sm text-secondary">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+                                Keangnam Landmark, HN
+                            </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold-light rounded-md border border-brand-gold/30 font-label-sm text-label-sm text-brand-gold">
+<span class="material-symbols-outlined text-[16px]">payments</span>
+                                35 - 55 Triệu
+                            </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-md border border-outline-variant font-label-sm text-label-sm text-secondary">
+<span class="material-symbols-outlined text-[16px]">work</span>
+                                3+ Năm
+                            </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-md border border-outline-variant font-label-sm text-label-sm text-secondary">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                                Hạn nộp: 15/09/2026
+                            </div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-4 w-full md:w-auto">
+<!-- AI Match Card -->
+
+<div class="flex gap-3 w-full md:w-auto">
+<button class="flex-1 md:flex-none px-6 py-3 bg-brand-gold text-white font-label-md text-label-md font-bold rounded-lg hover:bg-brand-gold/90 transition-colors shadow-sm whitespace-nowrap">
+                            Ứng tuyển ngay
+                        </button>
+<button class="p-3 border border-outline-variant rounded-lg hover:border-brand-midnight text-on-surface-variant hover:text-brand-midnight transition-colors bg-white">
+<span class="material-symbols-outlined">favorite_border</span>
+</button>
+<button class="p-3 border border-outline-variant rounded-lg hover:border-brand-midnight text-on-surface-variant hover:text-brand-midnight transition-colors bg-white">
+<span class="material-symbols-outlined">share</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Two Columns Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Main Content (Left - 8 cols) -->
+<div class="lg:col-span-8 flex flex-col gap-8">
+<!-- Job Description Section -->
+<section class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-soft p-6 md:p-8">
+<h2 class="font-headline-md text-headline-md text-brand-midnight mb-6 pb-2 border-b border-outline-variant">Chi tiết công việc</h2>
+<div class="mb-8">
+<h3 class="font-label-md text-label-md font-bold text-on-surface mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-brand-gold">description</span> Mô tả công việc
+                        </h3>
+<ul class="list-disc pl-6 space-y-2 text-on-surface-variant font-body-md text-body-md">
+<li class="">Thiết kế, phát triển và bảo trì các ứng dụng web quy mô lớn sử dụng ReactJS và Node.js.</li>
+<li class="">Tối ưu hóa hiệu suất ứng dụng trên các trình duyệt và thiết bị khác nhau.</li>
+<li class="">Phối hợp chặt chẽ với đội ngũ Product, Design và QA để đưa ra giải pháp kỹ thuật tối ưu.</li>
+<li class="">Tham gia thiết kế kiến trúc hệ thống và deploy lên nền tảng Cloud (AWS/GCP).</li>
+</ul>
+</div>
+<div class="mb-8">
+<h3 class="font-label-md text-label-md font-bold text-on-surface mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-brand-gold">task_alt</span> Yêu cầu ứng viên
+                        </h3>
+<ul class="list-disc pl-6 space-y-2 text-on-surface-variant font-body-md text-body-md">
+<li class="">Tối thiểu 3 năm kinh nghiệm làm việc với hệ sinh thái Javascript (ReactJS, Node.js, TypeScript).</li>
+<li class="">Nắm vững kiến thức về cấu trúc dữ liệu, thuật toán và Design Patterns.</li>
+<li class="">Có kinh nghiệm làm việc với cơ sở dữ liệu SQL (PostgreSQL) và NoSQL (MongoDB).</li>
+<li class="">Kinh nghiệm làm việc với Docker, CI/CD và các dịch vụ Cloud là một lợi thế lớn.</li>
+</ul>
+</div>
+<div class="mb-8">
+<h3 class="font-label-md text-label-md font-bold text-on-surface mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-brand-gold">featured_play_list</span> Quyền lợi
+                        </h3>
+<ul class="list-disc pl-6 space-y-2 text-on-surface-variant font-body-md text-body-md">
+<li class="">Lương thưởng hấp dẫn, review lương 2 lần/năm. Thưởng tháng 13, 14 tùy theo kết quả kinh doanh.</li>
+<li class="">Cung cấp Macbook Pro và màn hình phụ làm việc.</li>
+<li class="">Bảo hiểm sức khỏe cao cấp cho nhân viên và người thân.</li>
+<li class="">Môi trường làm việc trẻ trung, năng động, linh hoạt thời gian (Hybrid working).</li>
+</ul>
+</div>
+<div>
+<h3 class="font-label-md text-label-md font-bold text-on-surface mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-brand-gold">pin_drop</span> Địa điểm làm việc
+                        </h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-4">Tòa nhà Keangnam Landmark 72, Phạm Hùng, Nam Từ Liêm, Hà Nội</p>
+<div class="w-full h-48 rounded-lg bg-surface-variant border border-outline-variant overflow-hidden" data-location="Hanoi, Vietnam">
+<img alt="Map Location" class="w-full h-full object-cover opacity-80 mix-blend-multiply" data-alt="A sleek, modern map visualization showing the location of Keangnam Landmark in Hanoi. The map style is corporate and minimalist, using a subtle color palette of cool grays, midnight blue, and highlights in gold, avoiding clutter." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQCnfgrQ1RCpkpbrw0pKMyi-qUKorJaPn8EMJuX85dYsyfcpF505YoR3eXzB6XTUf0r8sgD2A8Sbrzl3DN13U8M3MdHYw42UBqKHM9rEviYUwdidFhlv2FSyuTLfrg4NxWGGzlLgFh7AtQINWETQuF1KQS268nzgxEGKmHbMkwfBU2jdsFO6nQI0IYCPtZQGN1yZZVEuZsLTiE3JnEPducH2wB1LNGVHF26wc9_68whx7g4xr9zRNnvqAL3sGmIL_2Y_31R3-8Km88">
+</div>
+</div>
+</section>
+<!-- AI Application Section -->
+<section class="bg-surface-container-lowest rounded-lg border-2 border-dashed border-outline-variant shadow-soft p-8 text-center hover:border-brand-gold transition-colors duration-300 relative group overflow-hidden">
+<div class="absolute inset-0 bg-brand-gold/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+<span class="material-symbols-outlined text-[48px] text-brand-gold mb-4 block" style="font-variation-settings: &quot;FILL&quot; 1;">upload_file</span>
+<h3 class="font-headline-md text-headline-md text-brand-midnight mb-2">Ứng tuyển nhanh qua AI ATS</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-lg mx-auto">Chọn Profile FutureCV của bạn hoặc tải lên CV PDF để hệ thống AI phân tích độ tương thích ngay lập tức.</p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="px-6 py-3 bg-brand-midnight text-white font-label-md text-label-md font-bold rounded-lg hover:bg-brand-midnight/90 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">account_circle</span>
+                            Dùng FutureCV Profile
+                        </button>
+<button class="px-6 py-3 border border-brand-midnight text-brand-midnight font-label-md text-label-md font-bold rounded-lg hover:bg-surface-container transition-colors flex items-center justify-center gap-2 bg-white">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+                            Tải lên CV (PDF)
+                        </button>
+</div>
+<div class="mt-6 flex items-center justify-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px] text-brand-gold animate-spin" style="font-variation-settings: &quot;FILL&quot; 1;">bolt</span>
+                        AI Scanning Active
+                    </div>
+</section>
+</div>
+<!-- Sidebar (Right - 4 cols) -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<!-- Company Info Card -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-soft p-6">
+<h3 class="font-label-md text-label-md font-bold text-brand-midnight mb-4 pb-2 border-b border-outline-variant">Thông tin doanh nghiệp</h3>
+<div class="flex items-center gap-4 mb-4">
+<div class="w-16 h-16 rounded border border-outline-variant p-1 flex items-center justify-center bg-surface">
+<img alt="VNG Tech Logo Small" class="max-w-full max-h-full object-contain" data-alt="A clean, minimalist tech company logo featuring sharp geometric lines in midnight blue, isolated on a pristine white background, high-end corporate identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBgfUpn7OOeNVhIC2EVd22OodDrN8CSWTtnQSIwZV1AgYQchqiv34N-nuv6wwv2bPERO22SFQ71oDTsqqbqM9HXq56p-gKEU6qLGY-_H6NsB1RfdCf1dfvt50UD5V0AwPsWJVeMVGVmjRtChmgX_3rTqxGhon6sF3Kd-C6DICYug6zHUs6IbHmCOaQvBrBVa1b36PbriYc7ULeq8Nrc5m1q6FyA7eFgMn5VAN9zog-PIJGqO1F6B6T22d7NaYBZdoAxCtizbfNrtaR">
+</div>
+<div>
+<div class="font-label-md text-label-md font-bold text-brand-midnight">VNG Tech Corporation</div>
+<a class="font-label-sm text-label-sm text-brand-gold hover:underline" href="#">vngtech.com.vn</a>
+</div>
+</div>
+<ul class="space-y-3 font-body-md text-body-md text-on-surface-variant">
+<li class="flex justify-between">
+<span class="text-secondary flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">group</span> Quy mô:</span>
+<span class="font-medium text-brand-midnight">1,000+ nhân viên</span>
+</li>
+<li class="flex justify-between">
+<span class="text-secondary flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">domain</span> Lĩnh vực:</span>
+<span class="font-medium text-brand-midnight">Công nghệ thông tin</span>
+</li>
+</ul>
+</div>
+<!-- Job Summary Info Card -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-soft p-6">
+<h3 class="font-label-md text-label-md font-bold text-brand-midnight mb-4 pb-2 border-b border-outline-variant">Tổng quan tin tuyển dụng</h3>
+<ul class="space-y-4 font-body-md text-body-md">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary mt-0.5">category</span>
+<div>
+<div class="font-label-sm text-label-sm text-secondary">Cấp bậc</div>
+<div class="text-brand-midnight font-medium">Senior</div>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary mt-0.5">schedule</span>
+<div>
+<div class="font-label-sm text-label-sm text-secondary">Hình thức làm việc</div>
+<div class="text-brand-midnight font-medium">Toàn thời gian (Hybrid)</div>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary mt-0.5">wc</span>
+<div>
+<div class="font-label-sm text-label-sm text-secondary">Giới tính</div>
+<div class="text-brand-midnight font-medium">Không yêu cầu</div>
+</div>
+</li>
+</ul>
+</div>
+<!-- Similar Jobs AI Recommendations -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-soft p-6">
+<h3 class="font-label-md text-label-md font-bold text-brand-midnight mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-brand-gold" style="font-variation-settings: &quot;FILL&quot; 1;">auto_awesome</span>
+                        Việc làm tương tự
+                    </h3>
+<div class="space-y-4">
+<!-- Job Item 1 -->
+<a class="block p-3 rounded-lg border border-outline-variant hover:border-brand-gold shadow-sm hover:shadow-md transition-all group bg-white" href="#">
+<div class="flex justify-between items-start mb-2">
+<div class="font-label-md text-label-md font-bold text-brand-midnight group-hover:text-brand-gold transition-colors line-clamp-1">Senior ReactJS Developer</div>
+<span class="bg-brand-gold-light text-brand-gold text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">92% Match</span>
+</div>
+<div class="font-label-sm text-label-sm text-secondary mb-2">FPT Software</div>
+<div class="flex gap-2 text-brand-gold font-label-sm text-label-sm">
+<span class="">30 - 45 Tr</span> • <span class="">Hà Nội</span>
+</div>
+</a>
+<!-- Job Item 2 -->
+<a class="block p-3 rounded-lg border border-outline-variant hover:border-brand-gold shadow-sm hover:shadow-md transition-all group bg-white" href="#">
+<div class="flex justify-between items-start mb-2">
+<div class="font-label-md text-label-md font-bold text-brand-midnight group-hover:text-brand-gold transition-colors line-clamp-1">Fullstack Node/React Lead</div>
+<span class="bg-brand-gold-light text-brand-gold text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">88% Match</span>
+</div>
+<div class="font-label-sm text-label-sm text-secondary mb-2">MOMO</div>
+<div class="flex gap-2 text-brand-gold font-label-sm text-label-sm">
+<span class="">Thỏa thuận</span> • <span class="">Hà Nội</span>
+</div>
+</a>
+<!-- Job Item 3 -->
+<a class="block p-3 rounded-lg border border-outline-variant hover:border-brand-gold shadow-sm hover:shadow-md transition-all group bg-white" href="#">
+<div class="flex justify-between items-start mb-2">
+<div class="font-label-md text-label-md font-bold text-brand-midnight group-hover:text-brand-gold transition-colors line-clamp-1">Frontend Engineer (React/TS)</div>
+<span class="bg-surface-container text-secondary text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">75% Match</span>
+</div>
+<div class="font-label-sm text-label-sm text-secondary mb-2">Shopee Vietnam</div>
+<div class="flex gap-2 text-brand-gold font-label-sm text-label-sm">
+<span class="">Up to $2500</span> • <span class="">Hà Nội</span>
+</div>
+</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-primary dark:bg-primary-container full-width py-12 px-margin-desktop mt-16">
+<div class="max-w-container-max mx-auto flex flex-col md:flex-row justify-between items-start gap-8">
+<div>
+<div class="font-headline-md text-headline-md font-bold text-on-primary mb-4">FutureCV</div>
+<p class="font-label-md text-label-md text-on-primary dark:text-on-primary-container max-w-sm">
+                    © 2024 FutureCV. All rights reserved. Candidate Support: 1800-FUTURE
+                </p>
+</div>
+<nav class="flex flex-col md:flex-row gap-6 font-label-md text-label-md">
+<a class="text-on-primary-fixed-variant hover:text-tertiary-fixed transition-colors duration-200 cursor-pointer" href="#">About Us</a>
+<a class="text-on-primary-fixed-variant hover:text-tertiary-fixed transition-colors duration-200 cursor-pointer" href="#">Terms of Service</a>
+<a class="text-on-primary-fixed-variant hover:text-tertiary-fixed transition-colors duration-200 cursor-pointer" href="#">Privacy Policy</a>
+<a class="text-on-primary-fixed-variant hover:text-tertiary-fixed transition-colors duration-200 cursor-pointer" href="#">Contact</a>
+</nav>
+</div>
+</footer>
+
+
+</body></html>

@@ -1,8 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
-import { IconCircleCheck as CircleCheck, IconCloudUpload } from "@tabler/icons-react";import { jobService } from "~/features/candidate/services/jobService";
-import { candidateQueryKeys } from "~/features/candidate/queries/candidateQueryKeys";
+import { IconCircleCheck as CircleCheck, IconCloudUpload } from "@tabler/icons-react";
+import { DEMO_JOBS } from "~/features/candidate/services/jobService";
 import { useApplyJob } from "~/features/candidate/hooks/useApplyJob";
 import { Field, Input, Button, Card, CardContent } from "~/components/ui";
 import { useUIStore } from "~/stores/useUIStore";
@@ -13,10 +12,7 @@ export default function ApplyFormPage() {
   const apply = useApplyJob(jobId);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const jobQuery = useQuery({
-    queryKey: candidateQueryKeys.jobs.detail(jobId),
-    queryFn: () => jobService().detail(jobId),
-  });
+  const job = DEMO_JOBS.find((j) => String(j.id) === String(jobId)) ?? DEMO_JOBS[0];
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -67,7 +63,7 @@ export default function ApplyFormPage() {
             </p>
             <div className="mt-8 flex justify-center gap-4">
               <Link
-                to="/candidate"
+                to="/jobs"
                 className="inline-flex h-11 items-center rounded-default bg-navy px-6 font-semibold text-white transition-colors hover:bg-navy-secondary"
               >
                 Tìm việc khác
@@ -85,15 +81,13 @@ export default function ApplyFormPage() {
     );
   }
 
-  const job = jobQuery.data;
-
   return (
     <div className="mx-auto max-w-3xl">
       <nav className="mb-3 flex items-center gap-2 text-label text-ink-variant" aria-label="Breadcrumb">
-        <Link to="/candidate" className="hover:text-navy">Việc làm</Link>
+        <Link to="/jobs" className="hover:text-navy">Việc làm</Link>
         <span aria-hidden>/</span>
         {job && (
-          <Link to={`/candidate/jobs/${jobId}`} className="hover:text-navy">
+          <Link to={`/jobs/${jobId}`} className="hover:text-navy">
             {job.title}
           </Link>
         )}

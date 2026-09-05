@@ -8,7 +8,7 @@ export default function HRLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-nav bg-navy text-white shadow-sm">
+      <header className="sticky top-0 z-50 bg-navy text-white shadow-sm">
         <div className="container-page mx-auto flex h-[72px] items-center justify-between px-margin-mobile md:px-margin-desktop">
           <div className="flex items-center gap-8">
             <Link to="/" className="text-headline-md font-bold tracking-tight">

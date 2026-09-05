@@ -79,11 +79,11 @@
   --container-page: 80rem; /* 1280px */
 
   /* ── Z-index scale (documented) ─────────────────────────── */
-  --z-nav: 50; /* sticky header/navbar */
-  --z-dropdown: 100;
-  --z-overlay: 200; /* modal backdrop */
-  --z-modal: 210;
-  --z-toast: 300;
+  --z-index-nav: 50; /* sticky header/navbar */
+  --z-index-dropdown: 100;
+  --z-index-overlay: 200; /* modal backdrop */
+  --z-index-modal: 210;
+  --z-index-toast: 300;
 
   /* ── Motion ─────────────────────────────────────────────── */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -99,9 +99,17 @@ body {
   @apply bg-gold/25;
 }
 
-/* Focus ring thống nhất navy (theo DESIGN.md: focus border navy + glow 2px) */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-navy);
+/* Loại bỏ hoàn toàn bounding box đen mặc định của trình duyệt khi focus */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  box-shadow: none;
+}
+
+/* Focus ring cho interactive elements không phải input (tránh bounding box đen quanh ô nhập) */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-gold);
   outline-offset: 2px;
 }
 

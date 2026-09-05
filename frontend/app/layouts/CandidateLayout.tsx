@@ -8,16 +8,15 @@ import {
   IconChevronDown,
   IconFileText,
 } from "@tabler/icons-react";
-import type { Route } from "./+types/CandidateLayout";
 import { requireRole } from "~/guards/requireRole";
 import { useAuthStore } from "~/stores/useAuthStore";
 import { Avatar } from "~/components/ui/Avatar";
 import { cn } from "~/lib/cn";
 
-export const clientLoader = (args: Route.ClientLoaderArgs) => {
-  const { user } = requireRole(["candidate"]);
+export const clientLoader = (args: { request: Request }) => {
+  const user = useAuthStore.getState().user;
   const url = new URL(args.request.url);
-  return { keyword: url.searchParams.get("q") ?? "" };
+  return { keyword: url.searchParams.get("q") ?? "", user };
 };
 
 export default function CandidateLayout() {
@@ -51,7 +50,7 @@ export default function CandidateLayout() {
   return (
     <div className="min-h-screen bg-background">
       {/* Topbar navy */}
-      <header className="sticky top-0 z-nav bg-navy text-white shadow-sm">
+      <header className="sticky top-0 z-50 bg-navy text-white shadow-sm">
         <div className="container-page mx-auto flex h-[72px] items-center justify-between px-margin-mobile md:px-margin-desktop">
           <div className="flex items-center gap-8">
             <Link to="/" className="text-headline-md font-bold tracking-tight">
