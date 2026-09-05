@@ -1,16 +1,85 @@
+using System.Text;
+using FutureCV.Api.Middlewares;
+using FutureCV.Application;
 using FutureCV.Infrastructure;
+using FutureCV.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────
 builder.Services.AddControllers();
 
-// Infrastructure layer (DbContext, repositories, …)
+// Application layer (use-case services, validators — currently minimal)
+builder.Services.AddApplication();
+
+// Infrastructure layer (DbContext, Identity, JWT, Auth services)
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Swagger / OpenAPI
+// Password reset token lifetime: 15 min (overrides Identity default of 1 day)
+// Configured here (Api project) because DataProtectionTokenProviderOptions requires
+// the full ASP.NET Core SDK — not available in Infrastructure class library.
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = TimeSpan.FromMinutes(15));
+
+// JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("JWT Key is not configured in appsettings.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+// Swagger / OpenAPI with Bearer support
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "FutureCV API", Version = "v1" });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter JWT Bearer token"
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // CORS (allow React Web & React Native during development)
 builder.Services.AddCors(options =>
@@ -24,6 +93,9 @@ builder.Services.AddCors(options =>
 // ── Pipeline ──────────────────────────────────────────────────
 var app = builder.Build();
 
+// Seed roles (Candidate, Employer, Admin)
+await RoleSeeder.SeedAsync(app.Services);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -32,7 +104,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<BannedUserMiddleware>();
 app.MapControllers();
 
 app.Run();
+

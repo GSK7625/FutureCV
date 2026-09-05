@@ -5,6 +5,12 @@
     <ProjectReference Include="..\FutureCV.Application\FutureCV.Application.csproj" />
   </ItemGroup>
 
+  <!-- Required to resolve ASP.NET Core Identity types (AddDefaultTokenProviders, etc.)
+       in a class library that does NOT use Microsoft.NET.Sdk.Web -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- EF Core + Npgsql — versions managed centrally in Directory.Packages.props -->
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
@@ -14,6 +20,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+
+    <!-- JWT Tokens generation -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
 
     <!-- DI / Configuration abstractions for class library -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />

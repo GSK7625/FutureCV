@@ -28,16 +28,33 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(
             provider => provider.GetRequiredService<ApplicationDbContext>());
 
-        // ASP.NET Core Identity
+        // ASP.NET Core Identity — password rules, lockout, roles, EF stores, token providers
         services.AddIdentityCore<AppUser>(options =>
             {
                 options.Password.RequireDigit           = true;
-                options.Password.RequiredLength         = 8;
-                options.Password.RequireUppercase       = false;
+                options.Password.RequiredLength         = 6;
+                options.Password.RequireUppercase       = true;
+                options.Password.RequireLowercase       = true;
                 options.Password.RequireNonAlphanumeric = false;
+
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan  = TimeSpan.FromMinutes(30);
+                options.Lockout.AllowedForNewUsers      = true;
             })
             .AddRoles<IdentityRole<Guid>>()
-            .AddEntityFrameworkStores<ApplicationDbContext>();
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
+
+
+        // Register JWT Token Service
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+        // Register SmtpSettings & Email Service
+        services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
+        services.AddTransient<IEmailService, FutureCV.Infrastructure.Services.EmailService>();
+
+        // Register Auth Service
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }
