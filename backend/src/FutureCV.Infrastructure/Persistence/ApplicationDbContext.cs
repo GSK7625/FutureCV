@@ -35,6 +35,13 @@ public class ApplicationDbContext
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    public DbSet<Location> Locations => Set<Location>();
+    public DbSet<JobCategory> JobCategories => Set<JobCategory>();
+    public DbSet<JobLevel> JobLevels => Set<JobLevel>();
+    public DbSet<EmploymentType> EmploymentTypes => Set<EmploymentType>();
+    public DbSet<Job> Jobs => Set<Job>();
+    public DbSet<JobSkill> JobSkills => Set<JobSkill>();
+
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
