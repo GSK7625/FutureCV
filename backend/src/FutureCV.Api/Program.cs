@@ -96,6 +96,26 @@ var app = builder.Build();
 // Seed roles (Candidate, Employer, Admin)
 await RoleSeeder.SeedAsync(app.Services);
 
+// Seed test data for FCV-82 (only in Development)
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<FutureCV.Infrastructure.Persistence.ApplicationDbContext>();
+        var userManager = services.GetRequiredService<UserManager<AppUser>>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        
+        await FutureCV.Api.Data.TestDataSeeder.SeedTestDataAsync(context, userManager, roleManager);
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while seeding test data.");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

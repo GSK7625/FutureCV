@@ -75,6 +75,10 @@ public static class DependencyInjection
         services.AddScoped<IEmployerService, EmployerService>();
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IJobService, JobService>();
+        
+        // Register Application Management service (FCV-82, FCV-83)
+        services.AddScoped<FutureCV.Application.Features.Application.Interfaces.IApplicationService, 
+            FutureCV.Application.Features.Application.Services.ApplicationService>();
 
         return services;
     }

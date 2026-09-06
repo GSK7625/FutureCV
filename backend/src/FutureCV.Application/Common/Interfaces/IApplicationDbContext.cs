@@ -29,7 +29,12 @@ public interface IApplicationDbContext
     DbSet<EmploymentType> EmploymentTypes { get; }
     DbSet<Job> Jobs { get; }
     DbSet<JobSkill> JobSkills { get; }
-
+    
+    // Application Management
+    DbSet<Domain.Entities.Application> Applications { get; }
+    DbSet<ApplicationStatusHistory> ApplicationStatusHistories { get; }
+    DbSet<CandidateRanking> CandidateRankings { get; }
+    DbSet<SavedJob> SavedJobs { get; }
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
