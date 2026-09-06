@@ -24,6 +24,7 @@
     <!-- JWT Tokens generation -->
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="Google.Apis.Auth" />
+    <PackageReference Include="CloudinaryDotNet" />
 
     <!-- DI / Configuration abstractions for class library -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
