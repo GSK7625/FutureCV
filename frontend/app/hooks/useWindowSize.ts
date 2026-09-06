@@ -7,10 +7,18 @@ export function useWindowSize() {
   });
 
   useEffect(() => {
-    const onResize = () =>
-      setSize({ width: window.innerWidth, height: window.innerHeight });
+    let raf = 0;
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setSize({ width: window.innerWidth, height: window.innerHeight });
+      });
+    };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return size;

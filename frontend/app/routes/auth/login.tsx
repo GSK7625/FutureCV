@@ -33,7 +33,9 @@ export default function LoginPage() {
         onError: (error) => showToast(error.message, "error"),
         onSuccess: () => {
           const returnTo = searchParams.get("returnTo");
-          if (returnTo?.startsWith("/")) navigate(returnTo, { replace: true });
+          if (returnTo?.startsWith("/")) {
+            navigate(returnTo, { replace: true });
+          }
         },
       },
     );

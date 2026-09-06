@@ -1,8 +1,16 @@
 export interface AuthResponseDto {
   accessToken: string;
-  accessTokenExpiresAt: string;
+  accessTokenExpiresAt?: string;
   refreshToken: string;
   role: "candidate" | "employer" | "admin";
+  id?: string;
+  email?: string;
+  fullName?: string;
+  user?: {
+    id?: string;
+    email?: string;
+    fullName?: string;
+  };
 }
 
 export interface LoginDto {

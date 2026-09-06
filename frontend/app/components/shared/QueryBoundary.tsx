@@ -21,9 +21,16 @@ export function QueryBoundary({ isLoading, error, onRetry, skeleton, children }:
 
   if (error) {
     const message =
-      error instanceof ApiError && error.status === 401
-        ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+      error instanceof ApiError
+        ? error.isNetworkError
+          ? "Mất kết nối tới máy chủ. Kiểm tra mạng và thử lại."
+          : error.status === 401
+            ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+            : error.status >= 500
+              ? "Máy chủ đang gặp sự cố. Vui lòng thử lại sau ít phút."
+              : error.message
         : "Không thể tải dữ liệu. Kiểm tra kết nối và thử lại.";
+
     return (
       <EmptyState
         title="Đã xảy ra lỗi"

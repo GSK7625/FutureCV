@@ -1,9 +1,9 @@
 /**
  * @file CvPreviewPaper.tsx
- * @description Bản xem trước CV thời gian thực mô phỏng chuẩn trang in A4 (Render động theo thông tin cá nhân, màu chủ đạo, kinh nghiệm, học vấn, kỹ năng).
- * @architecture Tuân thủ SRP (Chỉ đảm nhiệm render bản xem trước CV A4) & ISP (Nhận data props thuần túy không phụ thuộc store).
+ * @description Bản xem trước CV thời gian thực mô phỏng chuẩn trang in A4. Bọc React.memo để ngăn re-render khi tab hoặc các state UI khác đổi.
  */
 
+import { memo } from "react";
 import { IconEye } from "@tabler/icons-react";
 
 import type {
@@ -20,7 +20,7 @@ interface CvPreviewPaperProps {
   skills: string[];
 }
 
-export function CvPreviewPaper({
+export const CvPreviewPaper = memo(function CvPreviewPaper({
   activeColor,
   personalInfo,
   experiences,
@@ -170,4 +170,4 @@ export function CvPreviewPaper({
       </div>
     </div>
   );
-}
+});

@@ -1,8 +1,13 @@
 import { Link, Outlet } from "react-router";
+import { requireRole } from "~/guards/requireRole";
 import { useAuthStore } from "~/stores/useAuthStore";
 import { Avatar } from "~/components/ui/Avatar";
 
-/** Layout tối giản cho khu vực HR (out of scope UI chi tiết trong giai đoạn này). */
+export const clientLoader = () => {
+  return requireRole(["employer"]);
+};
+
+/** Layout cho khu vực HR */
 export default function HRLayout() {
   const user = useAuthStore((s) => s.user);
 

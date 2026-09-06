@@ -1,34 +1,48 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { authService } from "../services/authService";
 import { useAuthStore, type Role } from "~/stores/useAuthStore";
 import { useUIStore } from "~/stores/useUIStore";
+import type { AuthResponseDto } from "../types";
 
-function applySession(result: { accessToken: string; refreshToken: string; role: Role }) {
+export function normalizeRole(role?: string): Role {
+  const r = (role ?? "").trim().toLowerCase();
+  if (r.includes("employer") || r.includes("hr")) return "employer";
+  if (r.includes("admin")) return "admin";
+  return "candidate";
+}
+
+function applySession(result: AuthResponseDto, inputEmail?: string): Role {
+  const userObj = result.user;
+  const role = normalizeRole(result.role);
   useAuthStore.getState().setSession({
     user: {
-      id: "",
-      email: "",
-      fullName: "",
-      role: result.role,
+      id: result.id ?? userObj?.id ?? "",
+      email: result.email ?? userObj?.email ?? inputEmail ?? "",
+      fullName: result.fullName ?? userObj?.fullName ?? "",
+      role,
     },
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
   });
+  return role;
 }
 
 export function useLogin() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
 
   return useMutation({
     mutationFn: (input: { email: string; password: string }) =>
       authService().login(input),
-    onSuccess: (result) => {
-      applySession(result);
+    onSuccess: (result, variables) => {
+      // Xóa toàn bộ cache query cũ trước khi áp dụng session mới
+      queryClient.removeQueries({ type: "all" });
+      const role = applySession(result, variables.email);
       showToast("Đăng nhập thành công", "success");
-      const role = useAuthStore.getState().user?.role;
-      navigate(role === "candidate" ? "/candidate" : "/", { replace: true });
+      const targetUrl = role === "candidate" ? "/candidate" : role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/";
+      navigate(targetUrl, { replace: true });
     },
   });
 }

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
   IconSearch,
@@ -33,46 +33,63 @@ export default function JobListPage() {
   const urlKeyword = searchParams.get("q") ?? "";
   const urlLocation = searchParams.get("location") ?? "";
 
+  const [searchInput, setSearchInput] = useState(urlKeyword);
+
   const {
-    keyword: storeKeyword,
     categories,
     locations,
     jobTypes,
     toggleCategory,
     toggleLocation,
     toggleJobType,
-    clearAll,
+    clearAll: clearStoreFilters,
   } = useCandidateFilterStore();
 
-  const keyword = useMemo(() => storeKeyword || urlKeyword, [storeKeyword, urlKeyword]);
-  const effectiveLocations = useMemo(() => {
-    const set = new Set(locations);
-    if (urlLocation) set.add(urlLocation);
-    return [...set];
-  }, [locations, urlLocation]);
+  // Đồng bộ ô input khi url search params thay đổi từ bên ngoài (e.g. Header bar)
+  useEffect(() => {
+    setSearchInput(urlKeyword);
+  }, [urlKeyword]);
 
-  const debouncedKeyword = useDebounce(keyword, 400);
+  const debouncedSearch = useDebounce(searchInput, 400);
+
+  // Cập nhật URL search params khi debounce xong
+  useEffect(() => {
+    const currentQ = searchParams.get("q") ?? "";
+    if (debouncedSearch.trim() !== currentQ) {
+      const next = new URLSearchParams(searchParams);
+      if (debouncedSearch.trim()) next.set("q", debouncedSearch.trim());
+      else next.delete("q");
+      setSearchParams(next, { replace: true });
+    }
+  }, [debouncedSearch, searchParams, setSearchParams]);
+
+  // Merge locations từ store và URL param
+  const effectiveLocations = Array.from(
+    new Set([...locations, ...(urlLocation ? [urlLocation] : [])]),
+  );
 
   const filters = {
-    keyword: debouncedKeyword,
+    keyword: urlKeyword,
     category: categories,
     location: effectiveLocations,
     jobType: jobTypes,
     page: 1,
     pageSize: 5,
   };
+
   const query = useJobList(filters);
 
-  const onSearchChange = (value: string) => {
-    useCandidateFilterStore.getState().setKeyword(value);
-    const next = new URLSearchParams(searchParams);
-    if (value.trim()) next.set("q", value.trim());
-    else next.delete("q");
-    setSearchParams(next, { replace: true });
+  const handleClearAll = () => {
+    clearStoreFilters();
+    setSearchInput("");
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const hasFilters =
-    Boolean(debouncedKeyword) || categories.length > 0 || effectiveLocations.length > 0 || jobTypes.length > 0;
+    Boolean(urlKeyword) ||
+    categories.length > 0 ||
+    effectiveLocations.length > 0 ||
+    jobTypes.length > 0;
 
   return (
     <div>
@@ -88,26 +105,35 @@ export default function JobListPage() {
           <span className="font-bold text-navy">
             {query.data ? `${formatNumber(query.data.total)} việc làm` : "việc làm"}
           </span>
-          {debouncedKeyword && (
-            <span className="font-bold text-navy"> {debouncedKeyword}</span>
+          {urlKeyword && (
+            <span className="font-bold text-navy"> cho &ldquo;{urlKeyword}&rdquo;</span>
           )}
         </h1>
 
-        <div className="mt-4 flex gap-2 rounded-default bg-navy p-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const next = new URLSearchParams(searchParams);
+            if (searchInput.trim()) next.set("q", searchInput.trim());
+            else next.delete("q");
+            setSearchParams(next, { replace: true });
+          }}
+          className="mt-4 flex gap-2 rounded-default bg-navy p-2"
+        >
           <div className="flex flex-1 items-center overflow-hidden rounded-default bg-white">
             <IconSearch size={20} stroke={1.6} className="ml-3 shrink-0 text-ink-muted" />
             <input
-              value={keyword}
-              onChange={(e) => onSearchChange(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Tìm theo vị trí, công ty, kỹ năng..."
               aria-label="Từ khóa tìm kiếm"
               className="h-11 w-full bg-transparent px-3 text-body text-ink outline-none placeholder:text-ink-muted/70"
             />
           </div>
-          <Button variant="accent" className="px-8">
+          <Button type="submit" variant="accent" className="px-8">
             Tìm kiếm
           </Button>
-        </div>
+        </form>
       </div>
 
       <div className="mt-6 flex flex-col gap-6 lg:flex-row">
@@ -139,7 +165,7 @@ export default function JobListPage() {
                 <label key={loc} className="group flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={effectiveLocations.includes(loc)}
+                    checked={locations.includes(loc) || urlLocation === loc}
                     onChange={() => toggleLocation(loc)}
                     className="rounded-tag border-border-strong accent-[#0B132B]"
                   />
@@ -168,14 +194,14 @@ export default function JobListPage() {
 
           {hasFilters && (
             <div className="mt-6 border-t border-border-strong pt-5">
-              <Button variant="ghost" size="sm" onClick={clearAll}>
+              <Button variant="ghost" size="sm" onClick={handleClearAll}>
                 <IconFilterOff size={16} stroke={1.6} /> Xóa tất cả bộ lọc
               </Button>
             </div>
           )}
         </aside>
 
-        {/* Job rows: layout family khác với card grid ở trang chủ */}
+        {/* Job rows */}
         <section className="flex flex-1 flex-col gap-4" aria-label="Danh sách việc làm">
           <QueryBoundary
             isLoading={query.isLoading}
@@ -261,7 +287,7 @@ export default function JobListPage() {
                 icon={<IconFileText size={48} stroke={1.2} />}
                 title="Không tìm thấy việc làm phù hợp"
                 description="Thử điều chỉnh từ khóa hoặc xóa bớt bộ lọc để xem thêm kết quả."
-                action={hasFilters ? <Button variant="primary" onClick={clearAll}>Xóa bộ lọc</Button> : undefined}
+                action={hasFilters ? <Button variant="primary" onClick={handleClearAll}>Xóa bộ lọc</Button> : undefined}
               />
             )}
           </QueryBoundary>
