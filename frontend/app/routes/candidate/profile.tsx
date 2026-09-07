@@ -73,7 +73,6 @@ export default function ProfilePage() {
       setNewSkill("");
     }
     setEditing(false);
-    queryClient.invalidateQueries({ queryKey: candidateQueryKeys.profile });
     showToast("Đã lưu thay đổi hồ sơ", "success");
   };
 

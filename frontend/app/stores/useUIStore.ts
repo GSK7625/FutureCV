@@ -16,12 +16,17 @@ interface UIState {
 
 let nextToastId = 1;
 
-export const useUIStore = create<UIState>((set, get) => ({
+export const useUIStore = create<UIState>((set) => ({
   toasts: [],
   showToast: (message, variant = "info") => {
     const id = nextToastId++;
-    set({ toasts: [...get().toasts, { id, message, variant }] });
-    window.setTimeout(() => get().dismissToast(id), 5000);
+    set((state) => ({ toasts: [...state.toasts, { id, message, variant }] }));
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+      }, 5000);
+    }
   },
-  dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
+  dismissToast: (id) =>
+    set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 }));

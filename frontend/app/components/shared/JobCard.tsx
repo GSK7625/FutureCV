@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router";
 import { IconHeart, IconHeartFilled } from "@tabler/icons-react";
 import { formatSalary } from "~/utils";
 import type { Job } from "~/features/candidate/types";
 import { cn } from "~/lib/cn";
 
-export function JobCard({ job, className }: { job: Job; className?: string }) {
+export const JobCard = memo(function JobCard({ job, className }: { job: Job; className?: string }) {
   const [saved, setSaved] = useState(false);
   const navigate = useNavigate();
 
@@ -89,4 +89,4 @@ export function JobCard({ job, className }: { job: Job; className?: string }) {
       </div>
     </article>
   );
-}
+});

@@ -10,11 +10,13 @@ import {
 } from "@tabler/icons-react";
 import { requireRole } from "~/guards/requireRole";
 import { useAuthStore } from "~/stores/useAuthStore";
+import { authService } from "~/features/auth/services/authService";
+import { queryClient } from "~/lib/queryClient";
 import { Avatar } from "~/components/ui/Avatar";
 import { cn } from "~/lib/cn";
 
 export const clientLoader = (args: { request: Request }) => {
-  const user = useAuthStore.getState().user;
+  const { user } = requireRole(["candidate"]);
   const url = new URL(args.request.url);
   return { keyword: url.searchParams.get("q") ?? "", user };
 };
@@ -39,11 +41,20 @@ export default function CandidateLayout() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate(`/candidate${keyword.trim() ? `?q=${encodeURIComponent(keyword.trim())}` : ""}`);
+    navigate(`/jobs${keyword.trim() ? `?q=${encodeURIComponent(keyword.trim())}` : ""}`);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const { refreshToken } = useAuthStore.getState();
+    if (refreshToken) {
+      try {
+        await authService().logout(refreshToken);
+      } catch {
+        // Revoke best-effort
+      }
+    }
     logout();
+    queryClient.removeQueries({ type: "all" });
     navigate("/");
   };
 

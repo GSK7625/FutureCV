@@ -1,7 +1,7 @@
 import { type RouteConfig, index, layout, prefix, route } from "@react-router/dev/routes";
 
 export default [
-  // ── Public Routes (Trang chủ & Việc làm) ─────────────────
+  // ── Public Routes (Trang chủ & Việc làm & CV) ─────────────
   layout("layouts/PublicLayout.tsx", [
     index("routes/public/home.tsx"),
     route("jobs/:jobId", "routes/candidate/job-detail.tsx"),
@@ -17,6 +17,34 @@ export default [
     route("login", "routes/auth/login.tsx"),
     route("register", "routes/auth/register.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
+  ]),
+
+  // ── Candidate Protected Routes ─────────────────────────────
+  ...prefix("candidate", [
+    layout("layouts/CandidateLayout.tsx", [
+      index("routes/candidate/job-list.tsx"),
+      route("profile", "routes/candidate/profile.tsx"),
+    ]),
+  ]),
+
+  // ── HR Protected Routes ───────────────────────────────────
+  ...prefix("hr", [
+    layout("layouts/HRLayout.tsx", [
+      index("routes/hr/dashboard.tsx"),
+      route("jobs", "routes/hr/job-management.tsx"),
+      route("pipeline", "routes/hr/candidate-pipeline.tsx"),
+      route("interviews", "routes/hr/interview.tsx"),
+    ]),
+  ]),
+
+  // ── Admin Protected Routes ────────────────────────────────
+  ...prefix("admin", [
+    layout("layouts/AdminLayout.tsx", [
+      index("routes/admin/dashboard.tsx"),
+      route("users", "routes/admin/user-management.tsx"),
+      route("roles", "routes/admin/role-permission.tsx"),
+      route("config", "routes/admin/system-config.tsx"),
+    ]),
   ]),
 
   // ── 404 Fallback ──────────────────────────────────────────

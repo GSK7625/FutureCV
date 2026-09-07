@@ -1,67 +1,72 @@
 /**
  * @file jobService.ts
- * @description Candidate Job Service: Xử lý giao tiếp API cho các thao tác việc làm của ứng viên (danh sách việc làm, chi tiết, nộp đơn ứng tuyển, việc làm tương tự).
- * @architecture Tuân thủ Interface Segregation Principle (ISP: khai báo interface IJobService) & Dependency Inversion Principle (DIP: tích hợp fallback adapter với mock data khi backend API chưa sẵn sàng).
+ * @description Candidate Job Service: Xử lý giao tiếp API cho các thao tác việc làm của ứng viên.
+ * @architecture Tuân thủ ISP (IJobService) & DIP (fallback adapter có điều kiện cho dev).
  */
 
-import { fetcher } from "~/lib/fetcher";
+import { fetcher, ApiError } from "~/lib/fetcher";
 import type { ApplicationDto, Job, JobFilters, JobListResult } from "../types";
 import { DEMO_JOBS, filterDemoJobs } from "../mocks/jobs.mock";
 
-
 export { DEMO_JOBS };
 
-
 export interface IJobService {
-  list(filters: JobFilters): Promise<JobListResult>;
-  detail(id: string): Promise<Job>;
+  list(filters: JobFilters, signal?: AbortSignal): Promise<JobListResult>;
+  detail(id: string, signal?: AbortSignal): Promise<Job>;
   apply(dto: ApplicationDto): Promise<{ id: string }>;
-  similar(id: string): Promise<Job[]>;
+  similar(id: string, signal?: AbortSignal): Promise<Job[]>;
 }
 
 /**
- * Helper bọc API call: Nếu backend endpoint chưa sẵn sàng (hoặc môi trường dev chưa có backend),
- * tự động fallback về mock data để toàn bộ luồng UI vẫn hoạt động mượt mà.
+ * Fallback mock CHỈ khi thỏa đồng thời:
+ * (1) đang chạy DEV, (2) lỗi hạ tầng (mạng/timeout) hoặc endpoint chưa tồn tại (404).
+ * Tuyệt đối không nuốt 401/403/5xx — đó là lỗi thật mà UI phải hiển thị.
  */
-async function withFallback<T>(apiCall: () => Promise<T>, fallback: () => T | Promise<T>): Promise<T> {
+async function withDevFallback<T>(
+  apiCall: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+): Promise<T> {
+  if (!import.meta.env.DEV) return apiCall();
   try {
     return await apiCall();
-  } catch (_error) {
-    return await fallback();
+  } catch (error) {
+    const isDevScenario =
+      error instanceof ApiError && (error.isNetworkError || error.status === 404);
+    if (!isDevScenario) throw error;
+    console.warn("[jobService] API chưa sẵn sàng hoặc ngoại lệ kết nối, fallback mock:", (error as Error).message);
+    return fallback();
   }
 }
 
 export function jobService(): IJobService {
   return {
-    list: async (filters: JobFilters): Promise<JobListResult> => {
-      return withFallback(
-        () => fetcher<JobListResult>("/api/jobs", { method: "GET" }),
-        () => filterDemoJobs(filters)
-      );
-    },
+    list: (filters, signal) =>
+      withDevFallback(
+        () => fetcher<JobListResult>("/api/jobs", { method: "GET", signal }),
+        () => filterDemoJobs(filters),
+      ),
 
-    detail: async (id: string): Promise<Job> => {
-      return withFallback(
-        () => fetcher<Job>(`/api/jobs/${id}`, { method: "GET" }),
+    detail: (id, signal) =>
+      withDevFallback(
+        () => fetcher<Job>(`/api/jobs/${id}`, { method: "GET", signal }),
         () => {
           const found = DEMO_JOBS.find((j) => String(j.id) === String(id));
           return found ?? DEMO_JOBS[0];
-        }
-      );
-    },
+        },
+      ),
 
-    apply: async (dto: ApplicationDto): Promise<{ id: string }> => {
-      return withFallback(
-        () => fetcher<{ id: string }>("/api/applications", { method: "POST", body: dto, auth: true }),
-        () => ({ id: "app-" + Date.now() })
-      );
-    },
+    // ❌ KHÔNG fallback cho mutation ghi dữ liệu — thất bại phải báo lỗi thật.
+    apply: (dto) =>
+      fetcher<{ id: string }>("/api/applications", {
+        method: "POST",
+        body: dto,
+        auth: true,
+      }),
 
-    similar: async (id: string): Promise<Job[]> => {
-      return withFallback(
-        () => fetcher<Job[]>(`/api/jobs/${id}/similar`, { method: "GET" }),
-        () => DEMO_JOBS.filter((j) => String(j.id) !== String(id)).slice(0, 3)
-      );
-    },
+    similar: (id, signal) =>
+      withDevFallback(
+        () => fetcher<Job[]>(`/api/jobs/${id}/similar`, { method: "GET", signal }),
+        () => DEMO_JOBS.filter((j) => String(j.id) !== String(id)).slice(0, 3),
+      ),
   };
 }
