@@ -56,6 +56,9 @@ public static class DependencyInjection
         // Register Auth Service
         services.AddScoped<IAuthService, AuthService>();
 
+        // Register Google Token Validator
+        services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
+
         return services;
     }
 }
