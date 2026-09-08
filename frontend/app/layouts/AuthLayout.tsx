@@ -14,7 +14,17 @@ export default function AuthLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) navigate("/", { replace: true });
+    if (user) {
+      const targetUrl =
+        user.role === "employer"
+          ? "/hr"
+          : user.role === "candidate"
+            ? "/candidate"
+            : user.role === "admin"
+              ? "/admin"
+              : "/";
+      navigate(targetUrl, { replace: true });
+    }
   }, [user, navigate]);
 
   return (
