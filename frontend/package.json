@@ -6,6 +6,7 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
+    "test": "node --test app/lib/requestBody.test.ts app/features/hr/contracts/hrContracts.test.ts",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {

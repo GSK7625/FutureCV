@@ -1,6 +1,5 @@
-﻿import { ComingSoon } from "~/components/shared/ComingSoon";
+import { EmployerJobsPage } from "~/features/hr/components/EmployerJobsPage";
 
 export default function Page() {
-  return <ComingSoon title="Quản lý tin tuyển dụng" />;
+  return <EmployerJobsPage />;
 }
-
