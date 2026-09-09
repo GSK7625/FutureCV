@@ -37,4 +37,6 @@ public class Job : BaseEntity
     public EmploymentType? EmploymentType { get; set; }
     public Location? Location { get; set; }
     public ICollection<JobSkill> JobSkills { get; set; } = [];
+    public ICollection<SavedJob> SavedJobs { get; set; } = [];
+    public ICollection<JobApplication> Applications { get; set; } = [];
 }

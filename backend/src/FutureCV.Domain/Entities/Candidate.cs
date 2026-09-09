@@ -27,6 +27,8 @@ public class Candidate : BaseEntity
     public ICollection<CandidateCv> CVs { get; set; } = [];
     public ICollection<Certificate> Certificates { get; set; } = [];
     public ICollection<Project> Projects { get; set; } = [];
+    public ICollection<SavedJob> SavedJobs { get; set; } = [];
+    public ICollection<JobApplication> Applications { get; set; } = [];
 }
 
 

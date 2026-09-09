@@ -1,5 +1,5 @@
-using FutureCV.Application.Common.Interfaces;
-using FutureCV.Application.DTOs.Auth;
+using FutureCV.Application.Features.Auth.DTOs;
+using FutureCV.Application.Features.Auth.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

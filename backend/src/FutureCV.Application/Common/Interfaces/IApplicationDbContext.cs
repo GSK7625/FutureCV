@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using FutureCV.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +32,9 @@ public interface IApplicationDbContext
     DbSet<EmploymentType> EmploymentTypes { get; }
     DbSet<Job> Jobs { get; }
     DbSet<JobSkill> JobSkills { get; }
+    DbSet<SavedJob> SavedJobs { get; }
+    DbSet<JobApplication> Applications { get; }
+    DbSet<ApplicationStatusHistory> ApplicationStatusHistories { get; }
 
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }

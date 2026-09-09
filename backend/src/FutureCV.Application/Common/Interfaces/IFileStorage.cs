@@ -1,3 +1,7 @@
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace FutureCV.Application.Common.Interfaces;
 
 /// <summary>
@@ -28,4 +32,19 @@ public interface IFileStorage
     /// <param name="publicId">The public ID returned by <see cref="UploadAsync"/>.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task DeleteAsync(string publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Uploads a raw document file (e.g. PDF CV) to cloud storage.
+    /// Returns the public URL and provider-specific public ID.
+    /// </summary>
+    Task<(string PublicUrl, string PublicId)> UploadDocumentAsync(
+        Stream stream,
+        string fileName,
+        string folder,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a raw document file by its provider-specific public ID.
+    /// </summary>
+    Task DeleteDocumentAsync(string publicId, CancellationToken cancellationToken = default);
 }
