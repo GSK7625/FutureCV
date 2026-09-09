@@ -1,4 +1,5 @@
 import { useAuthStore } from "~/stores/useAuthStore";
+import { prepareRequestBody } from "./requestBody";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -43,11 +44,12 @@ async function requestOnce<T>(
   externalSignal?: AbortSignal,
 ): Promise<T> {
   const { body, auth = false, headers, timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...rest } = options;
+  const preparedBody = prepareRequestBody(body);
 
   const targetSignal: AbortSignal | undefined = externalSignal ?? (signal ?? undefined);
 
   const requestHeaders: Record<string, string> = {
-    ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    ...(preparedBody.hasJsonBody ? { "Content-Type": "application/json" } : {}),
     ...((headers as Record<string, string>) ?? {}),
   };
   if (auth) {
@@ -70,7 +72,7 @@ async function requestOnce<T>(
       ...rest,
       signal: compositeSignal,
       headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: preparedBody.body,
     });
   } catch (err: unknown) {
     if (targetSignal?.aborted) throw err;

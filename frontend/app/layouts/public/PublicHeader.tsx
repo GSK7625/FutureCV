@@ -164,15 +164,31 @@ export function PublicHeader() {
                 </button>
               </div>
               <div className="h-8 w-px bg-border-subtle" aria-hidden />
-              <div className="flex flex-col items-start">
-                <span className="text-label-sm text-ink-variant">Bạn là nhà tuyển dụng?</span>
+              {user.role === "employer" ? (
                 <Link
-                  to="/register"
-                  className="text-label font-bold text-navy transition-colors hover:text-gold"
+                  to="/hr"
+                  className="rounded-default bg-navy px-3.5 py-2 text-label font-bold !text-white transition-colors hover:bg-navy-secondary"
                 >
-                  Đăng tuyển ngay »
+                  Vào trang Tuyển Dụng »
                 </Link>
-              </div>
+              ) : user.role === "admin" ? (
+                <Link
+                  to="/admin"
+                  className="rounded-default bg-navy px-3.5 py-2 text-label font-bold !text-white transition-colors hover:bg-navy-secondary"
+                >
+                  Vào trang Quản trị »
+                </Link>
+              ) : (
+                <div className="flex flex-col items-start">
+                  <span className="text-label-sm text-ink-variant">Bạn là nhà tuyển dụng?</span>
+                  <Link
+                    to="/register"
+                    className="text-label font-bold text-navy transition-colors hover:text-gold"
+                  >
+                    Đăng tuyển ngay »
+                  </Link>
+                </div>
+              )}
             </>
           ) : (
             <>
