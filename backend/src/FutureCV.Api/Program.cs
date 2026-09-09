@@ -7,14 +7,18 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────
 builder.Services.AddControllers();
 
-// Application layer (use-case services, validators — currently minimal)
+// Application layer (use-case services, validators registered via AddValidatorsFromAssembly)
 builder.Services.AddApplication();
+
+// Enable automatic asynchronous FluentValidation for API controllers
+builder.Services.AddFluentValidationAutoValidation();
 
 // Infrastructure layer (DbContext, Identity, JWT, Auth services)
 builder.Services.AddInfrastructure(builder.Configuration);
