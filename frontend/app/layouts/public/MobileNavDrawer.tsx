@@ -52,13 +52,24 @@ export function MobileNavDrawer({
         <div className="my-2 h-px bg-border-subtle" />
 
         {user ? (
-          <button
-            type="button"
-            onClick={onLogout}
-            className="rounded px-3 py-2.5 text-left text-ink-variant hover:bg-surface-low"
-          >
-            Đăng xuất ({user.fullName || user.email})
-          </button>
+          <>
+            {user.role === "employer" && (
+              <Link
+                to="/hr"
+                onClick={onClose}
+                className="rounded px-3 py-2.5 font-bold text-navy hover:bg-surface-low hover:text-gold"
+              >
+                Vào trang Tuyển Dụng »
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded px-3 py-2.5 text-left text-ink-variant hover:bg-surface-low"
+            >
+              Đăng xuất ({user.fullName || user.email})
+            </button>
+          </>
         ) : (
           <div className="flex flex-col gap-2 pt-2">
             <Button
