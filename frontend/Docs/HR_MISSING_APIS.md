@@ -1,57 +1,53 @@
 # API còn thiếu cho giao diện Nhà tuyển dụng
 
-Tài liệu này đối chiếu giao diện HR với backend trên nhánh `master`, Jira FCV-83, FCV-91, FCV-92 và tài liệu use case FutureCV. Frontend không tự đặt tên endpoint hoặc payload cho các nghiệp vụ chưa được backend công bố.
+Tài liệu này đối chiếu giao diện HR với backend trên `master` sau commit `a36ae3c`. Frontend chỉ tích hợp endpoint và DTO đã được backend công bố.
 
-## Application theo Job
+## API Application đã có và đã tích hợp
 
-- Lấy danh sách Application thuộc một Job của Company hiện tại.
-- Lấy danh sách toàn bộ Application mà Recruiter có quyền xem.
-- Hỗ trợ phân trang, tìm theo tên hoặc email và lọc theo trạng thái.
-- Lấy chi tiết Application gồm Candidate, CV được dùng lúc Apply, Job, ngày Apply và lịch sử trạng thái.
-- Cung cấp quyền xem hoặc tải file CV đã nộp.
+- `GET /api/employer/jobs/{jobId}/applications`: danh sách Application theo Job, có lọc trạng thái, rating, từ khóa và phân trang.
+- `GET /api/employer/applications/{id}`: chi tiết Candidate, CV, Match Score, Match Explanation, kỹ năng và lịch sử trạng thái.
+- `PUT /api/employer/applications/{id}/evaluation`: rating, nhãn đánh giá và ghi chú riêng.
+- `PATCH /api/employer/applications/{id}/status`: cập nhật trạng thái và lý do.
+- `GET /api/employer/jobs/{jobId}/pipeline`: Recruitment Pipeline theo Job.
 
-## Trạng thái Application
+## API hoặc dữ liệu vẫn còn thiếu
 
-- Cập nhật trạng thái theo luồng `APPLIED → SCREENING → INTERVIEW → OFFER → HIRED`.
-- Hỗ trợ `REJECTED` tại các giai đoạn hợp lệ và khóa cập nhật khi Application đã `WITHDRAWN`.
-- Nhận lý do thay đổi, người thao tác, thời điểm và tùy chọn gửi thông báo nếu backend giữ yêu cầu này.
+### Danh sách Application toàn công ty
 
-## MatchResult và Candidate Ranking
+Backend mới chỉ cung cấp danh sách theo `jobId`. Chưa có endpoint lấy toàn bộ Application mà Recruiter có quyền xem trên nhiều Job trong một truy vấn.
 
-- Trả MatchResult của đúng cặp CV đã Apply và Job.
-- Trả Match Score, matched skills, missing skills, experience comparison, education comparison, project relevance và Match Explanation.
-- Xếp danh sách Candidate theo Match Score giảm dần cho từng Job.
-- Nếu rating, nhận xét, tag hoặc ghi chú riêng vẫn thuộc MVP, backend cần DTO và endpoint ghi/đọc tương ứng.
+### Dashboard HR tổng hợp
 
-## Recruitment Pipeline
+Chưa có endpoint thống kê tổng hợp cho:
 
-- Trả dữ liệu Pipeline theo từng Job, gồm Candidate tại mỗi stage và tổng số lượng.
-- Chuyển Candidate sang stage hợp lệ và trả lại trạng thái Application mới.
-- Cung cấp lịch sử chuyển stage để giao diện hiển thị timeline.
-- Cung cấp thống kê Pipeline nếu Dashboard cần conversion rate, time to hire hoặc bottleneck; frontend không tự suy ra các số liệu này từ dữ liệu thiếu.
-
-## Dashboard HR
-
-- Tổng Application và Application mới.
-- Số Candidate ở từng stage.
-- Số MatchResult đã hoàn tất hoặc lỗi.
+- Tổng Application và Application mới của toàn công ty.
+- Số Candidate ở từng stage trên tất cả Job.
 - Số lịch phỏng vấn sắp tới.
+- Conversion rate, time to hire hoặc bottleneck.
 
-Hiện Dashboard chỉ hiển thị thống kê Job có thể lấy chính xác từ `GET /api/employer/jobs`.
+Dashboard hiện chỉ hiển thị số liệu Job lấy chính xác từ `GET /api/employer/jobs`.
 
-## Interview
+### Interview
 
-Nếu Interview được giữ trong MVP, backend cần xác nhận hợp đồng cho:
+Backend chưa có hợp đồng cho:
 
 - Danh sách lịch theo Recruiter, Job và khoảng thời gian.
 - Tạo lịch từ Application.
-- Cập nhật lịch.
-- Hủy lịch.
-- Thông tin thời gian, múi giờ, hình thức, địa điểm hoặc liên kết họp và người tham gia.
+- Cập nhật hoặc hủy lịch.
+- Thời gian, múi giờ, hình thức, địa điểm hoặc liên kết họp và người tham gia.
 
-## Yêu cầu chung cho hợp đồng backend
+### Dữ liệu Candidate và MatchResult chi tiết
 
-- Mọi endpoint Recruiter phải yêu cầu role `Employer` và kiểm tra quyền theo Company/Job.
-- Response và lỗi giữ cùng quy ước với các controller hiện có.
-- Tên endpoint, method, DTO và quy tắc chuyển trạng thái cần được backend xác nhận trước khi frontend tích hợp.
-- Không trả toàn bộ nội dung CV hoặc dữ liệu cá nhân nhạy cảm nếu màn hình không cần sử dụng.
+- DTO có `CandidateEmail` nhưng service hiện trả `null`, nên giao diện chưa thể hiển thị email thực tế.
+- MatchResult mới có điểm, giải thích, kỹ năng phù hợp và kỹ năng thiếu; chưa có so sánh kinh nghiệm, học vấn và mức độ liên quan của dự án dưới dạng trường riêng.
+- Chưa có endpoint hoặc dữ liệu thông báo Candidate sau khi Recruiter cập nhật trạng thái.
+
+### Quy tắc chuyển trạng thái
+
+Backend chấp nhận mọi giá trị thuộc `Applied`, `Screening`, `Interview`, `Offer`, `Hired`, `Rejected` và chỉ khóa hồ sơ `Withdrawn`. Nếu nghiệp vụ yêu cầu chuyển tuần tự hoặc giới hạn từng bước, backend cần công bố và kiểm tra quy tắc đó.
+
+## Yêu cầu chung
+
+- Các endpoint Recruiter tiếp tục yêu cầu role `Employer` và kiểm tra quyền sở hữu Company/Job.
+- Response và lỗi giữ cùng quy ước với controller hiện có.
+- Frontend không tự đặt endpoint, payload hoặc số liệu thay cho backend.
