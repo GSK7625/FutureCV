@@ -1,5 +1,5 @@
 import { ApiError, fetcher } from "~/lib/fetcher";
-import { buildEmployerJobsQuery } from "../contracts/hrContracts";
+import { buildEmployerJobsQuery, buildRecruiterApplicationsQuery } from "../contracts/hrContracts";
 import type {
   CompanyProfile,
   CompanyProfileInput,
@@ -12,7 +12,13 @@ import type {
   JobSummary,
   LookupOption,
   PagedResult,
+  RecruiterApplicationDetail,
+  RecruiterApplicationFilters,
+  RecruiterApplicationSummary,
+  RecruitmentPipeline,
   SkillOption,
+  EvaluateApplicationRequest,
+  UpdateApplicationStatusRequest,
 } from "../types";
 
 function compactOptional(value: string): string | null {
@@ -127,5 +133,44 @@ export const hrService = {
       fetcher<SkillOption[]>("/api/skills", { method: "GET", signal }),
     ]);
     return { categories, levels, employmentTypes, locations, skills };
+  },
+
+  getJobApplications(jobId: string, filters: RecruiterApplicationFilters, signal?: AbortSignal) {
+    return fetcher<PagedResult<RecruiterApplicationSummary>>(
+      `/api/employer/jobs/${jobId}/applications${buildRecruiterApplicationsQuery(filters)}`,
+      { method: "GET", auth: true, signal },
+    );
+  },
+
+  getApplication(id: string, signal?: AbortSignal) {
+    return fetcher<RecruiterApplicationDetail>(`/api/employer/applications/${id}`, {
+      method: "GET",
+      auth: true,
+      signal,
+    });
+  },
+
+  evaluateApplication(id: string, input: EvaluateApplicationRequest) {
+    return fetcher<boolean>(`/api/employer/applications/${id}/evaluation`, {
+      method: "PUT",
+      auth: true,
+      body: input,
+    });
+  },
+
+  updateApplicationStatus(id: string, input: UpdateApplicationStatusRequest) {
+    return fetcher<boolean>(`/api/employer/applications/${id}/status`, {
+      method: "PATCH",
+      auth: true,
+      body: input,
+    });
+  },
+
+  getRecruitmentPipeline(jobId: string, signal?: AbortSignal) {
+    return fetcher<RecruitmentPipeline>(`/api/employer/jobs/${jobId}/pipeline`, {
+      method: "GET",
+      auth: true,
+      signal,
+    });
   },
 };

@@ -2,10 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildEmployerJobsQuery,
+  buildRecruiterApplicationsQuery,
+  toEvaluationRequest,
+  toSafeDocumentUrl,
+  toStatusUpdateRequest,
   toJobRequest,
   validateCompanyProfile,
+  validateEvaluationForm,
   validateEmployerProfile,
   validateJobForm,
+  validateStatusReason,
 } from "./hrContracts.ts";
 import type { JobFormValues } from "../types/index.ts";
 
@@ -104,4 +110,54 @@ test("requires tax code only while creating a company and validates website URLs
       websiteUrl: "Website phải là một URL đầy đủ.",
     },
   );
+});
+
+test("builds recruiter application filters with backend parameter names", () => {
+  assert.equal(
+    buildRecruiterApplicationsQuery({
+      keyword: " Nguyen Van A ",
+      status: "Screening",
+      minRating: 4,
+      pageIndex: 2,
+      pageSize: 20,
+    }),
+    "?Status=Screening&MinRating=4&Keyword=Nguyen+Van+A&PageIndex=2&PageSize=20",
+  );
+});
+
+test("normalizes recruiter evaluation payload to backend limits", () => {
+  assert.deepEqual(
+    toEvaluationRequest({ rating: "5", evaluationLabel: " Tiềm năng ", privateNotes: " Có kinh nghiệm React " }),
+    { rating: 5, evaluationLabel: "Tiềm năng", privateNotes: "Có kinh nghiệm React" },
+  );
+});
+
+test("normalizes application status update payload", () => {
+  assert.deepEqual(toStatusUpdateRequest("Interview", " Đã qua vòng lọc "), {
+    newStatus: "Interview",
+    reason: "Đã qua vòng lọc",
+  });
+  assert.deepEqual(toStatusUpdateRequest("Rejected", "  "), {
+    newStatus: "Rejected",
+    reason: null,
+  });
+});
+
+test("validates recruiter evaluation and status reason with backend limits", () => {
+  assert.deepEqual(
+    validateEvaluationForm({ rating: "0", evaluationLabel: "x".repeat(101), privateNotes: "x".repeat(2001) }),
+    {
+      rating: "Đánh giá phải từ 1 đến 5 sao.",
+      evaluationLabel: "Nhãn đánh giá không được vượt quá 100 ký tự.",
+      privateNotes: "Ghi chú không được vượt quá 2.000 ký tự.",
+    },
+  );
+  assert.equal(validateStatusReason("x".repeat(501)), "Lý do không được vượt quá 500 ký tự.");
+});
+
+test("allows only http URLs and application-relative CV paths", () => {
+  assert.equal(toSafeDocumentUrl("/uploads/cv.pdf"), "/uploads/cv.pdf");
+  assert.equal(toSafeDocumentUrl("https://files.futurecv.vn/cv.pdf"), "https://files.futurecv.vn/cv.pdf");
+  assert.equal(toSafeDocumentUrl("javascript:alert(1)"), null);
+  assert.equal(toSafeDocumentUrl("//evil.example/cv.pdf"), null);
 });
