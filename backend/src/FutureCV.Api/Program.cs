@@ -15,6 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
 
+// Global Exception Handling & RFC 7807 ProblemDetails
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 // Application layer (use-case services, validators registered via AddValidatorsFromAssembly)
 builder.Services.AddApplication();
 
@@ -98,6 +102,8 @@ builder.Services.AddCors(options =>
 
 // ── Pipeline ──────────────────────────────────────────────────
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Seed roles (Candidate, Employer, Admin)
 await RoleSeeder.SeedAsync(app.Services);
