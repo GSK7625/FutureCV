@@ -5,3 +5,9 @@
 # React Router
 /.react-router/
 /build/
+
+# AI Agent & Assistant metadata
+.agents/
+.claude/
+.stitch/
+skills-lock.json
