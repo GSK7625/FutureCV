@@ -4,5 +4,6 @@ public record AuthResponse(
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAt,
     string RefreshToken,
-    string Role
+    string Role,
+    IReadOnlyList<string> Roles
 );

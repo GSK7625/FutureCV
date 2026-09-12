@@ -31,6 +31,7 @@ public class ApplicationDbContext
     public DbSet<CandidateSkill> CandidateSkills => Set<CandidateSkill>();
     public DbSet<CandidateCv> CandidateCvs => Set<CandidateCv>();
     public DbSet<CvParser> CvParsers => Set<CvParser>();
+    public DbSet<CvEvaluation> CvEvaluations => Set<CvEvaluation>();
     public DbSet<Certificate> Certificates => Set<Certificate>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -44,6 +45,7 @@ public class ApplicationDbContext
     public DbSet<SavedJob> SavedJobs => Set<SavedJob>();
     public DbSet<JobApplication> Applications => Set<JobApplication>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
+    public DbSet<JobReport> JobReports => Set<JobReport>();
 
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

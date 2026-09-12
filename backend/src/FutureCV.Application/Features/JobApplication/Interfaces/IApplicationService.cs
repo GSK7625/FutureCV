@@ -30,6 +30,9 @@ public interface IApplicationService
     Task<ServiceResult<PagedResult<JobSuggestionResponse>>> GetJobSuggestionsAsync(
         Guid userId, JobSuggestionFilterRequest filter, CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<JobMatchPreviewResponse>> PreviewJobMatchAsync(
+        Guid userId, Guid jobId, PreviewJobMatchRequest request, CancellationToken cancellationToken = default);
+
     // -------------------------------------------------------------------------
     // Recruiter Operations
     // -------------------------------------------------------------------------
@@ -47,5 +50,11 @@ public interface IApplicationService
         Guid userId, Guid applicationId, UpdateApplicationStatusRequest request, CancellationToken cancellationToken = default);
 
     Task<ServiceResult<RecruitmentPipelineResponse>> GetRecruitmentPipelineAsync(
+        Guid userId, Guid jobId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<PipelineAnalyticsResponse>> GetPipelineAnalyticsAsync(
+        Guid userId, Guid jobId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<byte[]>> ExportPipelineCsvAsync(
         Guid userId, Guid jobId, CancellationToken cancellationToken = default);
 }

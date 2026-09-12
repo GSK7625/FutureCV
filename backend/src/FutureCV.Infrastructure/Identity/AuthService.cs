@@ -5,6 +5,7 @@ using FutureCV.Application.Common.Models;
 using FutureCV.Application.Features.Auth.DTOs;
 using FutureCV.Application.Features.Auth.Interfaces;
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -32,6 +33,7 @@ public class AuthService : IAuthService
     private readonly IValidator<ResetPasswordRequest> _resetPasswordValidator;
     private readonly IValidator<GoogleLoginRequest> _googleLoginValidator;
     private readonly IValidator<GoogleRegisterEmployerRequest> _googleRegisterEmployerValidator;
+    private readonly ITokenCookieService _tokenCookieService;
 
     public AuthService(
         UserManager<AppUser> userManager,
@@ -41,6 +43,7 @@ public class AuthService : IAuthService
         IConfiguration configuration,
         IEmailService emailService,
         IGoogleTokenValidator googleTokenValidator,
+        ITokenCookieService tokenCookieService,
         IValidator<RegisterCandidateRequest> registerCandidateValidator,
         IValidator<RegisterEmployerRequest> registerEmployerValidator,
         IValidator<LoginRequest> loginValidator,
@@ -57,6 +60,7 @@ public class AuthService : IAuthService
         _configuration = configuration;
         _emailService = emailService;
         _googleTokenValidator = googleTokenValidator;
+        _tokenCookieService = tokenCookieService;
         _registerCandidateValidator = registerCandidateValidator;
         _registerEmployerValidator = registerEmployerValidator;
         _loginValidator = loginValidator;
@@ -214,7 +218,7 @@ public class AuthService : IAuthService
                 {
                     Name = request.CompanyName,
                     TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                    VerifiedStatus = "Unverified"
+                    VerifiedStatus = CompanyVerificationStatus.Unverified
                 };
                 _context.Companies.Add(company);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -264,7 +268,7 @@ public class AuthService : IAuthService
             {
                 Name = request.CompanyName,
                 TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                VerifiedStatus = "Unverified"
+                VerifiedStatus = CompanyVerificationStatus.Unverified
             };
             _context.Companies.Add(newCompany);
             await _context.SaveChangesAsync(cancellationToken);
@@ -348,52 +352,10 @@ public class AuthService : IAuthService
         // Success — reset failed count
         await _userManager.ResetAccessFailedCountAsync(user);
 
-        // Build JWT claims source
-        var roles = await _userManager.GetRolesAsync(user);
-        var jwtInfo = new JwtUserInfo(
-            UserId: user.Id,
-            Email: user.Email!,
-            Roles: roles.AsReadOnly(),
-            SecurityStamp: user.SecurityStamp);
-
-        var accessToken = _jwtTokenService.GenerateAccessToken(jwtInfo);
-
-        // Parse expiry to return accurate ExpiresAt to client
-        var expiryMinutes = int.TryParse(
-            _configuration["Jwt:AccessTokenExpiryMinutes"], out var m)
-            ? m
-            : 15;
-        var accessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(expiryMinutes);
-
-        // Generate & persist refresh token
-        var rawRefreshToken = _jwtTokenService.GenerateRefreshToken();
-        var tokenHash = _jwtTokenService.HashRefreshToken(rawRefreshToken);
-        var expiryDays = int.TryParse(
-            _configuration["Jwt:RefreshTokenExpiryDays"], out var d)
-            ? d
-            : 7;
-
-        var refreshToken = new RefreshToken
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = tokenHash,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(expiryDays),
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-        _context.RefreshTokens.Add(refreshToken);
-
-        // Update audit fields
-        user.LastLoginAt = DateTimeOffset.UtcNow;
-        user.UpdatedAt = DateTimeOffset.UtcNow;
-        await _userManager.UpdateAsync(user);
+        var authResponse = await GenerateAuthTokensAsync(user, role: null, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return ServiceResult.Success(new AuthResponse(
-            AccessToken: accessToken,
-            AccessTokenExpiresAt: accessTokenExpiresAt,
-            RefreshToken: rawRefreshToken,
-            Role: roles.FirstOrDefault() ?? string.Empty));
+        return ServiceResult.Success(authResponse);
     }
 
     public async Task<ServiceResult<AuthResponse>> RefreshTokenAsync(
@@ -407,8 +369,15 @@ public class AuthService : IAuthService
             return ServiceResult.Failure<AuthResponse>(errors);
         }
 
-        // 1. Look up stored refresh token by hash
-        var tokenHash = _jwtTokenService.HashRefreshToken(request.RefreshToken);
+        // 1. Look up stored refresh token by hash (from request body or cookie)
+        var rawToken = !string.IsNullOrWhiteSpace(request?.RefreshToken)
+            ? request.RefreshToken
+            : _tokenCookieService.GetRefreshToken();
+
+        if (string.IsNullOrWhiteSpace(rawToken))
+            return ServiceResult.Unauthorized<AuthResponse>("Refresh token is required.");
+
+        var tokenHash = _jwtTokenService.HashRefreshToken(rawToken);
         var storedToken = await _context.RefreshTokens
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
@@ -432,12 +401,17 @@ public class AuthService : IAuthService
                 t.RevokedAt = DateTimeOffset.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
 
+            _tokenCookieService.DeleteRefreshToken();
+
             return ServiceResult.Unauthorized<AuthResponse>(
                 "Refresh token has already been used. All sessions revoked for security.");
         }
 
         if (storedToken.IsExpired)
+        {
+            _tokenCookieService.DeleteRefreshToken();
             return ServiceResult.Unauthorized<AuthResponse>("Refresh token has expired. Please log in again.");
+        }
 
         // Build new token pair
         var roles = await _userManager.GetRolesAsync(user);
@@ -471,22 +445,39 @@ public class AuthService : IAuthService
         _context.RefreshTokens.Add(newRefreshToken);
         await _context.SaveChangesAsync(cancellationToken);
 
+        // Update cookie with rotated refresh token
+        _tokenCookieService.SetRefreshToken(newRawRefreshToken);
+
+        var primaryRole = roles.Contains("Admin")
+            ? "Admin"
+            : roles.Contains("Employer")
+                ? "Employer"
+                : roles.FirstOrDefault() ?? string.Empty;
+
         return ServiceResult.Success(new AuthResponse(
             AccessToken: newAccessToken,
             AccessTokenExpiresAt: accessTokenExpiresAt,
             RefreshToken: newRawRefreshToken,
-            Role: roles.FirstOrDefault() ?? string.Empty));
+            Role: primaryRole,
+            Roles: roles.ToList().AsReadOnly()));
     }
 
     public async Task<ServiceResult<MessageResponse>> LogoutAsync(
         Guid userId,
-        string refreshToken,
+        string? refreshToken = null,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(refreshToken))
-            return ServiceResult.Failure<MessageResponse>("Refresh token is required.");
+        var rawToken = !string.IsNullOrWhiteSpace(refreshToken)
+            ? refreshToken
+            : _tokenCookieService.GetRefreshToken();
 
-        var tokenHash = _jwtTokenService.HashRefreshToken(refreshToken);
+        // Always delete cookie on logout
+        _tokenCookieService.DeleteRefreshToken();
+
+        if (string.IsNullOrWhiteSpace(rawToken))
+            return ServiceResult.Success(new MessageResponse("Logged out."));
+
+        var tokenHash = _jwtTokenService.HashRefreshToken(rawToken);
         var storedToken = await _context.RefreshTokens
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash && t.UserId == userId, cancellationToken);
 
@@ -504,6 +495,9 @@ public class AuthService : IAuthService
         Guid userId,
         CancellationToken cancellationToken = default)
     {
+        // Always delete cookie on logout
+        _tokenCookieService.DeleteRefreshToken();
+
         var activeTokens = await _context.RefreshTokens
             .Where(t => t.UserId == userId && t.RevokedAt == null)
             .ToListAsync(cancellationToken);
@@ -705,14 +699,23 @@ public class AuthService : IAuthService
             new MessageResponse("User account has been re-enabled successfully."));
     }
 
-    private async Task<AuthResponse> GenerateAuthTokensAsync(AppUser user, string role,
+    private async Task<AuthResponse> GenerateAuthTokensAsync(AppUser user, string? role,
         CancellationToken cancellationToken)
     {
-        var roles = new[] { role };
+        var userRoles = await _userManager.GetRolesAsync(user);
+
+        var primaryRole = !string.IsNullOrEmpty(role) && userRoles.Contains(role)
+            ? role
+            : (userRoles.Contains("Admin")
+                ? "Admin"
+                : userRoles.Contains("Employer")
+                    ? "Employer"
+                    : userRoles.FirstOrDefault() ?? string.Empty);
+
         var jwtInfo = new JwtUserInfo(
             UserId: user.Id,
             Email: user.Email!,
-            Roles: roles.AsReadOnly(),
+            Roles: userRoles.AsReadOnly(),
             SecurityStamp: user.SecurityStamp);
 
         var accessToken = _jwtTokenService.GenerateAccessToken(jwtInfo);
@@ -744,11 +747,15 @@ public class AuthService : IAuthService
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await _userManager.UpdateAsync(user);
 
+        // Set HttpOnly cookie for refresh token
+        _tokenCookieService.SetRefreshToken(rawRefreshToken);
+
         return new AuthResponse(
             AccessToken: accessToken,
             AccessTokenExpiresAt: accessTokenExpiresAt,
             RefreshToken: rawRefreshToken,
-            Role: role);
+            Role: primaryRole,
+            Roles: userRoles.ToList().AsReadOnly());
     }
 
 
@@ -778,10 +785,7 @@ public class AuthService : IAuthService
                 ServiceResult.Conflict<AuthResponse>(
                     "REQUIRE_PASSWORD_LOGIN_TO_LINK"); // Account exists with password, needs linking
 
-        var userRoles = await _userManager.GetRolesAsync(existingUser);
-        var mainRole = userRoles.FirstOrDefault() ?? "Candidate";
-
-        var authResponse = await GenerateAuthTokensAsync(existingUser, mainRole, cancellationToken);
+        var authResponse = await GenerateAuthTokensAsync(existingUser, role: null, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         return ServiceResult.Success(authResponse);
     }
@@ -914,7 +918,7 @@ public class AuthService : IAuthService
                 {
                     Name = request.CompanyName,
                     TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                    VerifiedStatus = "Unverified"
+                    VerifiedStatus = CompanyVerificationStatus.Unverified
                 };
                 _context.Companies.Add(company);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -958,7 +962,7 @@ public class AuthService : IAuthService
             {
                 Name = request.CompanyName,
                 TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                VerifiedStatus = "Unverified"
+                VerifiedStatus = CompanyVerificationStatus.Unverified
             };
             _context.Companies.Add(newCompany);
             await _context.SaveChangesAsync(cancellationToken);

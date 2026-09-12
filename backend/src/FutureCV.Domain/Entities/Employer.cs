@@ -14,4 +14,5 @@ public class Employer : BaseEntity
     
     public Guid CompanyId { get; set; }
     public Company Company { get; set; } = null!;
+    public bool IsDeleted { get; set; } = false;
 }

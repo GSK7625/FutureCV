@@ -1,4 +1,5 @@
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 using FutureCV.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -26,9 +27,10 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
             .HasDefaultValue("VND");
 
         builder.Property(j => j.ApprovalStatus)
+            .HasConversion<string>()
             .IsRequired()
             .HasMaxLength(20)
-            .HasDefaultValue("Draft");
+            .HasDefaultValue(JobApprovalStatus.Draft);
 
         builder.Property(j => j.PositionsCount)
             .HasDefaultValue(1);
@@ -45,6 +47,9 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(j => j.IsDeleted)
             .HasDefaultValue(false);
 
+        builder.Property(j => j.IsBanned)
+            .HasDefaultValue(false);
+
         // Foreign Keys
         builder.HasOne(j => j.Company)
             .WithMany()
@@ -59,6 +64,11 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.HasOne<AppUser>()
             .WithMany()
             .HasForeignKey(j => j.ApprovedByAdminId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(j => j.BannedByAdminId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(j => j.Category)
