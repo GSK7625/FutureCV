@@ -16,7 +16,9 @@ export default [
   layout("layouts/AuthLayout.tsx", [
     route("login", "routes/auth/login.tsx"),
     route("register", "routes/auth/register.tsx"),
+    route("register/employer", "routes/auth/register-employer.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
+    route("reset-password", "routes/auth/reset-password.tsx"),
   ]),
 
   // ── Candidate Protected Routes ─────────────────────────────

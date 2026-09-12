@@ -1,4 +1,4 @@
-export type ApprovalStatus = "Pending" | "Approved" | "Rejected";
+export type ApprovalStatus = "Draft" | "Pending" | "Approved" | "Rejected";
 
 export interface PagedResult<T> {
   items: T[];
@@ -6,8 +6,8 @@ export interface PagedResult<T> {
   pageIndex: number;
   pageSize: number;
   totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
+  hasPreviousPage?: boolean;
+  hasNextPage?: boolean;
 }
 
 export interface EmployerProfile {
