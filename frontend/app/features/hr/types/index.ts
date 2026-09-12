@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 export type ApprovalStatus = "Draft" | "Pending" | "Approved" | "Rejected";
+=======
+export type ApprovalStatus = "Pending" | "Approved" | "Rejected";
+export type ApplicationStatus = "Applied" | "Screening" | "Interview" | "Offer" | "Hired" | "Rejected" | "Withdrawn";
+export type UpdatableApplicationStatus = Exclude<ApplicationStatus, "Withdrawn">;
+>>>>>>> 4a81353726dadfc5ca9c7281c93fed93cb20a5e2
 
 export interface PagedResult<T> {
   items: T[];
@@ -177,4 +183,90 @@ export interface HrMasterData {
   employmentTypes: LookupOption[];
   locations: LookupOption[];
   skills: SkillOption[];
+}
+
+export interface RecruiterApplicationFilters {
+  status?: ApplicationStatus | "";
+  minRating?: number;
+  keyword?: string;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface RecruiterApplicationSummary {
+  id: string;
+  candidateId: string;
+  candidateFullName: string;
+  candidateAvatarUrl: string | null;
+  candidatePhone: string | null;
+  candidateEmail: string | null;
+  cvId: string;
+  cvTitle: string | null;
+  cvFileUrl: string | null;
+  status: ApplicationStatus;
+  rating: number | null;
+  evaluationLabel: string | null;
+  matchScore: number | null;
+  appliedAt: string;
+}
+
+export interface ApplicationTimelineItem {
+  fromStatus: ApplicationStatus | null;
+  toStatus: ApplicationStatus;
+  reason: string | null;
+  changedAt: string;
+}
+
+export interface RecruiterApplicationDetail extends RecruiterApplicationSummary {
+  jobId: string;
+  jobTitle: string;
+  candidateAddress: string | null;
+  coverLetter: string | null;
+  privateNotes: string | null;
+  matchExplanation: string | null;
+  matchedSkills: string[];
+  missingSkills: string[];
+  timeline: ApplicationTimelineItem[];
+}
+
+export interface EvaluationFormValues {
+  rating: string;
+  evaluationLabel: string;
+  privateNotes: string;
+}
+
+export interface EvaluateApplicationRequest {
+  rating: number;
+  evaluationLabel: string | null;
+  privateNotes: string | null;
+}
+
+export interface UpdateApplicationStatusRequest {
+  newStatus: UpdatableApplicationStatus;
+  reason: string | null;
+}
+
+export interface PipelineCandidate {
+  applicationId: string;
+  candidateId: string;
+  candidateFullName: string;
+  candidateAvatarUrl: string | null;
+  rating: number | null;
+  evaluationLabel: string | null;
+  matchScore: number | null;
+  appliedAt: string;
+  cvFileUrl: string | null;
+}
+
+export interface PipelineStage {
+  stage: UpdatableApplicationStatus;
+  count: number;
+  candidates: PipelineCandidate[];
+}
+
+export interface RecruitmentPipeline {
+  jobId: string;
+  jobTitle: string;
+  totalCandidates: number;
+  stages: PipelineStage[];
 }
