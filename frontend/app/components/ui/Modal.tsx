@@ -4,7 +4,8 @@ import { cn } from "~/lib/cn";
 import { Button } from "./Button";
 
 export interface ModalProps {
-  open: boolean;
+  open?: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
@@ -12,9 +13,10 @@ export interface ModalProps {
   className?: string;
 }
 
-export function Modal({ open, onClose, title, children, footer, className }: ModalProps) {
+export function Modal({ open, isOpen, onClose, title, children, footer, className }: ModalProps) {
+  const isModalOpen = open ?? isOpen ?? false;
   useEffect(() => {
-    if (!open) return;
+    if (!isModalOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -24,9 +26,9 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [isModalOpen, onClose]);
 
-  if (!open) return null;
+  if (!isModalOpen) return null;
 
   return (
     <div

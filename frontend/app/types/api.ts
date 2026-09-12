@@ -438,3 +438,34 @@ export interface UpdateJobApprovalDto {
   approvalStatus: "Approved" | "Rejected";
   rejectionReason?: string;
 }
+
+export interface UserGrowthData {
+  date: string;
+  count: number;
+}
+
+export interface JobGrowthData {
+  date: string;
+  count: number;
+}
+
+export interface DashboardStatistics {
+  totalUsers: number;
+  totalCandidates: number;
+  totalEmployers: number;
+  totalAdmins: number;
+  activeUsers: number;
+  lockedUsers: number;
+  totalCompanies: number;
+  verifiedCompanies: number;
+  pendingCompanies: number;
+  rejectedCompanies: number;
+  totalJobs: number;
+  activeJobs: number;
+  pendingJobs: number;
+  rejectedJobs: number;
+  closedJobs: number;
+  totalApplications: number;
+  userGrowthLast7Days: UserGrowthData[];
+  jobGrowthLast7Days: JobGrowthData[];
+}

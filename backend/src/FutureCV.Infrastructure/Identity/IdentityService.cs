@@ -124,4 +124,29 @@ public class IdentityService : IIdentityService
         await _userManager.ResetAccessFailedCountAsync(targetUser);
         return ServiceResult.Success(true);
     }
+
+    public async Task<List<IdentityUserInfo>> GetAllUsersAsync(CancellationToken cancellationToken = default)
+    {
+        var users = await _userManager.Users.AsNoTracking().ToListAsync(cancellationToken);
+        var items = new List<IdentityUserInfo>();
+        var nowCheck = DateTimeOffset.UtcNow;
+
+        foreach (var u in users)
+        {
+            var roles = await _userManager.GetRolesAsync(u);
+            var isLocked = u.LockoutEnd.HasValue && u.LockoutEnd.Value > nowCheck;
+
+            items.Add(new IdentityUserInfo(
+                u.Id,
+                u.Email ?? string.Empty,
+                u.PhoneNumber,
+                roles.ToList(),
+                isLocked,
+                u.LockoutEnd,
+                u.CreatedAt
+            ));
+        }
+
+        return items;
+    }
 }

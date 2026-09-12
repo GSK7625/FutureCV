@@ -9,6 +9,7 @@ import type {
   UpdateJobApprovalDto,
   MessageDto,
 } from "~/types/api";
+import type { DashboardStats } from "~/features/admin/types";
 
 // ============================================
 // USER MANAGEMENT
@@ -108,4 +109,13 @@ export const adminJobApi = {
       body: dto,
       auth: true,
     }),
+};
+
+// ============================================
+// DASHBOARD STATISTICS
+// ============================================
+
+export const adminDashboardApi = {
+  getStatistics: () =>
+    fetcher<DashboardStats>(`/api/admin/statistics`, { auth: true }),
 };

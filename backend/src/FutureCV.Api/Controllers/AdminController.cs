@@ -102,6 +102,18 @@ public class AdminController : ApiControllerBase
     }
 
     // -------------------------------------------------------------------------
+    // Dashboard Statistics
+    // -------------------------------------------------------------------------
+
+    [HttpGet("statistics")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(DashboardStatistics))]
+    public async Task<IActionResult> GetDashboardStatistics(CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetDashboardStatisticsAsync(cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    // -------------------------------------------------------------------------
     // Job Moderation
     // -------------------------------------------------------------------------
 

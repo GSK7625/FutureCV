@@ -231,4 +231,99 @@ public class AdminService : IAdminService
         var result = new PagedResult<AuditLogResponse>(logs, totalCount, pageIndex, pageSize);
         return ServiceResult.Success(result);
     }
+
+    // -------------------------------------------------------------------------
+    // Dashboard Statistics
+    // -------------------------------------------------------------------------
+
+    public async Task<ServiceResult<DashboardStatistics>> GetDashboardStatisticsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var sevenDaysAgo = now.AddDays(-7).Date;
+
+        // User statistics
+        var allUsers = await _identityService.GetAllUsersAsync(cancellationToken);
+        var totalUsers = allUsers.Count;
+        var activeUsers = allUsers.Count(u => !u.IsLockedOut);
+        var lockedUsers = allUsers.Count(u => u.IsLockedOut);
+
+        var totalCandidates = allUsers.Count(u => u.Roles.Contains("Candidate"));
+        var totalEmployers = allUsers.Count(u => u.Roles.Contains("Employer"));
+        var totalAdmins = allUsers.Count(u => u.Roles.Contains("Admin"));
+
+        // Company statistics
+        var companies = await _context.Companies.AsNoTracking().ToListAsync(cancellationToken);
+        var totalCompanies = companies.Count;
+        var verifiedCompanies = companies.Count(c => c.VerifiedStatus.Equals("Verified", StringComparison.OrdinalIgnoreCase));
+        var pendingCompanies = companies.Count(c => c.VerifiedStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase));
+        var rejectedCompanies = companies.Count(c => c.VerifiedStatus.Equals("Rejected", StringComparison.OrdinalIgnoreCase));
+
+        // Job statistics
+        var jobs = await _context.Jobs.AsNoTracking().ToListAsync(cancellationToken);
+        var totalJobs = jobs.Count;
+        var activeJobs = jobs.Count(j => j.ApprovalStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) && !j.IsExpired);
+        var pendingJobs = jobs.Count(j => j.ApprovalStatus.Equals("Pending", StringComparison.OrdinalIgnoreCase));
+        var rejectedJobs = jobs.Count(j => j.ApprovalStatus.Equals("Rejected", StringComparison.OrdinalIgnoreCase));
+        var closedJobs = jobs.Count(j => j.IsExpired);
+
+        // Application statistics
+        var totalApplications = await _context.Applications.CountAsync(cancellationToken);
+
+        // User growth last 7 days
+        var userGrowth = allUsers
+            .Where(u => u.CreatedAt >= sevenDaysAgo)
+            .GroupBy(u => u.CreatedAt.Date)
+            .Select(g => new UserGrowthData(g.Key.ToString("yyyy-MM-dd"), g.Count()))
+            .OrderBy(x => x.Date)
+            .ToList();
+
+        // Fill missing dates with 0
+        var userGrowthFilled = new List<UserGrowthData>();
+        for (int i = 0; i < 7; i++)
+        {
+            var date = sevenDaysAgo.AddDays(i).ToString("yyyy-MM-dd");
+            var existing = userGrowth.FirstOrDefault(x => x.Date == date);
+            userGrowthFilled.Add(existing ?? new UserGrowthData(date, 0));
+        }
+
+        // Job growth last 7 days
+        var jobGrowth = jobs
+            .Where(j => j.CreatedAt >= sevenDaysAgo)
+            .GroupBy(j => j.CreatedAt.Date)
+            .Select(g => new JobGrowthData(g.Key.ToString("yyyy-MM-dd"), g.Count()))
+            .OrderBy(x => x.Date)
+            .ToList();
+
+        // Fill missing dates with 0
+        var jobGrowthFilled = new List<JobGrowthData>();
+        for (int i = 0; i < 7; i++)
+        {
+            var date = sevenDaysAgo.AddDays(i).ToString("yyyy-MM-dd");
+            var existing = jobGrowth.FirstOrDefault(x => x.Date == date);
+            jobGrowthFilled.Add(existing ?? new JobGrowthData(date, 0));
+        }
+
+        var statistics = new DashboardStatistics(
+            totalUsers,
+            totalCandidates,
+            totalEmployers,
+            totalAdmins,
+            activeUsers,
+            lockedUsers,
+            totalCompanies,
+            verifiedCompanies,
+            pendingCompanies,
+            rejectedCompanies,
+            totalJobs,
+            activeJobs,
+            pendingJobs,
+            rejectedJobs,
+            closedJobs,
+            totalApplications,
+            userGrowthFilled,
+            jobGrowthFilled);
+
+        return ServiceResult.Success(statistics);
+    }
 }

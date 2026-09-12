@@ -45,3 +45,31 @@ public sealed record AuditLogQueryFilter(
     string? Action = null,
     int PageIndex = 1,
     int PageSize = 10);
+
+public sealed record DashboardStatistics(
+    int TotalUsers,
+    int TotalCandidates,
+    int TotalEmployers,
+    int TotalAdmins,
+    int ActiveUsers,
+    int LockedUsers,
+    int TotalCompanies,
+    int VerifiedCompanies,
+    int PendingCompanies,
+    int RejectedCompanies,
+    int TotalJobs,
+    int ActiveJobs,
+    int PendingJobs,
+    int RejectedJobs,
+    int ClosedJobs,
+    int TotalApplications,
+    List<UserGrowthData> UserGrowthLast7Days,
+    List<JobGrowthData> JobGrowthLast7Days);
+
+public sealed record UserGrowthData(
+    string Date,
+    int Count);
+
+public sealed record JobGrowthData(
+    string Date,
+    int Count);

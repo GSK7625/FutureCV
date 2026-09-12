@@ -37,14 +37,27 @@ public static class RoleSeeder
                 Id = Guid.NewGuid(),
                 UserName = adminEmail,
                 Email = adminEmail,
+                EmailConfirmed = true,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
 
-            var createResult = await userManager.CreateAsync(adminUser, "Admin@123456");
+            var createResult = await userManager.CreateAsync(adminUser, "Admin@123");
             if (createResult.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, "Admin");
+            }
+        }
+        else
+        {
+            // Reset password if admin exists
+            var token = await userManager.GeneratePasswordResetTokenAsync(existingAdmin);
+            await userManager.ResetPasswordAsync(existingAdmin, token, "Admin@123");
+            
+            // Ensure admin has Admin role
+            if (!await userManager.IsInRoleAsync(existingAdmin, "Admin"))
+            {
+                await userManager.AddToRoleAsync(existingAdmin, "Admin");
             }
         }
     }

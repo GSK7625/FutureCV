@@ -19,6 +19,8 @@ const buttonVariants = cva(
         accent: "bg-gold text-white hover:bg-[#b08233] shadow-sm hover:shadow-md",
         ghost: "bg-transparent text-navy hover:bg-navy/5",
         danger: "bg-danger text-white hover:bg-[#93000a]",
+        success: "bg-success text-white hover:bg-[#16a34a]",
+        outline: "bg-transparent border border-border text-navy hover:bg-surface-high",
       },
       size: {
         sm: "h-9 px-4 text-label-sm",

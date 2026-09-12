@@ -23,4 +23,7 @@ public interface IAdminService
 
     Task<ServiceResult<PagedResult<AuditLogResponse>>> GetAuditLogsAsync(
         AuditLogQueryFilter filter, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<DashboardStatistics>> GetDashboardStatisticsAsync(
+        CancellationToken cancellationToken = default);
 }

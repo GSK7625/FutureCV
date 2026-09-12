@@ -142,6 +142,18 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
+
+      <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/5 p-4 text-center">
+        <p className="text-label-sm text-ink-variant">
+          Bạn là quản trị viên?{" "}
+          <Link
+            to="/login-admin"
+            className="font-semibold text-orange-600 underline hover:text-orange-700"
+          >
+            Đăng nhập Admin
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

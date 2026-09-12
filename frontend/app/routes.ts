@@ -16,6 +16,7 @@ export default [
   layout("layouts/AuthLayout.tsx", [
     route("login", "routes/auth/login.tsx"),
     route("login-employer", "routes/auth/login-employer.tsx"),
+    route("login-admin", "routes/auth/login-admin.tsx"),
     route("register", "routes/auth/register.tsx"),
     route("register/employer", "routes/auth/register-employer.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
@@ -46,7 +47,9 @@ export default [
   ...prefix("admin", [
     layout("layouts/AdminLayout.tsx", [
       index("routes/admin/dashboard.tsx"),
-      route("users", "routes/admin/user-management.tsx"),
+      route("users", "routes/admin/users.tsx"),
+      route("companies", "routes/admin/companies.tsx"),
+      route("jobs", "routes/admin/jobs.tsx"),
       route("roles", "routes/admin/role-permission.tsx"),
       route("config", "routes/admin/system-config.tsx"),
     ]),
