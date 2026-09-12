@@ -43,7 +43,7 @@ test("builds employer job filters with backend parameter names", () => {
       pageIndex: 2,
       pageSize: 10,
     }),
-    "?keyword=React+dev&approvalStatus=Approved&isActive=false&pageIndex=2&pageSize=10",
+    "?Keyword=React+dev&ApprovalStatus=Approved&IsActive=false&PageIndex=2&PageSize=10",
   );
 });
 

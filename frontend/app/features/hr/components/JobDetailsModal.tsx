@@ -12,7 +12,7 @@ export function JobDetailsModal({ jobId, onClose, onEdit }: { jobId: string | nu
         {job && (
           <article>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={job.approvalStatus === "Approved" ? "success" : job.approvalStatus === "Rejected" ? "danger" : job.approvalStatus === "Pending" ? "gold" : "neutral"}>{job.approvalStatus === "Approved" ? "Đã duyệt" : job.approvalStatus === "Rejected" ? "Bị từ chối" : job.approvalStatus === "Pending" ? "Chờ duyệt" : "Bản nháp"}</Badge>
+              <Badge variant={job.approvalStatus === "Approved" ? "success" : job.approvalStatus === "Rejected" ? "danger" : "gold"}>{job.approvalStatus === "Approved" ? "Đã duyệt" : job.approvalStatus === "Rejected" ? "Bị từ chối" : "Chờ duyệt"}</Badge>
               <Badge variant={job.isActive ? "navy" : "neutral"}>{job.isActive ? "Đang mở" : "Đã đóng"}</Badge>
             </div>
             <h3 className="mt-4 text-headline-md text-navy">{job.title}</h3>

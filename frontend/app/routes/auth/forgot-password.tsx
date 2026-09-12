@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
             dẫn. Email có hiệu lực trong 15 phút.
           </p>
           <Link
-            to="/auth/login"
+            to="/login"
             className="mt-5 inline-flex h-10 items-center rounded-default bg-navy px-5 text-label-sm font-semibold text-white transition-colors hover:bg-navy-secondary"
           >
             Quay lại đăng nhập
@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
 
       <p className="mt-5 text-center text-label-sm text-ink-variant">
         Bạn chưa có tài khoản?{" "}
-        <Link to="/auth/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
+        <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
           Đăng ký ngay
         </Link>
       </p>
