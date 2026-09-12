@@ -24,7 +24,8 @@ export default function RegisterEmployerPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [location, setLocation] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [wardName, setWardName] = useState("");
   const [gender, setGender] = useState("");
   
   const [showPassword, setShowPassword] = useState(false);
@@ -65,7 +66,8 @@ export default function RegisterEmployerPage() {
         confirmPassword,
         phone: phone.trim() || undefined,
         companyName: companyName.trim() || undefined,
-        location: location.trim() || undefined,
+        locationId: locationId.trim() || undefined,
+        wardName: wardName.trim() || undefined,
         gender: gender || undefined,
       },
       { onError: (error) => showToast(error.message, "error") }
@@ -166,13 +168,23 @@ export default function RegisterEmployerPage() {
           />
         </Field>
 
-        <Field label="Địa điểm" htmlFor="reg-location">
+        <Field label="Địa điểm (Tỉnh/Thành phố)" htmlFor="reg-location">
           <Input
             id="reg-location"
             inputSize="md"
-            placeholder="Hà Nội, TP. Hồ Chí Minh, ..."
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Nhập ID địa điểm"
+            value={locationId}
+            onChange={(e) => setLocationId(e.target.value)}
+          />
+        </Field>
+
+        <Field label="Phường/Xã" htmlFor="reg-ward">
+          <Input
+            id="reg-ward"
+            inputSize="md"
+            placeholder="Nhập tên phường/xã"
+            value={wardName}
+            onChange={(e) => setWardName(e.target.value)}
           />
         </Field>
 

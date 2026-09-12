@@ -111,34 +111,36 @@ export function PublicHeader() {
               )}
             </div>
 
-            {/* 2. Menu Tạo CV + Dropdown */}
-            <div
-              className="relative"
-              onMouseEnter={handleCvMouseEnter}
-              onMouseLeave={handleCvMouseLeave}
-            >
-              <Link
-                to="/cv/templates"
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-label font-semibold transition-all duration-200 ${
-                  cvDropdownOpen ? "text-gold" : "text-navy hover:text-gold"
-                }`}
+            {/* 2. Menu Tạo CV + Dropdown - Ẩn nếu là nhà tuyển dụng hoặc admin */}
+            {user?.role !== "employer" && user?.role !== "admin" && (
+              <div
+                className="relative"
+                onMouseEnter={handleCvMouseEnter}
+                onMouseLeave={handleCvMouseLeave}
               >
-                <span>Tạo CV</span>
-                {cvDropdownOpen ? (
-                  <IconChevronUp size={16} stroke={2.2} className="text-gold transition-transform" />
-                ) : (
-                  <IconChevronDown size={16} stroke={2.2} className="text-ink-muted transition-transform" />
-                )}
-              </Link>
+                <Link
+                  to="/cv/templates"
+                  className={`flex items-center gap-1.5 px-3.5 py-2.5 text-label font-semibold transition-all duration-200 ${
+                    cvDropdownOpen ? "text-gold" : "text-navy hover:text-gold"
+                  }`}
+                >
+                  <span>Tạo CV</span>
+                  {cvDropdownOpen ? (
+                    <IconChevronUp size={16} stroke={2.2} className="text-gold transition-transform" />
+                  ) : (
+                    <IconChevronDown size={16} stroke={2.2} className="text-ink-muted transition-transform" />
+                  )}
+                </Link>
 
-              {cvDropdownOpen && (
-                <CvMegaMenu
-                  onClose={() => setCvDropdownOpen(false)}
-                  onMouseEnter={handleCvMouseEnter}
-                  onMouseLeave={handleCvMouseLeave}
-                />
-              )}
-            </div>
+                {cvDropdownOpen && (
+                  <CvMegaMenu
+                    onClose={() => setCvDropdownOpen(false)}
+                    onMouseEnter={handleCvMouseEnter}
+                    onMouseLeave={handleCvMouseLeave}
+                  />
+                )}
+              </div>
+            )}
           </nav>
         </div>
 
@@ -182,10 +184,10 @@ export function PublicHeader() {
                 <div className="flex flex-col items-start">
                   <span className="text-label-sm text-ink-variant">Bạn là nhà tuyển dụng?</span>
                   <Link
-                    to="/register/employer"
+                    to="/hr/jobs"
                     className="text-label font-bold text-navy transition-colors hover:text-gold"
                   >
-                    Đăng tuyển ngay »
+                    Đăng tin tuyển dụng »
                   </Link>
                 </div>
               )}
@@ -195,10 +197,10 @@ export function PublicHeader() {
               <div className="flex flex-col items-start">
                 <span className="text-label-sm text-ink-variant">Bạn là nhà tuyển dụng?</span>
                 <Link
-                  to="/register/employer"
+                  to="/login-employer"
                   className="text-label font-bold text-navy transition-colors hover:text-gold"
                 >
-                  Đăng tuyển ngay »
+                  Đăng nhập để đăng tin »
                 </Link>
               </div>
               <div className="h-8 w-px bg-border-subtle" aria-hidden />

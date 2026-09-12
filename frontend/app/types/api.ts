@@ -57,7 +57,8 @@ export interface RegisterEmployerDto {
   gender?: string;
   phone?: string;
   companyName?: string;
-  location?: string;
+  locationId?: string;
+  wardName?: string;
 }
 
 export interface ForgotPasswordDto {

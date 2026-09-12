@@ -6,6 +6,9 @@ export function authService() {
     login: (dto: LoginDto) =>
       fetcher<AuthResponseDto>("/api/auth/login", { method: "POST", body: dto }),
 
+    loginEmployer: (dto: LoginDto) =>
+      fetcher<AuthResponseDto>("/api/auth/login/employer", { method: "POST", body: dto }),
+
     registerCandidate: (dto: RegisterCandidateDto) =>
       fetcher<AuthResponseDto>("/api/auth/register/candidate", { method: "POST", body: dto }),
 

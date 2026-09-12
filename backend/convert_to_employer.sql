@@ -1,0 +1,43 @@
+BEGIN;
+
+-- Step 1: Delete Candidate profile
+DELETE FROM "Candidates" WHERE "UserId" = '850fb471-099d-4e11-a16f-c7e3e18ebc8a';
+
+-- Step 2: Change role from Candidate to Employer
+UPDATE "AspNetUserRoles" 
+SET "RoleId" = '885f6dea-bb68-4f20-a469-0931d9c4aaf8' 
+WHERE "UserId" = '850fb471-099d-4e11-a16f-c7e3e18ebc8a';
+
+-- Step 3: Create Company and get ID
+WITH new_company AS (
+  INSERT INTO "Companies" ("Id", "Name", "TaxCode", "VerifiedStatus", "CreatedAt", "UpdatedAt")
+  VALUES (
+    gen_random_uuid(),
+    'Công ty TNHH ABC',
+    'TEMP_' || substring(replace(gen_random_uuid()::text, '-', ''), 1, 8),
+    'Unverified',
+    NOW(),
+    NOW()
+  )
+  RETURNING "Id"
+)
+-- Step 4: Create Employer profile
+INSERT INTO "Employers" ("Id", "UserId", "FullName", "Phone", "CompanyId", "CreatedAt", "UpdatedAt")
+SELECT 
+  gen_random_uuid(),
+  '850fb471-099d-4e11-a16f-c7e3e18ebc8a',
+  'Nguyễn Văn A',
+  '0901234567',
+  "Id",
+  NOW(),
+  NOW()
+FROM new_company;
+
+-- Verify result
+SELECT u."Id", u."Email", r."Name" as Role 
+FROM "AspNetUsers" u 
+JOIN "AspNetUserRoles" ur ON u."Id" = ur."UserId" 
+JOIN "AspNetRoles" r ON ur."RoleId" = r."Id" 
+WHERE u."Email" = 'nglich2044@gmail.com';
+
+COMMIT;

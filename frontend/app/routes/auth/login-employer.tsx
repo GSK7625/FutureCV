@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
+import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook, IconBriefcase } from "@tabler/icons-react";
 import { Field, Input, Button } from "~/components/ui";
 import { useLogin } from "~/features/auth/hooks/useLogin";
 import { useUIStore } from "~/stores/useUIStore";
 
-export default function LoginPage() {
+export default function LoginEmployerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const login = useLogin();
@@ -32,9 +32,12 @@ export default function LoginPage() {
       {
         onError: (error) => showToast(error.message, "error"),
         onSuccess: () => {
+          // Force redirect to HR dashboard for employer login
           const returnTo = searchParams.get("returnTo");
-          if (returnTo?.startsWith("/")) {
+          if (returnTo?.startsWith("/hr")) {
             navigate(returnTo, { replace: true });
+          } else {
+            navigate("/hr", { replace: true });
           }
         },
       },
@@ -44,8 +47,17 @@ export default function LoginPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ink">Đăng nhập</h1>
-        <p className="mt-1 text-label-sm text-ink-muted">Chào mừng bạn quay trở lại với tương lai sự nghiệp.</p>
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold/10">
+            <IconBriefcase size={20} className="text-gold" stroke={2} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-ink">Đăng nhập Nhà tuyển dụng</h1>
+          </div>
+        </div>
+        <p className="mt-1 text-label-sm text-ink-muted">
+          Đăng nhập để quản lý tin tuyển dụng và tìm kiếm ứng viên tiềm năng.
+        </p>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2.5">
@@ -125,20 +137,20 @@ export default function LoginPage() {
       </form>
 
       <p className="mt-5 text-center text-label-sm text-ink-variant">
-        Bạn chưa có tài khoản?{" "}
-        <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
+        Chưa có tài khoản Nhà tuyển dụng?{" "}
+        <Link to="/register-employer" className="font-semibold text-navy underline decoration-gold hover:text-gold">
           Đăng ký ngay
         </Link>
       </p>
 
-      <div className="mt-4 rounded-lg border border-gold/30 bg-gold/5 p-4 text-center">
+      <div className="mt-4 rounded-lg border border-navy/20 bg-navy/5 p-4 text-center">
         <p className="text-label-sm text-ink-variant">
-          Bạn là nhà tuyển dụng?{" "}
+          Bạn là ứng viên?{" "}
           <Link
-            to="/login-employer"
+            to="/login"
             className="font-semibold text-navy underline decoration-gold hover:text-gold"
           >
-            Đăng nhập với tư cách nhà tuyển dụng
+            Đăng nhập tài khoản ứng viên
           </Link>
         </p>
       </div>
