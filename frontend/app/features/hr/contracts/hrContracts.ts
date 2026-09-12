@@ -2,20 +2,77 @@ import type {
   CompanyProfileInput,
   EmployerJobFilters,
   EmployerProfileInput,
+  EvaluateApplicationRequest,
+  EvaluationFormValues,
   JobFormValues,
   JobRequest,
+  RecruiterApplicationFilters,
+  UpdateApplicationStatusRequest,
+  UpdatableApplicationStatus,
 } from "../types/index.ts";
 
 export type FieldErrors<T> = Partial<Record<keyof T, string>>;
 
 export function buildEmployerJobsQuery(filters: EmployerJobFilters): string {
   const params = new URLSearchParams();
+  if (filters.keyword?.trim()) params.set("keyword", filters.keyword.trim());
+  if (filters.approvalStatus) params.set("approvalStatus", filters.approvalStatus);
+  if (filters.isActive !== undefined) params.set("isActive", String(filters.isActive));
+  params.set("pageIndex", String(filters.pageIndex ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 10));
+  return `?${params.toString()}`;
+}
+
+export function buildRecruiterApplicationsQuery(filters: RecruiterApplicationFilters): string {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("Status", filters.status);
+  if (filters.minRating !== undefined) params.set("MinRating", String(filters.minRating));
   if (filters.keyword?.trim()) params.set("Keyword", filters.keyword.trim());
-  if (filters.approvalStatus) params.set("ApprovalStatus", filters.approvalStatus);
-  if (filters.isActive !== undefined) params.set("IsActive", String(filters.isActive));
   params.set("PageIndex", String(filters.pageIndex ?? 1));
   params.set("PageSize", String(filters.pageSize ?? 10));
   return `?${params.toString()}`;
+}
+
+export function toEvaluationRequest(values: EvaluationFormValues): EvaluateApplicationRequest {
+  return {
+    rating: Number(values.rating),
+    evaluationLabel: optionalText(values.evaluationLabel),
+    privateNotes: optionalText(values.privateNotes),
+  };
+}
+
+export function toStatusUpdateRequest(
+  newStatus: UpdatableApplicationStatus,
+  reason: string,
+): UpdateApplicationStatusRequest {
+  return { newStatus, reason: optionalText(reason) };
+}
+
+export function validateEvaluationForm(values: EvaluationFormValues): FieldErrors<EvaluationFormValues> {
+  const errors: FieldErrors<EvaluationFormValues> = {};
+  const rating = Number(values.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) errors.rating = "Đánh giá phải từ 1 đến 5 sao.";
+  if (values.evaluationLabel.trim().length > 100) {
+    errors.evaluationLabel = "Nhãn đánh giá không được vượt quá 100 ký tự.";
+  }
+  if (values.privateNotes.trim().length > 2000) errors.privateNotes = "Ghi chú không được vượt quá 2.000 ký tự.";
+  return errors;
+}
+
+export function validateStatusReason(reason: string): string | undefined {
+  return reason.trim().length > 500 ? "Lý do không được vượt quá 500 ký tự." : undefined;
+}
+
+export function toSafeDocumentUrl(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  if (!normalized) return null;
+  if (normalized.startsWith("/") && !normalized.startsWith("//")) return normalized;
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "http:" || url.protocol === "https:" ? normalized : null;
+  } catch {
+    return null;
+  }
 }
 
 function optionalNumber(value: string): number | null {
