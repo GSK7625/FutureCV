@@ -97,6 +97,26 @@ def test_application_layer_dependencies():
     assert not violations, "Application dependency violations detected:\n" + "\n".join(violations)
 
 
+def test_infrastructure_layer_dependencies():
+    """Rule: Infrastructure implements Ports, but must NEVER import from Application layer."""
+    infra_dir = APP_DIR / "infrastructure"
+    infra_files = list(infra_dir.rglob("*.py"))
+    assert len(infra_files) > 0
+
+    forbidden_in_infra = {
+        "app.application",
+    }
+
+    violations = []
+    for py_file in infra_files:
+        for imported in _get_imports(py_file):
+            for forbidden in forbidden_in_infra:
+                if imported == forbidden or imported.startswith(f"{forbidden}."):
+                    violations.append(f"Infrastructure file {py_file.name} imports forbidden '{imported}'")
+
+    assert not violations, "Infrastructure dependency violations detected:\n" + "\n".join(violations)
+
+
 def test_api_routes_do_not_import_concrete_providers_directly():
     """Rule: API route modules must depend on Application services, not concrete LLM providers."""
     api_v1_dir = APP_DIR / "api" / "v1"

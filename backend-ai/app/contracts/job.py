@@ -12,7 +12,9 @@ class StructuredJob(BaseModel):
     preferred_skills: list[str] = Field(default_factory=list, description="Nice-to-have or bonus skills")
     minimum_experience_years: float | None = Field(
         default=None,
-        description="Minimum years of professional experience required",
+        ge=0.0,
+        le=60.0,
+        description="Minimum years of professional experience required (0 to 60)",
     )
     education_requirement: str | None = Field(
         default=None,
@@ -21,4 +23,3 @@ class StructuredJob(BaseModel):
     location: str | None = Field(default=None, description="Job location or remote")
     salary: str | None = Field(default=None, description="Salary or compensation range")
     employment_type: str | None = Field(default=None, description="Full-time, Part-time, Contract, etc.")
-

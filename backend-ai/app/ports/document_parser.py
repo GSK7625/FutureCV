@@ -17,4 +17,3 @@ class DocumentParserPort(ABC):
             DocumentPageLimitExceededError: If page count exceeds maximum allowable pages.
         """
         raise NotImplementedError
-

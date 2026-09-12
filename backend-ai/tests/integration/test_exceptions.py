@@ -20,6 +20,7 @@ def test_404_not_found_returns_sanitized_json():
 
 def test_custom_domain_exception_handled():
     """Verify custom domain exception is transformed into structured error response."""
+
     # Temporarily attach a test route that raises custom exception
     @app.get("/test-raise-domain-error")
     def raise_error():
@@ -32,4 +33,3 @@ def test_custom_domain_exception_handled():
     assert data["message"] == "Corrupt PDF file header"
     assert data["details"]["reason"] == "bad_magic_bytes"
     assert "correlation_id" in data
-

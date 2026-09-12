@@ -21,36 +21,46 @@ class CareerAssistantService:
         self.llm = llm
 
     async def chat(self, req: CareerAssistantRequest) -> CareerAssistantResponse:
-        """Process candidate inquiry with context and conversation history."""
+        """Process candidate inquiry with minimal context and delimited conversation history."""
         start_time = time.perf_counter()
         correlation_id = correlation_id_ctx.get()
 
-        # Build context summary string
+        # Build minimal career context (PII minimized: no candidate_id, full name, email, or phone)
         context_parts: list[str] = []
         if req.context:
-            if req.context.candidate_id:
-                context_parts.append(f"Mã ứng viên: {req.context.candidate_id}")
             if req.context.cv:
                 cv = req.context.cv
-                context_parts.append(f"Họ tên ứng viên: {cv.full_name or 'N/A'}")
-                context_parts.append(f"Kỹ năng: {', '.join(cv.skills)}")
+                if cv.career_summary:
+                    context_parts.append(f"Tóm tắt định hướng: {cv.career_summary}")
+                if cv.skills:
+                    context_parts.append(f"Kỹ năng ứng viên: {', '.join(cv.skills)}")
                 years = sum(w.years_of_experience for w in cv.work_experience)
-                context_parts.append(f"Số năm kinh nghiệm: {years:.1f} năm")
+                if years > 0:
+                    context_parts.append(f"Tổng số năm kinh nghiệm: {years:.1f} năm")
             if req.context.job:
                 job = req.context.job
-                context_parts.append(f"Công việc đang xem: {job.title}")
-                context_parts.append(f"Yêu cầu kỹ năng: {', '.join(job.required_skills)}")
+                context_parts.append(f"Vị trí công việc đang quan tâm: {job.title}")
+                if job.required_skills:
+                    context_parts.append(f"Kỹ năng yêu cầu: {', '.join(job.required_skills)}")
+                if job.preferred_skills:
+                    context_parts.append(f"Kỹ năng ưu tiên: {', '.join(job.preferred_skills)}")
             if req.context.match_result:
                 mr = req.context.match_result
-                context_parts.append(f"Điểm phù hợp: {mr.match_score}/100")
-                context_parts.append(f"Kỹ năng khớp: {', '.join(mr.matched_skills)}")
-                context_parts.append(f"Kỹ năng còn thiếu: {', '.join(mr.missing_skills)}")
+                context_parts.append(f"Điểm phù hợp hiện tại: {mr.match_score}/100")
+                if mr.matched_skills:
+                    context_parts.append(f"Kỹ năng đã khớp: {', '.join(mr.matched_skills)}")
+                if mr.missing_skills:
+                    context_parts.append(f"Kỹ năng còn thiếu: {', '.join(mr.missing_skills)}")
+                if mr.experience_comparison:
+                    context_parts.append(f"Đánh giá kinh nghiệm: {mr.experience_comparison}")
+                if mr.education_comparison:
+                    context_parts.append(f"Đánh giá học vấn: {mr.education_comparison}")
 
-        context_str = "\n".join(context_parts) if context_parts else "Không có ngữ cảnh bổ sung."
+        context_str = "\n".join(context_parts) if context_parts else "Không có thông tin hồ sơ bổ sung."
 
-        # Format conversation history
-        history_parts = [f"{msg.role}: {msg.content}" for msg in req.history[-6:]]
-        chat_history_str = "\n".join(history_parts) if history_parts else "Chưa có lịch sử trước đó."
+        # Format delimited conversation history (validated roles: user / assistant)
+        history_parts = [f"[{msg.role}]: {msg.content}" for msg in req.history[-10:]]
+        chat_history_str = "\n".join(history_parts) if history_parts else "Chưa có lượt trò chuyện trước đó."
 
         prompt = CAREER_ASSISTANT_USER_TEMPLATE_V1.format(
             context_str=context_str,
@@ -75,10 +85,10 @@ class CareerAssistantService:
         logger.info("Career assistant answered query (len=%d, elapsed=%.2fms)", len(reply), elapsed_ms)
 
         meta = ResponseMeta(
-            algorithm_version="1.0.0",
+            algorithm_version="career-v0",
             prompt_version="v1",
-            provider=self.llm.__class__.__name__,
-            model="default",
+            provider=self.llm.provider_name,
+            model=self.llm.model_name,
             processing_time_ms=round(elapsed_ms, 2),
             correlation_id=correlation_id,
         )

@@ -40,4 +40,3 @@ def test_error_response_contract_fields():
     dumped = err.model_dump()
     assert dumped["error_code"] == "INVALID_DOCUMENT"
     assert dumped["correlation_id"] == "err-cid-999"
-

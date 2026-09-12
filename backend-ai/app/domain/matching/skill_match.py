@@ -24,9 +24,11 @@ def calculate_skill_match(
     """
     Compare candidate skills against job required and preferred skills.
 
-    Scoring formula:
-    - Required skills: up to 80% of skill score.
-    - Preferred skills: up to 20% bonus.
+    Scoring semantics:
+    - CASE A (required + preferred): (matched_req / total_req * 80) + (matched_pref / total_pref * 20)
+    - CASE B (required only): (matched_req / total_req * 100)
+    - CASE C (preferred only): (matched_pref / total_pref * 100)
+    - CASE D (no required & no preferred skills): 100.0 (neutral criterion)
     """
     preferred = preferred_skills or []
     norm_candidate_skills = {normalize_skill(s): s for s in candidate_skills if s.strip()}
@@ -61,23 +63,26 @@ def calculate_skill_match(
 
     total_pref = len([p for p in preferred if p.strip()])
 
-    # Compute score
-    if total_req > 0:
-        req_ratio = matched_req_count / total_req
-        req_score = req_ratio * 80.0
-        pref_score = (matched_pref_count / total_pref * 20.0) if total_pref > 0 else (20.0 if req_ratio >= 1.0 else 0.0)
-        total_skill_score = min(100.0, req_score + pref_score)
-    elif total_pref > 0:
+    # Compute score based on explicit four cases
+    if total_req > 0 and total_pref > 0:
+        # CASE A: required (80%) + preferred (20%)
+        total_skill_score = (matched_req_count / total_req * 80.0) + (matched_pref_count / total_pref * 20.0)
+    elif total_req > 0 and total_pref == 0:
+        # CASE B: required only (100%)
+        total_skill_score = (matched_req_count / total_req) * 100.0
+    elif total_req == 0 and total_pref > 0:
+        # CASE C: preferred only (100%)
         total_skill_score = (matched_pref_count / total_pref) * 100.0
     else:
-        # If job specified no skills, fallback to high neutral score
-        total_skill_score = 75.0
+        # CASE D: no skill requirements specified (neutral score 100)
+        total_skill_score = 100.0
+
+    bounded_score = max(0.0, min(100.0, total_skill_score))
 
     return SkillMatchResult(
         matched_skills=matched_skills,
         missing_skills=missing_skills,
-        skill_score=round(total_skill_score, 2),
+        skill_score=round(bounded_score, 2),
         matched_required_count=matched_req_count,
         total_required_count=total_req,
     )
-

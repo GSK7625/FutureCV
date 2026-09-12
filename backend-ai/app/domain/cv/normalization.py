@@ -52,4 +52,3 @@ def normalize_skill(skill: str) -> str:
 def normalize_skills(skills: list[str]) -> set[str]:
     """Normalize a collection of skill names into a deduplicated set of canonical skill names."""
     return {normalize_skill(s) for s in skills if s.strip()}
-

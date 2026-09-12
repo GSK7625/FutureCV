@@ -1,6 +1,6 @@
 """Contracts for CV Analysis feature."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
@@ -9,8 +9,25 @@ from app.contracts.cv import StructuredCv
 class CvAnalysisContentRequest(BaseModel):
     """Request payload when sending trusted raw text or pre-extracted content instead of PDF file."""
 
-    raw_text: str = Field(description="Raw extracted text of the CV document")
-    candidate_id: str | None = Field(default=None, description="Optional candidate identifier for tracking")
+    raw_text: str = Field(
+        ...,
+        min_length=1,
+        max_length=50_000,
+        description="Raw extracted text of the CV document (1 to 50,000 characters)",
+    )
+    candidate_id: str | None = Field(
+        default=None,
+        max_length=256,
+        description="Optional candidate identifier for tracking",
+    )
+
+    @field_validator("raw_text")
+    @classmethod
+    def validate_raw_text(cls, v: str) -> str:
+        """Ensure raw_text is not whitespace-only."""
+        if not v.strip():
+            raise ValueError("raw_text cannot be empty or whitespace only")
+        return v
 
 
 class CvAnalysisResponse(BaseModel):
@@ -25,4 +42,3 @@ class CvAnalysisResponse(BaseModel):
         description="Actionable suggestions to improve CV quality and impact",
     )
     meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Execution metadata")
-

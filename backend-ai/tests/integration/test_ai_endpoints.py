@@ -11,8 +11,7 @@ def test_cv_analyze_text_endpoint():
     """Verify POST /api/v1/cv/analyze-text parses raw text into structured CV and analysis."""
     payload = {
         "raw_text": (
-            "Nguyễn Văn B - Senior Backend Engineer. "
-            "Skills: Python, FastAPI, Docker. 3 years experience at ABC."
+            "Nguyễn Văn B - Senior Backend Engineer. Skills: Python, FastAPI, Docker. 3 years experience at ABC."
         ),
         "candidate_id": "cand-test-01",
     }

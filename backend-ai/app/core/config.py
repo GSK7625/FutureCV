@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,16 +29,15 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, alias="PORT")
 
     # LLM Provider Configuration
-    llm_provider: Literal["openai", "gemini", "anthropic", "mock"] = Field(
-        default="openai",
+    # Supported providers: "mock" (offline/deterministic) | "openai"
+    llm_provider: Literal["mock", "openai"] = Field(
+        default="mock",
         alias="LLM_PROVIDER",
     )
     llm_model: str = Field(default="gpt-4o-mini", alias="LLM_MODEL")
 
     # Provider API keys
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
-    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
-    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
 
     # Internal Service Authentication (ASP.NET Core -> FastAPI)
     internal_api_key: str = Field(default="", alias="INTERNAL_API_KEY")
@@ -55,7 +54,7 @@ class Settings(BaseSettings):
 
     # Security & Document Constraints
     max_upload_size_bytes: int = Field(
-        default=10 * 1024 * 1024,  # 10 MB
+        default=5 * 1024 * 1024,  # 5 MB (5,242,880 bytes)
         alias="MAX_UPLOAD_SIZE_BYTES",
     )
     max_pdf_pages: int = Field(default=20, alias="MAX_PDF_PAGES", ge=1, le=100)
@@ -77,9 +76,25 @@ class Settings(BaseSettings):
         """Strip whitespace from internal API key."""
         return v.strip()
 
+    @model_validator(mode="after")
+    def validate_environment_and_providers(self) -> "Settings":
+        """Enforce production invariants and provider credential requirements."""
+        # 1. Production + mock provider -> configuration error
+        if self.is_production and self.llm_provider == "mock":
+            raise ValueError("Mock LLM provider is not permitted in production environment")
+
+        # 2. Production without INTERNAL_API_KEY -> configuration error
+        if self.is_production and not self.internal_api_key:
+            raise ValueError("INTERNAL_API_KEY must be configured in production environment")
+
+        # 3. LLM_PROVIDER=openai without OPENAI_API_KEY -> configuration error
+        if self.llm_provider == "openai" and not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY must be configured when LLM_PROVIDER is 'openai'")
+
+        return self
+
 
 @lru_cache
 def get_settings() -> Settings:
     """Return cached application settings instance."""
     return Settings()
-

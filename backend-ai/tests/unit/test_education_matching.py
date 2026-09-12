@@ -19,4 +19,3 @@ def test_education_match_lower_degree():
     """Candidate with lower degree receives partial score."""
     res = calculate_education_match(candidate_degrees=["High School"], required_education="Bachelor")
     assert res.score <= 75.0
-

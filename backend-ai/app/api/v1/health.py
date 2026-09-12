@@ -40,13 +40,8 @@ async def readiness_probe() -> JSONResponse:
     if settings.llm_provider == "openai":
         has_key = bool(settings.openai_api_key)
         checks["provider_key_configured"] = has_key
-    elif settings.llm_provider == "gemini":
-        has_key = bool(settings.gemini_api_key)
-        checks["provider_key_configured"] = has_key
-    elif settings.llm_provider == "anthropic":
-        has_key = bool(settings.anthropic_api_key)
-        checks["provider_key_configured"] = has_key
     else:
+        # Mock provider requires no external API key
         checks["provider_key_configured"] = True
 
     # In production, if required provider key is missing, report not ready (503)
@@ -60,4 +55,3 @@ async def readiness_probe() -> JSONResponse:
         status_code=status.HTTP_200_OK,
         content={"status": "ready", "checks": checks},
     )
-
