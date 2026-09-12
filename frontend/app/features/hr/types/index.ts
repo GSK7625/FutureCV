@@ -1,10 +1,6 @@
-<<<<<<< HEAD
-export type ApprovalStatus = "Draft" | "Pending" | "Approved" | "Rejected";
-=======
 export type ApprovalStatus = "Pending" | "Approved" | "Rejected";
 export type ApplicationStatus = "Applied" | "Screening" | "Interview" | "Offer" | "Hired" | "Rejected" | "Withdrawn";
 export type UpdatableApplicationStatus = Exclude<ApplicationStatus, "Withdrawn">;
->>>>>>> 4a81353726dadfc5ca9c7281c93fed93cb20a5e2
 
 export interface PagedResult<T> {
   items: T[];
@@ -12,8 +8,8 @@ export interface PagedResult<T> {
   pageIndex: number;
   pageSize: number;
   totalPages: number;
-  hasPreviousPage?: boolean;
-  hasNextPage?: boolean;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 export interface EmployerProfile {
