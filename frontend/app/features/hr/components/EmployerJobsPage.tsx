@@ -9,10 +9,10 @@ import type { ApprovalStatus, EmployerJobFilters, JobSummary } from "../types";
 import { JobDetailsModal } from "./JobDetailsModal";
 import { JobFormModal } from "./JobFormModal";
 
-const approvalLabels: Record<ApprovalStatus, string> = { Pending: "Chờ duyệt", Approved: "Đã duyệt", Rejected: "Bị từ chối" };
+const approvalLabels: Record<ApprovalStatus, string> = { Draft: "Bản nháp", Pending: "Chờ duyệt", Approved: "Đã duyệt", Rejected: "Bị từ chối" };
 
 function ApprovalBadge({ status }: { status: ApprovalStatus }) {
-  return <Badge variant={status === "Approved" ? "success" : status === "Rejected" ? "danger" : "gold"}>{approvalLabels[status]}</Badge>;
+  return <Badge variant={status === "Approved" ? "success" : status === "Rejected" ? "danger" : status === "Pending" ? "gold" : "neutral"}>{approvalLabels[status]}</Badge>;
 }
 
 function formatSalary(job: JobSummary) {
@@ -61,7 +61,7 @@ export function EmployerJobsPage() {
 
       <div className="mb-5 grid gap-3 rounded-default border border-border-subtle bg-surface p-4 shadow-surface md:grid-cols-[minmax(0,1fr)_13rem_13rem]">
         <Input aria-label="Tìm kiếm tin tuyển dụng" icon={<IconSearch size={18} aria-hidden="true" />} placeholder="Tìm theo tiêu đề" value={search} onChange={(event) => setSearch(event.target.value)} />
-        <select aria-label="Lọc theo trạng thái duyệt" value={filters.approvalStatus ?? ""} onChange={(event) => setFilter("approvalStatus", event.target.value as ApprovalStatus | "")} className="h-11 rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold"><option value="">Mọi trạng thái duyệt</option><option value="Pending">Chờ duyệt</option><option value="Approved">Đã duyệt</option><option value="Rejected">Bị từ chối</option></select>
+        <select aria-label="Lọc theo trạng thái duyệt" value={filters.approvalStatus ?? ""} onChange={(event) => setFilter("approvalStatus", event.target.value as ApprovalStatus | "")} className="h-11 rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold"><option value="">Mọi trạng thái duyệt</option><option value="Draft">Bản nháp</option><option value="Pending">Chờ duyệt</option><option value="Approved">Đã duyệt</option><option value="Rejected">Bị từ chối</option></select>
         <select aria-label="Lọc theo trạng thái hoạt động" value={filters.isActive === undefined ? "" : String(filters.isActive)} onChange={(event) => setFilter("isActive", event.target.value === "" ? undefined : event.target.value === "true")} className="h-11 rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold"><option value="">Đang mở và đã đóng</option><option value="true">Đang mở</option><option value="false">Đã đóng</option></select>
       </div>
 
@@ -94,7 +94,7 @@ export function EmployerJobsPage() {
               </article>)}
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-label text-ink-muted">{jobsQuery.data?.totalCount ?? 0} tin · Trang {jobsQuery.data?.pageIndex ?? 1}/{Math.max(jobsQuery.data?.totalPages ?? 1, 1)}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!jobsQuery.data?.hasPreviousPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: Math.max(1, (current.pageIndex ?? 1) - 1) }))}><IconChevronLeft size={17} aria-hidden="true" />Trước</Button><Button variant="secondary" size="sm" disabled={!jobsQuery.data?.hasNextPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: (current.pageIndex ?? 1) + 1 }))}>Sau<IconChevronRight size={17} aria-hidden="true" /></Button></div></div>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-label text-ink-muted">{jobsQuery.data?.totalCount ?? 0} tin · Trang {jobsQuery.data?.pageIndex ?? 1}/{Math.max(jobsQuery.data?.totalPages ?? 1, 1)}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={(jobsQuery.data?.pageIndex ?? 1) <= 1} onClick={() => setFilters((current) => ({ ...current, pageIndex: Math.max(1, (current.pageIndex ?? 1) - 1) }))}><IconChevronLeft size={17} aria-hidden="true" />Trước</Button><Button variant="secondary" size="sm" disabled={(jobsQuery.data?.pageIndex ?? 1) >= (jobsQuery.data?.totalPages ?? 1)} onClick={() => setFilters((current) => ({ ...current, pageIndex: (current.pageIndex ?? 1) + 1 }))}>Sau<IconChevronRight size={17} aria-hidden="true" /></Button></div></div>
           </>
         )}
       </QueryBoundary>
