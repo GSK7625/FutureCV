@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
 import { Field, Input } from "~/components/ui";
-import { useRegister } from "~/features/auth/hooks/useRegister";
+import { useRegisterEmployer } from "~/features/auth/hooks";
 import { useUIStore } from "~/stores/useUIStore";
 
 interface FormErrors {
@@ -10,16 +10,23 @@ interface FormErrors {
   email?: string;
   password?: string;
   confirmPassword?: string;
+  phone?: string;
+  companyName?: string;
 }
 
-export default function RegisterPage() {
-  const register = useRegister();
+export default function RegisterEmployerPage() {
+  const register = useRegisterEmployer();
   const showToast = useUIStore((s) => s.showToast);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [location, setLocation] = useState("");
+  const [gender, setGender] = useState("");
+  
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -40,6 +47,9 @@ export default function RegisterPage() {
     if (confirmPassword !== password) {
       next.confirmPassword = "Mật khẩu xác nhận không khớp.";
     }
+    if (phone && !/^[0-9]{10,11}$/.test(phone.trim())) {
+      next.phone = "Số điện thoại không hợp lệ (10-11 số).";
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -48,16 +58,27 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!validate()) return;
     register.mutate(
-      { fullName: fullName.trim(), email: email.trim(), password, confirmPassword },
-      { onError: (error) => showToast(error.message, "error") },
+      {
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+        confirmPassword,
+        phone: phone.trim() || undefined,
+        companyName: companyName.trim() || undefined,
+        location: location.trim() || undefined,
+        gender: gender || undefined,
+      },
+      { onError: (error) => showToast(error.message, "error") }
     );
   };
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ink">Đăng ký</h1>
-        <p className="mt-1 text-label-sm text-ink-muted">Tạo tài khoản ứng viên miễn phí chỉ với vài bước.</p>
+        <h1 className="text-2xl font-bold text-ink">Đăng ký Nhà tuyển dụng</h1>
+        <p className="mt-1 text-label-sm text-ink-muted">
+          Tạo tài khoản nhà tuyển dụng để đăng tin và quản lý ứng viên.
+        </p>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2.5">
@@ -103,9 +124,55 @@ export default function RegisterPage() {
             type="email"
             inputSize="md"
             autoComplete="email"
-            placeholder="ban@email.com"
+            placeholder="hr@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+        </Field>
+
+        <Field label="Số điện thoại" htmlFor="reg-phone" error={errors.phone}>
+          <Input
+            id="reg-phone"
+            type="tel"
+            inputSize="md"
+            autoComplete="tel"
+            placeholder="0901234567"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </Field>
+
+        <Field label="Giới tính" htmlFor="reg-gender">
+          <select
+            id="reg-gender"
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+            className="h-10 w-full rounded-default border border-border-subtle bg-surface px-3 text-ink transition-colors hover:border-navy focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
+          >
+            <option value="">Chọn giới tính</option>
+            <option value="Male">Nam</option>
+            <option value="Female">Nữ</option>
+            <option value="Other">Khác</option>
+          </select>
+        </Field>
+
+        <Field label="Tên công ty" htmlFor="reg-company" error={errors.companyName}>
+          <Input
+            id="reg-company"
+            inputSize="md"
+            placeholder="Công ty TNHH ABC"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+          />
+        </Field>
+
+        <Field label="Địa điểm" htmlFor="reg-location">
+          <Input
+            id="reg-location"
+            inputSize="md"
+            placeholder="Hà Nội, TP. Hồ Chí Minh, ..."
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
           />
         </Field>
 
@@ -166,7 +233,9 @@ export default function RegisterPage() {
           disabled={register.isPending}
           className="mt-1 flex h-10 w-full items-center justify-center rounded-default bg-navy px-4 font-bold !text-white shadow-sm transition-all hover:bg-navy-secondary active:scale-[0.98] disabled:opacity-50"
         >
-          <span className="font-bold !text-white">{register.isPending ? "Đang tạo tài khoản..." : "Đăng ký"}</span>
+          <span className="font-bold !text-white">
+            {register.isPending ? "Đang tạo tài khoản..." : "Đăng ký"}
+          </span>
         </button>
       </form>
 
@@ -179,12 +248,12 @@ export default function RegisterPage() {
 
       <div className="mt-4 rounded-lg border border-gold/30 bg-gold/5 p-4 text-center">
         <p className="text-label-sm text-ink-variant">
-          Bạn là nhà tuyển dụng?{" "}
+          Bạn là ứng viên tìm việc?{" "}
           <Link
-            to="/register/employer"
+            to="/register"
             className="font-semibold text-navy underline decoration-gold hover:text-gold"
           >
-            Đăng ký tài khoản Nhà tuyển dụng
+            Đăng ký tài khoản Ứng viên
           </Link>
         </p>
       </div>

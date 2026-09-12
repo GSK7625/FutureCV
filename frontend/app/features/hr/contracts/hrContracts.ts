@@ -10,11 +10,11 @@ export type FieldErrors<T> = Partial<Record<keyof T, string>>;
 
 export function buildEmployerJobsQuery(filters: EmployerJobFilters): string {
   const params = new URLSearchParams();
-  if (filters.keyword?.trim()) params.set("Keyword", filters.keyword.trim());
-  if (filters.approvalStatus) params.set("ApprovalStatus", filters.approvalStatus);
-  if (filters.isActive !== undefined) params.set("IsActive", String(filters.isActive));
-  params.set("PageIndex", String(filters.pageIndex ?? 1));
-  params.set("PageSize", String(filters.pageSize ?? 10));
+  if (filters.keyword?.trim()) params.set("keyword", filters.keyword.trim());
+  if (filters.approvalStatus) params.set("approvalStatus", filters.approvalStatus);
+  if (filters.isActive !== undefined) params.set("isActive", String(filters.isActive));
+  params.set("pageIndex", String(filters.pageIndex ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 10));
   return `?${params.toString()}`;
 }
 
