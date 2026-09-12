@@ -8,3 +8,4 @@ export { Avatar, type AvatarProps } from "./Avatar";
 export { Skeleton } from "./Skeleton";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { ToastViewport } from "./Toast";
+export { Switch, type SwitchProps } from "./Switch";
