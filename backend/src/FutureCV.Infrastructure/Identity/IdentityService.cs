@@ -124,4 +124,26 @@ public class IdentityService : IIdentityService
         await _userManager.ResetAccessFailedCountAsync(targetUser);
         return ServiceResult.Success(true);
     }
+
+    public async Task<AdminUserStatsDto> GetUserStatsAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var thirtyDaysAgo = now.AddDays(-30);
+
+        var totalUsers = await _userManager.Users.CountAsync(cancellationToken);
+        var lockedUsersCount = await _userManager.Users
+            .CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > now, cancellationToken);
+        var newUsersLast30Days = await _userManager.Users
+            .CountAsync(u => u.CreatedAt >= thirtyDaysAgo, cancellationToken);
+
+        var candidateUsers = await _userManager.GetUsersInRoleAsync("Candidate");
+        var employerUsers = await _userManager.GetUsersInRoleAsync("Employer");
+
+        return new AdminUserStatsDto(
+            totalUsers,
+            candidateUsers.Count,
+            employerUsers.Count,
+            lockedUsersCount,
+            newUsersLast30Days);
+    }
 }

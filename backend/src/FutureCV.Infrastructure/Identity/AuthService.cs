@@ -5,6 +5,7 @@ using FutureCV.Application.Common.Models;
 using FutureCV.Application.Features.Auth.DTOs;
 using FutureCV.Application.Features.Auth.Interfaces;
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -217,7 +218,7 @@ public class AuthService : IAuthService
                 {
                     Name = request.CompanyName,
                     TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                    VerifiedStatus = "Unverified"
+                    VerifiedStatus = CompanyVerificationStatus.Unverified
                 };
                 _context.Companies.Add(company);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -267,7 +268,7 @@ public class AuthService : IAuthService
             {
                 Name = request.CompanyName,
                 TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                VerifiedStatus = "Unverified"
+                VerifiedStatus = CompanyVerificationStatus.Unverified
             };
             _context.Companies.Add(newCompany);
             await _context.SaveChangesAsync(cancellationToken);
@@ -917,7 +918,7 @@ public class AuthService : IAuthService
                 {
                     Name = request.CompanyName,
                     TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                    VerifiedStatus = "Unverified"
+                    VerifiedStatus = CompanyVerificationStatus.Unverified
                 };
                 _context.Companies.Add(company);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -961,7 +962,7 @@ public class AuthService : IAuthService
             {
                 Name = request.CompanyName,
                 TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                VerifiedStatus = "Unverified"
+                VerifiedStatus = CompanyVerificationStatus.Unverified
             };
             _context.Companies.Add(newCompany);
             await _context.SaveChangesAsync(cancellationToken);
