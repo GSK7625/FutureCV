@@ -85,16 +85,39 @@ public class AuthService : IAuthService
             return AuthResult.Failure<AuthResponse>($"Role '{targetRole}' is not initialized in the system.", 500);
         }
 
-        // Check duplicate email
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if (existingUser is not null)
-        {
-            return AuthResult.Failure<AuthResponse>("Email already registered. Please log in or reset your password.", 400);
-        }
-
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            // Check existing user for multi-role support
+            var existingUser = await _userManager.FindByEmailAsync(request.Email);
+            if (existingUser is not null)
+            {
+                if (existingUser.IsDeleted)
+                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+
+                var isPasswordValid = await _userManager.CheckPasswordAsync(existingUser, request.Password);
+                if (!isPasswordValid)
+                    return AuthResult.Failure<AuthResponse>("Mật khẩu không đúng cho tài khoản đã tồn tại.", 400);
+
+                if (await _userManager.IsInRoleAsync(existingUser, targetRole))
+                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+
+                // Add Candidate role & profile to existing user
+                await _userManager.AddToRoleAsync(existingUser, targetRole);
+                var newCandidate = new Candidate
+                {
+                    UserId = existingUser.Id,
+                    FullName = request.FullName
+                };
+                _context.Candidates.Add(newCandidate);
+
+                var existingAuthResponse = await GenerateAuthTokensAsync(existingUser, targetRole, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return AuthResult.Success(existingAuthResponse, 201);
+            }
+
             var user = new AppUser
             {
                 Id = Guid.NewGuid(),
@@ -133,6 +156,11 @@ public class AuthService : IAuthService
 
             return AuthResult.Success(authResponse, 201);
         }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+        }
         catch (Exception)
         {
             await transaction.RollbackAsync(cancellationToken);
@@ -158,15 +186,51 @@ public class AuthService : IAuthService
             return AuthResult.Failure<AuthResponse>($"Role '{targetRole}' is not initialized in the system.", 500);
         }
 
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if (existingUser is not null)
-        {
-            return AuthResult.Failure<AuthResponse>("Email already registered. Please log in or reset your password.", 400);
-        }
-
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            // Check existing user for multi-role support
+            var existingUser = await _userManager.FindByEmailAsync(request.Email);
+            if (existingUser is not null)
+            {
+                if (existingUser.IsDeleted)
+                    return AuthResult.Failure<AuthResponse>("Tài khoản đã bị vô hiệu hóa.", 403);
+
+                var isPasswordValid = await _userManager.CheckPasswordAsync(existingUser, request.Password);
+                if (!isPasswordValid)
+                    return AuthResult.Failure<AuthResponse>("Mật khẩu không đúng cho tài khoản đã tồn tại.", 400);
+
+                if (await _userManager.IsInRoleAsync(existingUser, targetRole))
+                    return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
+
+                // Add Employer role & profile to existing user
+                await _userManager.AddToRoleAsync(existingUser, targetRole);
+
+                var company = new Company
+                {
+                    Name = request.CompanyName,
+                    TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
+                    VerifiedStatus = "Unverified"
+                };
+                _context.Companies.Add(company);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var employer = new Employer
+                {
+                    UserId = existingUser.Id,
+                    FullName = request.FullName,
+                    Phone = request.Phone,
+                    CompanyId = company.Id
+                };
+                _context.Employers.Add(employer);
+
+                var existingAuthResponse = await GenerateAuthTokensAsync(existingUser, targetRole, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return AuthResult.Success(existingAuthResponse, 201);
+            }
+
             var user = new AppUser
             {
                 Id = Guid.NewGuid(),
@@ -192,24 +256,24 @@ public class AuthService : IAuthService
             }
 
             // Create Company
-            var company = new Company
+            var newCompany = new Company
             {
                 Name = request.CompanyName,
-                TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8], // Or you could request TaxCode from UI
+                TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
                 VerifiedStatus = "Unverified"
             };
-            _context.Companies.Add(company);
+            _context.Companies.Add(newCompany);
             await _context.SaveChangesAsync(cancellationToken);
 
             // Create Employer
-            var employer = new Employer
+            var newEmployer = new Employer
             {
                 UserId = user.Id,
                 FullName = request.FullName,
                 Phone = request.Phone,
-                CompanyId = company.Id
+                CompanyId = newCompany.Id
             };
-            _context.Employers.Add(employer);
+            _context.Employers.Add(newEmployer);
 
             var authResponse = await GenerateAuthTokensAsync(user, targetRole, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
@@ -217,6 +281,11 @@ public class AuthService : IAuthService
             await transaction.CommitAsync(cancellationToken);
 
             return AuthResult.Success(authResponse, 201);
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return AuthResult.Failure<AuthResponse>("ACCOUNT_ALREADY_EXISTS", 400);
         }
         catch (Exception)
         {
