@@ -22,6 +22,7 @@ public interface IApplicationDbContext
     DbSet<CandidateSkill> CandidateSkills { get; }
     DbSet<CandidateCv> CandidateCvs { get; }
     DbSet<CvParser> CvParsers { get; }
+    DbSet<CvEvaluation> CvEvaluations { get; }
     DbSet<Certificate> Certificates { get; }
     DbSet<Project> Projects { get; }
     DbSet<AuditLog> AuditLogs { get; }

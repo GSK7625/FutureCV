@@ -82,5 +82,24 @@ public interface ICandidateService
 
     Task<ServiceResult<bool>> DeleteProjectAsync(
         Guid userId, Guid projectId, CancellationToken cancellationToken = default);
+
+    // --- Structured CV Data & AI Analysis (P2-UC04, P2-UC05, P2-UC06) ---
+    Task<ServiceResult<CvStructuredDataResponse>> GetStructuredCvDataAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<CvStructuredDataResponse>> UpdateStructuredCvDataAsync(
+        Guid userId, Guid cvId, UpdateStructuredCvDataRequest request, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<CvStructuredDataResponse>> RevertStructuredCvDataAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<CvAnalysisResponse>> GetCvAnalysisAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<CvAnalysisResponse>> AnalyzeCvAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<bool>> ProcessAiCvCallbackAsync(
+        Guid cvId, AiCvCallbackRequest request, CancellationToken cancellationToken = default);
 }
 
