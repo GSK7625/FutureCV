@@ -176,7 +176,10 @@ public sealed record PipelineCandidateCardResponse(
     string? EvaluationLabel,
     int? MatchScore,
     DateTime AppliedAt,
-    string? CvFileUrl);
+    string? CvFileUrl,
+    int DaysInStage = 0,
+    string StageAlert = "Normal",
+    DateTime? LastStatusChangedAt = null);
 
 public sealed record PipelineStageResponse(
     string Stage,
@@ -188,3 +191,54 @@ public sealed record RecruitmentPipelineResponse(
     string JobTitle,
     int TotalCandidates,
     IReadOnlyList<PipelineStageResponse> Stages);
+
+// -----------------------------------------------------------------------------
+// Recruitment Pipeline Analytics & Export DTOs (P4-UC07)
+// -----------------------------------------------------------------------------
+
+public sealed record StageConversionDto(
+    string FromStage,
+    string ToStage,
+    int FromCount,
+    int ToCount,
+    double ConversionRate);
+
+public sealed record StageDurationDto(
+    string Stage,
+    double AverageDays,
+    int CandidateCount,
+    int OverdueCount);
+
+public sealed record PipelineAnalyticsResponse(
+    Guid JobId,
+    string JobTitle,
+    int TotalApplications,
+    int ActiveApplications,
+    int HiredCount,
+    int RejectedCount,
+    int WithdrawnCount,
+    double? AverageTimeToHireDays,
+    double OverallConversionRate,
+    IReadOnlyList<StageConversionDto> StageConversionRates,
+    IReadOnlyList<StageDurationDto> StageAverageDurations,
+    string? BottleneckStage,
+    int OverdueCandidatesCount);
+
+// -----------------------------------------------------------------------------
+// Preview Match & Skill Gap DTOs (P4-UC01, P4-UC02)
+// -----------------------------------------------------------------------------
+
+public sealed record PreviewJobMatchRequest(
+    Guid? CvId = null);
+
+public sealed record JobMatchPreviewResponse(
+    Guid JobId,
+    string JobTitle,
+    Guid CvId,
+    string CvTitle,
+    int MatchScore,
+    IReadOnlyList<string> MatchedSkills,
+    IReadOnlyList<string> MissingSkills,
+    string Explanation,
+    bool LocationMatched,
+    bool SalaryMatched);
