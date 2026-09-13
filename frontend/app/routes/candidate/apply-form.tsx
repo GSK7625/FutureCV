@@ -177,7 +177,7 @@ export default function ApplyFormPage() {
         </Card>
 
         <div className="flex justify-end gap-4">
-          <Link to={`/candidate/jobs/${jobId}`}>
+          <Link to={`/jobs/${jobId}`}>
             <Button variant="ghost" size="lg">Hủy</Button>
           </Link>
           <Button type="submit" variant="accent" size="lg" disabled={apply.isPending}>

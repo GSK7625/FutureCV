@@ -1,9 +1,7 @@
-import { memo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  IconSearch,
-  IconMapPin,
   IconBriefcase,
   IconDeviceDesktop,
   IconCode,
@@ -20,9 +18,10 @@ import {
   IconChevronRight,
   IconX,
 } from "@tabler/icons-react";
-import { Button } from "~/components/ui/Button";
 import { JobCard } from "~/components/shared/JobCard";
 import { useJobList } from "~/features/candidate/hooks/useJobList";
+import { useJobMasterData } from "~/features/candidate/hooks/useJobMasterData";
+import { JobSearchBar } from "~/features/candidate/components/job-list/JobSearchBar";
 import { formatNumber } from "~/utils";
 import type { Job } from "~/features/candidate/types";
 
@@ -64,56 +63,7 @@ const fadeUp = {
 
 const sharedViewport = { once: true, margin: "-64px" } as const;
 
-/**
- * HeroSearch: Local-first search state, chỉ navigate khi submit, không làm re-render phần còn lại của HomePage
- */
-function HeroSearch() {
-  const navigate = useNavigate();
-  const [keyword, setKeyword] = useState("");
-  const [location, setLocation] = useState("");
 
-  const handleSearch = () => {
-    const params = new URLSearchParams();
-    if (keyword.trim()) params.set("q", keyword.trim());
-    if (location) params.set("location", location);
-    navigate(`/candidate${params.size ? `?${params}` : ""}`);
-  };
-
-  return (
-    <div className="mt-10 flex w-full max-w-4xl flex-col gap-3 rounded-xl bg-white p-3 shadow-overlay md:flex-row">
-      <div className="flex flex-grow items-center rounded-default border border-border-strong bg-surface-low px-4 transition-all focus-within:border-gold focus-within:bg-white focus-within:ring-2 focus-within:ring-gold/20">
-        <IconSearch size={20} stroke={1.6} className="mr-3 text-ink-muted" />
-        <input
-          type="text"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          placeholder="Tìm kiếm việc làm, công ty..."
-          className="w-full border-none bg-transparent py-3 text-body text-ink outline-none ring-0 placeholder:text-ink-muted/70 focus:outline-none focus:ring-0"
-          aria-label="Từ khóa tìm kiếm"
-        />
-      </div>
-      <div className="flex items-center rounded-default border border-border-strong bg-surface-low px-4 transition-all focus-within:border-gold focus-within:bg-white focus-within:ring-2 focus-within:ring-gold/20 md:w-52">
-        <IconMapPin size={20} stroke={1.6} className="mr-3 text-ink-muted" />
-        <select
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="w-full border-none bg-transparent py-3 text-body text-ink outline-none ring-0 focus:outline-none focus:ring-0"
-          aria-label="Địa điểm"
-        >
-          <option value="">Tất cả địa điểm</option>
-          <option value="Hà Nội">Hà Nội</option>
-          <option value="TP. HCM">TP. HCM</option>
-          <option value="Đà Nẵng">Đà Nẵng</option>
-          <option value="Từ xa">Từ xa</option>
-        </select>
-      </div>
-      <Button variant="accent" size="lg" className="md:px-8" onClick={handleSearch}>
-        Tìm kiếm
-      </Button>
-    </div>
-  );
-}
 
 const AnimatedJobCard = memo(function AnimatedJobCard({
   job,
@@ -138,14 +88,62 @@ const AnimatedJobCard = memo(function AnimatedJobCard({
 });
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
+  const { data: masterData, isLoading: loadingMasterData } = useJobMasterData();
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [showHint, setShowHint] = useState(true);
   const hotlineRef = useRef<HTMLDivElement>(null);
 
+  const resolveCategoryHref = (label: string) => {
+    if (masterData?.categories && masterData.categories.length > 0) {
+      const normalize = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+      const targetNorm = normalize(label);
+
+      // 1. So khớp tuyệt đối hoặc so sánh không phân biệt hoa thường
+      const exact = masterData.categories.find(
+        (c) => normalize(c.name) === targetNorm || c.name.toLowerCase() === label.toLowerCase(),
+      );
+      if (exact) return `/jobs?categoryId=${encodeURIComponent(exact.id)}`;
+
+      // 2. So khớp chuỗi con
+      const substr = masterData.categories.find((c) => {
+        const cNorm = normalize(c.name);
+        return cNorm.includes(targetNorm) || targetNorm.includes(cNorm);
+      });
+      if (substr) return `/jobs?categoryId=${encodeURIComponent(substr.id)}`;
+
+      // 3. So khớp theo cụm từ phụ (cắt theo ký tự /, -)
+      const parts = label
+        .toLowerCase()
+        .split(/[/,-]+/)
+        .map((p) => p.trim())
+        .filter((p) => p.length > 1);
+
+      const phraseMatch = masterData.categories.find((c) => {
+        const cLower = c.name.toLowerCase();
+        return parts.some((p) => cLower.includes(p) || normalize(cLower).includes(normalize(p)));
+      });
+      if (phraseMatch) return `/jobs?categoryId=${encodeURIComponent(phraseMatch.id)}`;
+    }
+
+    // Fallback: nếu chưa tải xong master data hoặc không khớp danh mục nào, dùng từ khóa ?q=
+    return `/jobs?q=${encodeURIComponent(label)}`;
+  };
+
+  const activeLocationId = useMemo(() => {
+    if (!activeChip || !masterData?.locations) return undefined;
+    const found = masterData.locations.find(
+      (l) =>
+        l.name.toLowerCase() === activeChip.toLowerCase() ||
+        l.name.toLowerCase().includes(activeChip.toLowerCase()),
+    );
+    return found?.id;
+  }, [activeChip, masterData]);
+
   const { data: featuredJobs } = useJobList({
-    location: activeChip ? [activeChip] : undefined,
+    locationId: activeLocationId,
     page,
     pageSize: 8,
   });
@@ -172,7 +170,18 @@ export default function HomePage() {
           </p>
 
           {/* Search bar độc lập state */}
-          <HeroSearch />
+          <JobSearchBar
+            keyword=""
+            locations={masterData?.locations ?? []}
+            loadingLocations={loadingMasterData}
+            className="mt-10 max-w-4xl"
+            onSubmit={(v) => {
+              const params = new URLSearchParams();
+              if (v.keyword) params.set("q", v.keyword);
+              if (v.locationId) params.set("locationId", v.locationId);
+              navigate(`/jobs${params.size ? `?${params}` : ""}`);
+            }}
+          />
 
           {/* Categories + Banner 1 */}
           <div className="mt-10 grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
@@ -182,7 +191,7 @@ export default function HomePage() {
                 {popularCategories.map((cat) => (
                   <li key={cat.label}>
                     <Link
-                      to={`/candidate?q=${encodeURIComponent(cat.label)}`}
+                      to={resolveCategoryHref(cat.label)}
                       className="flex items-center gap-3 text-white/90 transition-all hover:translate-x-1 hover:text-white"
                     >
                       <cat.icon size={18} stroke={1.6} />
@@ -194,7 +203,7 @@ export default function HomePage() {
             </div>
 
             <Link
-              to="/candidate"
+              to="/jobs"
               className="relative flex max-h-[290px] w-full items-center justify-center overflow-hidden rounded-xl bg-surface shadow-overlay md:col-span-2"
             >
               <img
@@ -223,7 +232,7 @@ export default function HomePage() {
 
             <div className="flex items-center gap-4">
               <Link
-                to="/candidate"
+                to="/jobs"
                 className="text-label font-semibold text-navy transition-colors hover:text-gold"
               >
                 Xem tất cả
@@ -335,7 +344,7 @@ export default function HomePage() {
             {/* Shrunk Vertical Banner */}
             <div className="w-full shrink-0 self-start lg:w-[250px]">
               <Link
-                to="/candidate"
+                to="/jobs"
                 className="group relative block overflow-hidden rounded-xl bg-surface shadow-sm transition-all duration-300 hover:shadow-md"
               >
                 <img
@@ -380,7 +389,7 @@ export default function HomePage() {
                   <p className="line-clamp-1 text-label-sm text-ink-muted">{company.industry}</p>
                 </div>
                 <Link
-                  to={`/candidate?q=${encodeURIComponent(company.name)}`}
+                  to={`/jobs?q=${encodeURIComponent(company.name)}`}
                   className="w-full rounded-lg bg-navy-secondary/10 px-3 py-2 text-label-sm font-semibold text-navy transition-colors hover:bg-navy-secondary/20"
                 >
                   {company.jobs} Việc làm đang tuyển
@@ -414,7 +423,7 @@ export default function HomePage() {
                 viewport={sharedViewport}
               >
                 <Link
-                  to={`/candidate?q=${encodeURIComponent(ind.label)}`}
+                  to={resolveCategoryHref(ind.label)}
                   className="group flex h-[116px] flex-col items-center justify-center rounded-xl border border-border-subtle bg-surface p-3 text-center shadow-sm transition-all hover:border-gold/60 hover:shadow-md"
                 >
                   <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-navy-secondary/5 transition-colors group-hover:bg-gold/10">
