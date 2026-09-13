@@ -1,6 +1,5 @@
 """Unit tests for Career Assistant prompt hardening and PII minimization."""
 
-from unittest.mock import AsyncMock
 import pytest
 
 from app.application.career_assistant import CareerAssistantService
@@ -92,4 +91,3 @@ async def test_career_assistant_omits_candidate_id_and_pii_from_prompt():
     assert response.meta.algorithm_version == "career-v0"
     assert response.meta.provider == "mock"
     assert response.meta.model == "mock-deterministic"
-

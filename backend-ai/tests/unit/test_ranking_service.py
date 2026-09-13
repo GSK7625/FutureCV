@@ -111,3 +111,6 @@ async def test_ranking_service_makes_zero_llm_generate_text_calls():
         assert len(rc.match_result.match_explanation) > 0
         assert "Điểm phù hợp:" in rc.match_result.match_explanation
         assert rc.match_result.meta.algorithm_version == "matching-v0"
+        assert rc.match_result.meta.algorithm_variant == "matching-v0"
+        assert rc.match_result.meta.schema_version == "1.0.0"
+        assert rc.match_result.meta.llm_invoked is False

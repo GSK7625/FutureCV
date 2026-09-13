@@ -36,6 +36,24 @@ class Settings(BaseSettings):
     )
     llm_model: str = Field(default="gpt-4o-mini", alias="LLM_MODEL")
 
+    # Matching Algorithm Configuration
+    # Supported: "matching-v0" (heuristic baseline) | "matching-v1-experimental" (uncalibrated weights + semantic)
+    matching_algorithm: Literal["matching-v0", "matching-v1-experimental"] = Field(
+        default="matching-v0",
+        alias="MATCHING_ALGORITHM",
+    )
+
+    # Embedding Provider Configuration
+    # Supported providers: "mock" (offline/deterministic) | "openai"
+    embedding_provider: Literal["mock", "openai"] = Field(
+        default="mock",
+        alias="EMBEDDING_PROVIDER",
+    )
+    embedding_model: str = Field(
+        default="text-embedding-3-small",
+        alias="EMBEDDING_MODEL",
+    )
+
     # Provider API keys
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
 
@@ -90,6 +108,26 @@ class Settings(BaseSettings):
         # 3. LLM_PROVIDER=openai without OPENAI_API_KEY -> configuration error
         if self.llm_provider == "openai" and not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY must be configured when LLM_PROVIDER is 'openai'")
+
+        # 4. Production + matching-v1-experimental + mock embedding -> configuration error
+        if (
+            self.is_production
+            and self.matching_algorithm == "matching-v1-experimental"
+            and self.embedding_provider == "mock"
+        ):
+            raise ValueError(
+                "Mock embedding provider is not permitted in production when matching-v1-experimental is active"
+            )
+
+        # 5. EMBEDDING_PROVIDER=openai without OPENAI_API_KEY when matching-v1 is active -> configuration error
+        if (
+            self.matching_algorithm == "matching-v1-experimental"
+            and self.embedding_provider == "openai"
+            and not self.openai_api_key
+        ):
+            raise ValueError(
+                "OPENAI_API_KEY must be configured when EMBEDDING_PROVIDER is 'openai' and matching-v1-experimental is active"
+            )
 
         return self
 

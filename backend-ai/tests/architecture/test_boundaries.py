@@ -85,6 +85,7 @@ def test_application_layer_dependencies():
         "starlette",
         "app.api",
         "app.infrastructure.llm.providers",
+        "app.infrastructure.embeddings.providers",
     }
 
     violations = []
@@ -127,7 +128,8 @@ def test_api_routes_do_not_import_concrete_providers_directly():
         "openai",
         "anthropic",
         "google",
-        "app.infrastructure.llm.providers.openai_provider",
+        "app.infrastructure.llm.providers",
+        "app.infrastructure.embeddings.providers",
     }
 
     violations = []

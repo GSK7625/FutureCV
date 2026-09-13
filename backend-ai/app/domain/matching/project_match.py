@@ -8,12 +8,19 @@ from app.domain.cv.normalization import normalize_skill
 
 @dataclass(frozen=True)
 class ProjectRelevanceResult:
-    """Evaluation of candidate projects against job technology requirements."""
+    """
+    Evaluation of candidate projects against job technology requirements.
+
+    NOTE ON STATISTICAL INDEPENDENCE:
+    Component scores are heuristic and are not statistically independent. Technologies
+    demonstrated in projects may also contribute to the overall candidate skill pool.
+    """
 
     matched_technologies: list[str] = field(default_factory=list)
     relevant_project_count: int = 0
     total_project_count: int = 0
     relevance_explanation: str = ""
+    project_score: float = 0.0
 
 
 def evaluate_project_relevance(
@@ -38,6 +45,7 @@ def evaluate_project_relevance(
             relevance_explanation=(
                 "Vị trí tuyển dụng không có yêu cầu kỹ năng cụ thể để đánh giá độ liên quan của dự án."
             ),
+            project_score=50.0,
         )
 
     # Case 2: Candidate has no projects listed
@@ -47,6 +55,7 @@ def evaluate_project_relevance(
             relevant_project_count=0,
             total_project_count=0,
             relevance_explanation="Chưa có thông tin dự án thực tế trong hồ sơ.",
+            project_score=0.0,
         )
 
     # Build normalized lookup for target skills
@@ -77,16 +86,20 @@ def evaluate_project_relevance(
             f"Ứng viên có {relevant_count}/{total_projects} dự án thực tế ứng dụng công nghệ phù hợp: "
             f"{', '.join(matched_tech_set)}."
         )
+        # Compute ratio of matched project technologies to target skills (capped at 100)
+        calculated_score = round(min(100.0, (len(matched_tech_set) / max(1, len(norm_targets))) * 100.0), 2)
     else:
         # Case 4: Projects exist but no technology overlap
         explanation = (
             f"Ứng viên có {total_projects} dự án thực tế nhưng các công nghệ sử dụng "
             f"chưa thể hiện sự trùng khớp với yêu cầu của vị trí này."
         )
+        calculated_score = 0.0
 
     return ProjectRelevanceResult(
         matched_technologies=matched_tech_set,
         relevant_project_count=relevant_count,
         total_project_count=total_projects,
         relevance_explanation=explanation,
+        project_score=calculated_score,
     )
