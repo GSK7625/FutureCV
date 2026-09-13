@@ -31,6 +31,9 @@ public interface IJobService
     Task<ServiceResult<JobDetailResponse>> GetJobDetailAsync(
         Guid jobId, bool incrementView = true, CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<bool>> ReportJobAsync(
+        Guid userId, Guid jobId, CreateJobReportRequest request, CancellationToken cancellationToken = default);
+
     // Master data lookups
     Task<ServiceResult<IReadOnlyList<JobCategoryResponse>>> GetCategoriesAsync(
         CancellationToken cancellationToken = default);

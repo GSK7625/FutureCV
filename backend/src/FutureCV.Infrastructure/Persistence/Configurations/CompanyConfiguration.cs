@@ -1,4 +1,5 @@
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -22,8 +23,12 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
             .IsUnique();
 
         builder.Property(c => c.VerifiedStatus)
+            .HasConversion<string>()
             .IsRequired()
             .HasMaxLength(20)
-            .HasDefaultValue("Unverified");
+            .HasDefaultValue(CompanyVerificationStatus.Unverified);
+
+        builder.Property(c => c.IsDeleted)
+            .HasDefaultValue(false);
     }
 }

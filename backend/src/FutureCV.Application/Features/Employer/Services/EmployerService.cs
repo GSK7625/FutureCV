@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FutureCV.Application.Features.Employer.Services;
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 
 public class EmployerService : IEmployerService
 {
@@ -156,7 +157,7 @@ public class EmployerService : IEmployerService
             WebsiteUrl     = request.WebsiteUrl,
             Address        = request.Address,
             Description    = request.Description,
-            VerifiedStatus = "Unverified",
+            VerifiedStatus = CompanyVerificationStatus.Unverified,
         };
 
         _context.Companies.Add(company);
@@ -240,5 +241,5 @@ public class EmployerService : IEmployerService
     private static CompanyProfileResponse MapToCompanyResponse(Company c) => new(
         c.Id, c.Name, c.TaxCode, c.LogoUrl, c.Scale, c.Industry,
         c.WebsiteUrl, c.Address, c.Description,
-        c.VerifiedStatus, c.VerifiedAt, c.CreatedAt);
+        c.VerifiedStatus.ToString(), c.VerifiedAt, c.CreatedAt);
 }
