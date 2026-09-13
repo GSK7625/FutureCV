@@ -1,6 +1,7 @@
-"""Unit tests for OpenAI and Mock LLM providers resilience, retries, and lifecycle."""
+import json
 
 import httpx
+from pydantic import BaseModel
 import pytest
 
 from app.core.config import Settings
@@ -168,3 +169,179 @@ async def test_openai_network_error_retried_and_recovers():
     assert result == "Successful response"
     assert attempt_count == 2
     assert len(sleep_calls) == 1
+
+
+class DummyStructuredOutput(BaseModel):
+    summary: str
+    score: float
+
+
+@pytest.mark.asyncio
+async def test_openai_200_invalid_json_body_raises_provider_error():
+    """Rule 1: HTTP 200 with non-JSON response body raises controlled ProviderError (502) without retries."""
+    attempt_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempt_count
+        attempt_count += 1
+        return httpx.Response(200, text="<html><body>502 Bad Gateway</body></html>")
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test", LLM_MAX_RETRIES=2)
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await provider.generate_text(prompt="test")
+
+    assert exc_info.value.status_code == 502
+    assert "Invalid JSON in OpenAI response body" in str(exc_info.value)
+    # Malformed 200 is not retryable: exactly 1 attempt
+    assert attempt_count == 1
+
+
+@pytest.mark.asyncio
+async def test_openai_200_empty_dict_raises_provider_error():
+    """Rule 2: HTTP 200 with empty JSON object {} raises controlled ProviderError."""
+    attempt_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempt_count
+        attempt_count += 1
+        return httpx.Response(200, json={})
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test", LLM_MAX_RETRIES=2)
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await provider.generate_text(prompt="test")
+
+    assert exc_info.value.status_code == 502
+    assert "missing or empty 'choices' list" in str(exc_info.value)
+    assert attempt_count == 1
+
+
+@pytest.mark.asyncio
+async def test_openai_200_empty_choices_raises_provider_error():
+    """Rule 3: HTTP 200 with choices=[] raises controlled ProviderError."""
+    attempt_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempt_count
+        attempt_count += 1
+        return httpx.Response(200, json={"choices": []})
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test", LLM_MAX_RETRIES=2)
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await provider.generate_text(prompt="test")
+
+    assert exc_info.value.status_code == 502
+    assert "missing or empty 'choices' list" in str(exc_info.value)
+    assert attempt_count == 1
+
+
+@pytest.mark.asyncio
+async def test_openai_200_content_none_raises_provider_error():
+    """Rule 4: HTTP 200 with content=None raises controlled ProviderError."""
+    attempt_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempt_count
+        attempt_count += 1
+        return httpx.Response(200, json={"choices": [{"message": {"content": None}}]})
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test", LLM_MAX_RETRIES=2)
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await provider.generate_text(prompt="test")
+
+    assert exc_info.value.status_code == 502
+    assert "'content' field is None" in str(exc_info.value)
+    assert attempt_count == 1
+
+
+@pytest.mark.asyncio
+async def test_openai_200_content_non_string_raises_provider_error():
+    """Rule 5: HTTP 200 with non-string content (e.g. int/list/object) raises controlled ProviderError."""
+    attempt_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempt_count
+        attempt_count += 1
+        return httpx.Response(200, json={"choices": [{"message": {"content": 123}}]})
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test", LLM_MAX_RETRIES=2)
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await provider.generate_text(prompt="test")
+
+    assert exc_info.value.status_code == 502
+    assert "expected string content, got int" in str(exc_info.value)
+    assert attempt_count == 1
+
+
+@pytest.mark.asyncio
+async def test_openai_structured_content_invalid_json_raises_provider_error():
+    """Rule 6: Structured generation with non-JSON content string raises controlled ProviderError."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": "This is plain text, not JSON"}}]})
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test")
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await provider.generate_structured(prompt="test", response_model=DummyStructuredOutput)
+
+    assert exc_info.value.status_code == 502
+    assert "not valid JSON" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_openai_structured_content_schema_invalid_raises_provider_error():
+    """Rule 7: Structured generation with valid JSON but invalid schema raises controlled ProviderError."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        # Missing required 'summary' and 'score' fields
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps({"unknown_field": 42})}}]})
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test")
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await provider.generate_structured(prompt="test", response_model=DummyStructuredOutput)
+
+    assert exc_info.value.status_code == 502
+    assert "does not match required contract" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_openai_normal_valid_response_still_works():
+    """Rule 8: Verify normal valid text and structured generation continue to work flawlessly."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if "response_format" in body:
+            content = json.dumps({"summary": "Great match", "score": 98.5})
+        else:
+            content = "  Hello from OpenAI!  "
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    mock_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    settings = Settings(OPENAI_API_KEY="sk-test")
+    provider = OpenAiProvider(settings=settings, http_client=mock_client)
+
+    # 1. Text generation
+    text_result = await provider.generate_text(prompt="Hi")
+    assert text_result == "Hello from OpenAI!"
+
+    # 2. Structured generation
+    struct_result = await provider.generate_structured(prompt="Analyze", response_model=DummyStructuredOutput)
+    assert struct_result.summary == "Great match"
+    assert struct_result.score == 98.5

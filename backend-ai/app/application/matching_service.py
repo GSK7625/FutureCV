@@ -12,7 +12,10 @@ from app.contracts.job import StructuredJob
 from app.contracts.matching import MatchResult
 from app.core.exceptions import ProviderError
 from app.domain.matching.education_match import calculate_education_match
-from app.domain.matching.experience_match import calculate_experience_match
+from app.domain.matching.experience_match import (
+    calculate_experience_match,
+    calculate_total_experience_years,
+)
 from app.domain.matching.project_match import evaluate_project_relevance
 from app.domain.matching.scoring import (
     MATCHING_ALGORITHM_VERSION,
@@ -103,7 +106,7 @@ class MatchingService:
         )
 
         # 3. Experience matching
-        candidate_years = sum(exp.years_of_experience for exp in cv.work_experience)
+        candidate_years = calculate_total_experience_years(cv.work_experience)
         exp_res = calculate_experience_match(
             candidate_years=candidate_years,
             required_years=job.minimum_experience_years,

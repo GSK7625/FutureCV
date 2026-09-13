@@ -1,5 +1,7 @@
 """Contracts for Job Matching and Candidate/Job Ranking features."""
 
+from typing import Annotated
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.contracts.common import ResponseMeta
@@ -18,12 +20,36 @@ class MatchResult(BaseModel):
     """Evaluation result comparing a candidate CV against a job description."""
 
     match_score: int = Field(description="Compatibility score between 0 and 100", ge=0, le=100)
-    matched_skills: list[str] = Field(default_factory=list, description="Skills possessed by candidate required by job")
-    missing_skills: list[str] = Field(default_factory=list, description="Required skills missing from candidate CV")
-    experience_comparison: str = Field(default="", description="Detailed comparison of years of experience")
-    education_comparison: str = Field(default="", description="Comparison of academic qualifications")
-    project_domain_relevance: str = Field(default="", description="Relevance of past projects to job domain")
-    match_explanation: str = Field(default="", description="Comprehensive natural language match explanation")
+    matched_skills: list[Annotated[str, Field(max_length=200)]] = Field(
+        default_factory=list,
+        max_length=200,
+        description="Skills possessed by candidate required by job",
+    )
+    missing_skills: list[Annotated[str, Field(max_length=200)]] = Field(
+        default_factory=list,
+        max_length=200,
+        description="Required skills missing from candidate CV",
+    )
+    experience_comparison: str = Field(
+        default="",
+        max_length=4000,
+        description="Detailed comparison of years of experience",
+    )
+    education_comparison: str = Field(
+        default="",
+        max_length=4000,
+        description="Comparison of academic qualifications",
+    )
+    project_domain_relevance: str = Field(
+        default="",
+        max_length=4000,
+        description="Relevance of past projects to job domain",
+    )
+    match_explanation: str = Field(
+        default="",
+        max_length=10000,
+        description="Comprehensive natural language match explanation",
+    )
     meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Execution metadata")
 
 

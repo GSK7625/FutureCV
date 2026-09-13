@@ -5,6 +5,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 import pytest
 
+from app.api.deps import get_cv_analyzer_service
 from app.application.cv_analyzer import CvAnalyzerService
 from app.core.config import Settings
 from app.core.exceptions import DocumentParsingError
@@ -115,3 +116,71 @@ async def test_cv_analyzer_rejects_oversized_raw_text():
 
     assert exc_info.value.error_code == "INVALID_DOCUMENT"
     assert exc_info.value.details["reason"] == "text_limit_exceeded"
+
+
+def test_get_cv_analyzer_service_receives_injected_settings():
+    """Verify get_cv_analyzer_service receives and forwards explicit Settings to CvAnalyzerService."""
+    custom_settings = Settings(MAX_EXTRACTED_TEXT_CHARS=1234)
+    parser = DummyParser()
+    llm = MockLlmProvider()
+
+    service = get_cv_analyzer_service(parser=parser, llm=llm, settings=custom_settings)
+
+    assert service.settings is custom_settings
+    assert service.settings.max_extracted_text_chars == 1234
+
+
+def test_cv_analyzer_dependency_override_pipeline_consistency():
+    """Prove that route, parser, and CvAnalyzerService observe the identical injected Settings instance."""
+    from fastapi.testclient import TestClient
+
+    from app.api.deps import get_document_parser, get_settings_dep
+    from app.main import app
+
+    # Create distinct custom settings with a non-default character threshold
+    custom_settings = Settings(
+        MAX_EXTRACTED_TEXT_CHARS=100,
+        MAX_UPLOAD_SIZE_BYTES=32 * 1024,
+    )
+
+    def override_settings():
+        yield custom_settings
+
+    app.dependency_overrides[get_settings_dep] = override_settings
+    try:
+        # 1. Verify parser resolved via DI has the exact custom settings instance
+        resolved_parser = get_document_parser(settings=custom_settings)
+        assert resolved_parser.settings is custom_settings
+        assert resolved_parser.settings.max_extracted_text_chars == 100
+
+        # 2. Verify service resolved via get_cv_analyzer_service has the exact custom settings instance
+        resolved_service = get_cv_analyzer_service(
+            parser=resolved_parser,
+            llm=MockLlmProvider(),
+            settings=custom_settings,
+        )
+        assert resolved_service.settings is custom_settings
+        assert resolved_service.settings.max_extracted_text_chars == 100
+
+        # 3. End-to-end route invocation proving CvAnalyzerService enforces the overridden 100-char limit
+        client = TestClient(app)
+        oversized_text = "Software Engineer with deep expertise. " * 4  # ~160 chars > 100 limit
+        response = client.post(
+            "/api/v1/cv/analyze-text",
+            json={"raw_text": oversized_text},
+        )
+        assert response.status_code == 422
+        body = response.json()
+        assert body["error_code"] == "INVALID_DOCUMENT"
+        assert body["details"]["reason"] == "text_limit_exceeded"
+
+        # Within the 100-character limit succeeds
+        valid_text = "Software Engineer with Python."  # ~30 chars < 100 limit
+        valid_response = client.post(
+            "/api/v1/cv/analyze-text",
+            json={"raw_text": valid_text},
+        )
+        assert valid_response.status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_settings_dep, None)
+

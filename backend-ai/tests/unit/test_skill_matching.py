@@ -85,3 +85,122 @@ def test_calculate_skill_match_canonical_alias_matching():
     res = calculate_skill_match(candidate_skills=cand, required_skills=req)
     assert res.skill_score == 100.0
     assert len(res.missing_skills) == 0
+
+
+def test_duplicate_required_skills_deduplication():
+    """Verify duplicate required skills do not inflate requirement count or match count."""
+    cand = ["Python"]
+    req = ["Python", "Python", "Docker"]
+
+    res = calculate_skill_match(candidate_skills=cand, required_skills=req)
+    # Deduplicated requirements are Python, Docker (total = 2)
+    assert res.total_required_count == 2
+    assert res.matched_required_count == 1
+    assert res.skill_score == 50.0
+    assert res.matched_skills == ["Python"]
+    assert res.missing_skills == ["Docker"]
+
+
+def test_duplicate_preferred_skills_deduplication():
+    """Verify duplicate preferred skills do not skew weighting."""
+    cand = ["FastAPI", "Docker"]
+    req = ["FastAPI"]
+    pref = ["Docker", "docker", "DOCKER"]
+
+    res = calculate_skill_match(candidate_skills=cand, required_skills=req, preferred_skills=pref)
+    assert res.total_required_count == 1
+    assert res.matched_required_count == 1
+    # 80% for req + 20% for pref (1/1) = 100.0%
+    assert res.skill_score == 100.0
+    assert res.matched_skills == ["FastAPI", "Docker (Preferred)"]
+
+
+def test_required_and_preferred_overlap_disjoint():
+    """Verify skills present in both required and preferred are only scored once in required."""
+    cand = ["Python"]
+    req = ["Python", "PostgreSQL"]
+    pref = ["Python", "Docker"]
+
+    res = calculate_skill_match(candidate_skills=cand, required_skills=req, preferred_skills=pref)
+    # Python is stripped from preferred because it is required
+    # Required: Python (matched), PostgreSQL (missing) -> 1/2 = 40 pts
+    # Preferred: Docker (missing) -> 0/1 = 0 pts
+    assert res.total_required_count == 2
+    assert res.matched_required_count == 1
+    assert res.skill_score == 40.0
+    assert res.matched_skills == ["Python"]
+    assert "Python (Preferred)" not in res.matched_skills
+    assert res.missing_skills == ["PostgreSQL"]
+
+
+def test_alias_duplicate_skills_in_required():
+    """Verify alias-equivalent skills in job requirements collapse to single canonical entry."""
+    # React + ReactJS
+    res_react = calculate_skill_match(
+        candidate_skills=["React"],
+        required_skills=["React", "ReactJS"],
+    )
+    assert res_react.total_required_count == 1
+    assert res_react.matched_required_count == 1
+    assert res_react.skill_score == 100.0
+    assert res_react.matched_skills == ["React"]
+    assert res_react.missing_skills == []
+
+    # Postgres + PostgreSQL
+    res_pg = calculate_skill_match(
+        candidate_skills=[],
+        required_skills=["PostgreSQL", "postgres"],
+    )
+    assert res_pg.total_required_count == 1
+    assert res_pg.matched_required_count == 0
+    assert res_pg.skill_score == 0.0
+    assert res_pg.missing_skills == ["PostgreSQL"]
+
+    # K8s + Kubernetes
+    res_k8s = calculate_skill_match(
+        candidate_skills=["k8s"],
+        required_skills=["K8s", "Kubernetes"],
+    )
+    assert res_k8s.total_required_count == 1
+    assert res_k8s.matched_required_count == 1
+    assert res_k8s.skill_score == 100.0
+    assert res_k8s.matched_skills == ["K8s"]
+
+
+def test_mixed_casing_and_whitespace_duplicates():
+    """Verify whitespace and casing variations are properly canonicalized and deduplicated."""
+    res = calculate_skill_match(
+        candidate_skills=["docker"],
+        required_skills=["  Docker  ", "docker", "DOCKER "],
+    )
+    assert res.total_required_count == 1
+    assert res.matched_required_count == 1
+    assert res.skill_score == 100.0
+    assert res.matched_skills == ["Docker"]
+    assert res.missing_skills == []
+
+
+def test_candidate_skill_duplicates_and_aliases():
+    """Verify candidate skills with duplicates/aliases do not artificially match multiple times."""
+    cand = ["Python", "python", "py", "PYTHON"]
+    req = ["Python", "FastAPI"]
+
+    res = calculate_skill_match(candidate_skills=cand, required_skills=req)
+    assert res.total_required_count == 2
+    assert res.matched_required_count == 1
+    assert res.skill_score == 50.0
+    assert res.matched_skills == ["Python"]
+    assert res.missing_skills == ["FastAPI"]
+
+
+def test_matched_and_missing_skills_uniqueness_and_order():
+    """Verify matched_skills and missing_skills maintain uniqueness and deterministic first-seen ordering."""
+    req = ["TypeScript", "ts", "React", "reactjs", "Node.js", "nodejs"]
+    cand = ["typescript", "node"]
+
+    res = calculate_skill_match(candidate_skills=cand, required_skills=req)
+    assert res.total_required_count == 3
+    assert res.matched_required_count == 2
+    assert res.matched_skills == ["TypeScript", "Node.js"]
+    assert res.missing_skills == ["React"]
+
