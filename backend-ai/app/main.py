@@ -10,7 +10,7 @@ from app.api.middleware.correlation_id import CorrelationIdMiddleware
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
-from app.infrastructure.llm.factory import get_llm_provider
+from app.infrastructure.llm.factory import get_llm_provider, get_llm_settings_fingerprint
 from app.observability.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not getattr(app.state, "llm_provider", None):
         provider = get_llm_provider(settings=settings)
         app.state.llm_provider = provider
+        app.state.llm_provider_fingerprint = get_llm_settings_fingerprint(settings)
 
     yield
 
@@ -56,6 +57,7 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
     app.state.llm_provider = None
+    app.state.llm_provider_fingerprint = None
 
     # Middleware execution order in Starlette:
     # Correlation ID middleware for request tracing across ASP.NET Core and FastAPI

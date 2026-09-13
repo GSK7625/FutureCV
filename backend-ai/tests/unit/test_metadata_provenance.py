@@ -44,6 +44,7 @@ def test_response_meta_default_fields_preserved():
     assert meta.embedding_model is None
     # BLOCKER 1: Tri-state default MUST be None, not False
     assert meta.llm_invoked is None
+    assert meta.explanation_mode is None
 
 
 def test_response_meta_legacy_consumer_compatibility():
@@ -118,6 +119,7 @@ async def test_matching_v0_provenance_metadata():
     assert res.meta.embedding_provider is None
     assert res.meta.embedding_model is None
     assert res.meta.llm_invoked is True
+    assert res.meta.explanation_mode == "llm"
     assert res.meta.prompt_version == "v1"
 
     # Flow 1: v0 single deterministic
@@ -128,6 +130,7 @@ async def test_matching_v0_provenance_metadata():
     assert res_no_llm.meta.embedding_provider is None
     assert res_no_llm.meta.embedding_model is None
     assert res_no_llm.meta.llm_invoked is False
+    assert res_no_llm.meta.explanation_mode == "deterministic"
     assert res_no_llm.meta.prompt_version == "deterministic"
 
 
@@ -152,6 +155,7 @@ async def test_matching_v1_provenance_metadata():
     assert res.meta.embedding_provider == "mock"
     assert res.meta.embedding_model == "mock-hash-64"
     assert res.meta.llm_invoked is True
+    assert res.meta.explanation_mode == "llm"
     assert res.meta.prompt_version == "v1"
 
     # Flow 3: v1 single deterministic
@@ -162,6 +166,7 @@ async def test_matching_v1_provenance_metadata():
     assert res_deterministic.meta.embedding_provider == "mock"
     assert res_deterministic.meta.embedding_model == "mock-hash-64"
     assert res_deterministic.meta.llm_invoked is False
+    assert res_deterministic.meta.explanation_mode == "deterministic"
     # Invariant: prompt_version must NOT mislabel v1 as "deterministic-v0"
     assert res_deterministic.meta.prompt_version == "deterministic"
     assert res_deterministic.meta.prompt_version != "deterministic-v0"
@@ -184,6 +189,7 @@ async def test_ranking_provenance_metadata():
     assert v0_resp.meta.schema_version == "1.0.0"
     assert v0_resp.meta.prompt_version == "deterministic"
     assert v0_resp.meta.llm_invoked is False
+    assert v0_resp.meta.explanation_mode == "deterministic"
     assert v0_resp.meta.embedding_provider is None
     assert v0_resp.meta.embedding_model is None
 
@@ -201,5 +207,6 @@ async def test_ranking_provenance_metadata():
     assert v1_resp.meta.prompt_version == "deterministic"
     assert v1_resp.meta.prompt_version != "deterministic-v0"
     assert v1_resp.meta.llm_invoked is False
+    assert v1_resp.meta.explanation_mode == "deterministic"
     assert v1_resp.meta.embedding_provider == "mock"
     assert v1_resp.meta.embedding_model == "mock-hash-64"
