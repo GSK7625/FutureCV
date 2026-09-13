@@ -23,4 +23,24 @@ public interface IAdminService
 
     Task<ServiceResult<PagedResult<AuditLogResponse>>> GetAuditLogsAsync(
         AuditLogQueryFilter filter, CancellationToken cancellationToken = default);
+
+    // Dashboard Statistics (P5-UC05)
+    Task<ServiceResult<AdminDashboardStatsResponse>> GetDashboardStatsAsync(
+        CancellationToken cancellationToken = default);
+
+    // Job Reports & Moderation (P5-UC07)
+    Task<ServiceResult<PagedResult<JobReportResponse>>> GetJobReportsAsync(
+        JobReportFilterRequest filter, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<JobReportResponse>> GetJobReportByIdAsync(
+        Guid reportId, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<bool>> ResolveJobReportAsync(
+        Guid adminUserId, Guid reportId, ResolveJobReportRequest request, string? ipAddress, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<bool>> BanJobAsync(
+        Guid adminUserId, Guid jobId, string reason, string? ipAddress, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<bool>> UnbanJobAsync(
+        Guid adminUserId, Guid jobId, string? ipAddress, CancellationToken cancellationToken = default);
 }
