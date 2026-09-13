@@ -28,7 +28,7 @@ export function useRegister() {
         refreshToken: result.refreshToken,
       });
       showToast("Đăng ký tài khoản thành công", "success");
-      const targetUrl = role === "candidate" ? "/candidate" : role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/";
+      const targetUrl = role === "candidate" ? "/" : role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/";
       navigate(targetUrl, { replace: true });
     },
   });

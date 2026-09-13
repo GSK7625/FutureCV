@@ -40,7 +40,7 @@ const SECTIONS = [
     icon: IconBriefcase,
     items: [
       { label: "Việc làm đã lưu", href: "/candidate/saved-jobs" },
-      { label: "Việc làm đã ứng tuyển", href: "/candidate" },
+      { label: "Việc làm đã ứng tuyển", href: "/jobs" }, // TODO(FC-81): /candidate/applications
       { label: "Việc làm phù hợp với bạn", href: "/candidate/matching-jobs" },
       { label: "Cài đặt gợi ý việc làm", href: "/candidate/job-alerts" },
     ],
@@ -190,188 +190,188 @@ export function CandidateProfileDropdown({
       )}
     >
       <div className="flex max-h-[min(90vh,700px)] flex-col overflow-hidden rounded-[calc(1rem-2px)] bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-            {/* Header Block */}
-            <div className="border-b border-border-subtle bg-gradient-to-b from-surface-low/80 to-surface p-4">
-              <div className="flex items-start gap-3">
-                {/* Avatar with Upload Capability */}
-                <div className="relative group/avatar shrink-0">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    className="hidden"
-                    onChange={handleAvatarFileChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAvatarClick}
-                    disabled={uploadAvatarMutation.isPending}
-                    title="Nhấp để thay đổi ảnh đại diện (JPG/PNG, tối đa 5MB)"
-                    aria-label="Thay đổi ảnh đại diện"
-                    className={cn(
-                      "relative block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-gold",
-                      uploadAvatarMutation.isPending ? "cursor-wait" : "cursor-pointer",
-                    )}
-                  >
-                    <Avatar
-                      src={avatarUrl}
-                      name={displayName}
-                      size="md"
-                      className="border border-border-subtle shadow-sm transition-all duration-200 group-hover/avatar:brightness-90"
-                    />
-
-                    {/* Hover & Loading Overlay */}
-                    <div
-                      className={cn(
-                        "absolute inset-0 flex items-center justify-center rounded-full bg-navy/60 text-white transition-opacity duration-200",
-                        uploadAvatarMutation.isPending
-                          ? "opacity-100"
-                          : "opacity-0 group-hover/avatar:opacity-100",
-                      )}
-                    >
-                      {uploadAvatarMutation.isPending ? (
-                        <IconLoader2 size={18} className="animate-spin text-gold" />
-                      ) : (
-                        <IconCamera size={18} stroke={1.8} />
-                      )}
-                    </div>
-
-                    {/* Camera Badge Icon on bottom-right */}
-                    <div
-                      className={cn(
-                        "absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface text-navy shadow-sm ring-1 ring-border-subtle transition-all duration-200 group-hover/avatar:bg-gold group-hover/avatar:text-white",
-                        uploadAvatarMutation.isPending && "bg-gold text-white",
-                      )}
-                    >
-                      <IconCamera size={11} stroke={2} />
-                    </div>
-                  </button>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-semibold text-navy" title={displayName}>
-                    {displayName}
-                  </p>
-                  <div className="mt-1 flex items-center">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success ring-1 ring-success/25">
-                      <IconShieldCheck size={13} stroke={2} />
-                      Tài khoản đã xác thực
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5 text-label-sm text-ink-muted">
-                    {idFormatted && (
-                      <>
-                        <span className="shrink-0 rounded border border-border-subtle bg-surface px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-ink-variant">
-                          ID {idFormatted}
-                        </span>
-                        <span className="select-none text-border-strong">|</span>
-                      </>
-                    )}
-                    <span className="truncate text-[12px] text-ink-variant" title={email}>
-                      {email || (isLoading ? "Đang tải..." : "Chưa có email")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation Menu Sections */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-2 scrollbar-thin">
-              <div className="space-y-1">
-                {SECTIONS.map((section) => {
-                  const SectionIcon = section.icon;
-                  const isOpen = Boolean(openSections[section.id]);
-
-                  return (
-                    <div key={section.id} className="rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => toggleSection(section.id)}
-                        aria-expanded={isOpen}
-                        className={cn(
-                          "group flex w-full items-center justify-between px-3 py-2 text-left rounded-xl transition-all duration-200",
-                          isOpen ? "bg-surface-low/70" : "hover:bg-surface-low/50",
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className={cn(
-                              "flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-200",
-                              isOpen ? "bg-gold/15 text-gold" : "bg-navy/5 text-navy group-hover:bg-navy/10",
-                            )}
-                          >
-                            <SectionIcon size={16} stroke={1.6} />
-                          </div>
-                          <span className="text-label font-semibold text-navy">{section.title}</span>
-                        </div>
-                        <IconChevronDown
-                          size={16}
-                          stroke={2}
-                          className={cn(
-                            "text-ink-muted transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
-                            isOpen && "rotate-180 text-gold",
-                          )}
-                        />
-                      </button>
-
-                      <AnimatePresence initial={false}>
-                        {isOpen && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-                            className="overflow-hidden"
-                          >
-                            <div className="space-y-0.5 py-1 pl-9 pr-1">
-                              {section.items.map((item) => {
-                                const isActive = location.pathname === item.href;
-
-                                return (
-                                  <Link
-                                    key={item.label}
-                                    to={item.href}
-                                    onClick={onClose}
-                                    className={cn(
-                                      "group/link flex items-center justify-between rounded-lg px-2.5 py-1.5 text-label-sm transition-all duration-200",
-                                      isActive
-                                        ? "bg-gold/10 font-semibold text-gold ring-1 ring-gold/25"
-                                        : "text-ink-variant hover:bg-surface-low hover:text-navy hover:translate-x-0.5",
-                                    )}
-                                  >
-                                    <span>{item.label}</span>
-                                    {isActive ? (
-                                      <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-                                    ) : (
-                                      <IconArrowRight
-                                        size={12}
-                                        stroke={2}
-                                        className="text-ink-muted/0 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-ink-muted"
-                                      />
-                                    )}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Footer Action: Nút Đăng xuất ở giữa, không icon */}
-            <div className="border-t border-border-subtle bg-surface-low/30 p-2.5">
+        {/* Header Block */}
+        <div className="border-b border-border-subtle bg-gradient-to-b from-surface-low/80 to-surface p-4">
+          <div className="flex items-start gap-3">
+            {/* Avatar with Upload Capability */}
+            <div className="relative group/avatar shrink-0">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+              />
               <button
                 type="button"
-                onClick={handleLogout}
-                className="flex w-full items-center justify-center rounded-xl border border-danger/20 bg-danger/5 py-2 text-center text-label font-semibold text-danger transition-all duration-150 hover:bg-danger hover:text-white"
+                onClick={handleAvatarClick}
+                disabled={uploadAvatarMutation.isPending}
+                title="Nhấp để thay đổi ảnh đại diện (JPG/PNG, tối đa 5MB)"
+                aria-label="Thay đổi ảnh đại diện"
+                className={cn(
+                  "relative block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-gold",
+                  uploadAvatarMutation.isPending ? "cursor-wait" : "cursor-pointer",
+                )}
               >
-                Đăng xuất
+                <Avatar
+                  src={avatarUrl}
+                  name={displayName}
+                  size="md"
+                  className="border border-border-subtle shadow-sm transition-all duration-200 group-hover/avatar:brightness-90"
+                />
+
+                {/* Hover & Loading Overlay */}
+                <div
+                  className={cn(
+                    "absolute inset-0 flex items-center justify-center rounded-full bg-navy/60 text-white transition-opacity duration-200",
+                    uploadAvatarMutation.isPending
+                      ? "opacity-100"
+                      : "opacity-0 group-hover/avatar:opacity-100",
+                  )}
+                >
+                  {uploadAvatarMutation.isPending ? (
+                    <IconLoader2 size={18} className="animate-spin text-gold" />
+                  ) : (
+                    <IconCamera size={18} stroke={1.8} />
+                  )}
+                </div>
+
+                {/* Camera Badge Icon on bottom-right */}
+                <div
+                  className={cn(
+                    "absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface text-navy shadow-sm ring-1 ring-border-subtle transition-all duration-200 group-hover/avatar:bg-gold group-hover/avatar:text-white",
+                    uploadAvatarMutation.isPending && "bg-gold text-white",
+                  )}
+                >
+                  <IconCamera size={11} stroke={2} />
+                </div>
               </button>
             </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-body font-semibold text-navy" title={displayName}>
+                {displayName}
+              </p>
+              <div className="mt-1 flex items-center">
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success ring-1 ring-success/25">
+                  <IconShieldCheck size={13} stroke={2} />
+                  Tài khoản đã xác thực
+                </span>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 text-label-sm text-ink-muted">
+                {idFormatted && (
+                  <>
+                    <span className="shrink-0 rounded border border-border-subtle bg-surface px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-ink-variant">
+                      ID {idFormatted}
+                    </span>
+                    <span className="select-none text-border-strong">|</span>
+                  </>
+                )}
+                <span className="truncate text-[12px] text-ink-variant" title={email}>
+                  {email || (isLoading ? "Đang tải..." : "Chưa có email")}
+                </span>
+              </div>
+            </div>
           </div>
-        </motion.div>
+        </div>
+
+        {/* Navigation Menu Sections */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-2 scrollbar-thin">
+          <div className="space-y-1">
+            {SECTIONS.map((section) => {
+              const SectionIcon = section.icon;
+              const isOpen = Boolean(openSections[section.id]);
+
+              return (
+                <div key={section.id} className="rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.id)}
+                    aria-expanded={isOpen}
+                    className={cn(
+                      "group flex w-full items-center justify-between px-3 py-2 text-left rounded-xl transition-all duration-200",
+                      isOpen ? "bg-surface-low/70" : "hover:bg-surface-low/50",
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-200",
+                          isOpen ? "bg-gold/15 text-gold" : "bg-navy/5 text-navy group-hover:bg-navy/10",
+                        )}
+                      >
+                        <SectionIcon size={16} stroke={1.6} />
+                      </div>
+                      <span className="text-label font-semibold text-navy">{section.title}</span>
+                    </div>
+                    <IconChevronDown
+                      size={16}
+                      stroke={2}
+                      className={cn(
+                        "text-ink-muted transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                        isOpen && "rotate-180 text-gold",
+                      )}
+                    />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="space-y-0.5 py-1 pl-9 pr-1">
+                          {section.items.map((item) => {
+                            const isActive = location.pathname === item.href;
+
+                            return (
+                              <Link
+                                key={item.label}
+                                to={item.href}
+                                onClick={onClose}
+                                className={cn(
+                                  "group/link flex items-center justify-between rounded-lg px-2.5 py-1.5 text-label-sm transition-all duration-200",
+                                  isActive
+                                    ? "bg-gold/10 font-semibold text-gold ring-1 ring-gold/25"
+                                    : "text-ink-variant hover:bg-surface-low hover:text-navy hover:translate-x-0.5",
+                                )}
+                              >
+                                <span>{item.label}</span>
+                                {isActive ? (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+                                ) : (
+                                  <IconArrowRight
+                                    size={12}
+                                    stroke={2}
+                                    className="text-ink-muted/0 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-ink-muted"
+                                  />
+                                )}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer Action: Nút Đăng xuất ở giữa, không icon */}
+        <div className="border-t border-border-subtle bg-surface-low/30 p-2.5">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center justify-center rounded-xl border border-danger/20 bg-danger/5 py-2 text-center text-label font-semibold text-danger transition-all duration-150 hover:bg-danger hover:text-white"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </motion.div>
   );
 }
