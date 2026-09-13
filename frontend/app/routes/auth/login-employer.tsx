@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
+import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook, IconBriefcase } from "@tabler/icons-react";
 import { Field, Input, Button } from "~/components/ui";
 import { useLogin } from "~/features/auth/hooks/useLogin";
 import { useUIStore } from "~/stores/useUIStore";
 
-export default function LoginPage() {
+export default function LoginEmployerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const login = useLogin();
@@ -35,6 +35,8 @@ export default function LoginPage() {
           const returnTo = searchParams.get("returnTo");
           if (returnTo?.startsWith("/")) {
             navigate(returnTo, { replace: true });
+          } else {
+            navigate("/hr", { replace: true });
           }
         },
       },
@@ -44,8 +46,11 @@ export default function LoginPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ink">Đăng nhập</h1>
-        <p className="mt-1 text-label-sm text-ink-muted">Chào mừng bạn quay trở lại với tương lai sự nghiệp.</p>
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-navy">
+          <IconBriefcase size={24} stroke={1.6} className="text-gold" />
+        </div>
+        <h1 className="text-2xl font-bold text-ink">Đăng nhập Nhà tuyển dụng</h1>
+        <p className="mt-1 text-label-sm text-ink-muted">Quản lý tuyển dụng chuyên nghiệp, hiệu quả.</p>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2.5">
@@ -74,9 +79,9 @@ export default function LoginPage() {
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <Field label="Email" htmlFor="login-email" error={errors.email} required>
+        <Field label="Email" htmlFor="login-employer-email" error={errors.email} required>
           <Input
-            id="login-email"
+            id="login-employer-email"
             type="email"
             inputSize="md"
             autoComplete="email"
@@ -86,10 +91,10 @@ export default function LoginPage() {
           />
         </Field>
 
-        <Field label="Mật khẩu" htmlFor="login-password" error={errors.password} required>
+        <Field label="Mật khẩu" htmlFor="login-employer-password" error={errors.password} required>
           <div className="relative">
             <Input
-              id="login-password"
+              id="login-employer-password"
               type={showPassword ? "text" : "password"}
               inputSize="md"
               autoComplete="current-password"
@@ -126,15 +131,15 @@ export default function LoginPage() {
 
       <div className="mt-5 space-y-3 text-center text-label-sm">
         <p className="text-ink-variant">
-          Bạn chưa có tài khoản?{" "}
+          Bạn chưa có tài khoản nhà tuyển dụng?{" "}
           <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
             Đăng ký ngay
           </Link>
         </p>
         <p className="text-ink-muted">
-          Bạn là nhà tuyển dụng?{" "}
-          <Link to="/login-employer" className="font-semibold text-navy hover:underline">
-            Đăng nhập nhà tuyển dụng
+          Bạn là ứng viên?{" "}
+          <Link to="/login" className="font-semibold text-navy hover:underline">
+            Đăng nhập ứng viên
           </Link>
         </p>
       </div>

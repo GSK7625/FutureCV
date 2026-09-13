@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
+import { IconEye, IconEyeOff, IconShield } from "@tabler/icons-react";
 import { Field, Input, Button } from "~/components/ui";
 import { useLogin } from "~/features/auth/hooks/useLogin";
 import { useUIStore } from "~/stores/useUIStore";
 
-export default function LoginPage() {
+export default function LoginAdminPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const login = useLogin();
@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   const validate = () => {
     const next: typeof errors = {};
-    if (!email.trim()) next.email = "Vui lòng nhập email hoặc số điện thoại.";
+    if (!email.trim()) next.email = "Vui lòng nhập email.";
     if (!password) next.password = "Vui lòng nhập mật khẩu.";
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -35,6 +35,8 @@ export default function LoginPage() {
           const returnTo = searchParams.get("returnTo");
           if (returnTo?.startsWith("/")) {
             navigate(returnTo, { replace: true });
+          } else {
+            navigate("/admin", { replace: true });
           }
         },
       },
@@ -44,52 +46,36 @@ export default function LoginPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ink">Đăng nhập</h1>
-        <p className="mt-1 text-label-sm text-ink-muted">Chào mừng bạn quay trở lại với tương lai sự nghiệp.</p>
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-navy">
+          <IconShield size={24} stroke={1.6} className="text-gold" />
+        </div>
+        <h1 className="text-2xl font-bold text-ink">Đăng nhập Quản trị viên</h1>
+        <p className="mt-1 text-label-sm text-ink-muted">Quản lý hệ thống FutureCV toàn diện.</p>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2.5">
-        <button
-          type="button"
-          onClick={() => showToast("Đăng nhập Google sẽ ra mắt sớm.", "info")}
-          className="flex h-10 items-center justify-center gap-2 rounded-default bg-navy px-3 text-label-sm font-semibold text-white shadow-sm transition-all hover:bg-navy-secondary active:scale-[0.98]"
-        >
-          <IconBrandGoogle size={18} />
-          Google
-        </button>
-        <button
-          type="button"
-          onClick={() => showToast("Đăng nhập Facebook sẽ ra mắt sớm.", "info")}
-          className="flex h-10 items-center justify-center gap-2 rounded-default bg-[#1877F2] px-3 text-label-sm font-semibold text-white shadow-sm transition-all hover:bg-[#166fe5] active:scale-[0.98]"
-        >
-          <IconBrandFacebook size={18} />
-          Facebook
-        </button>
-      </div>
-
-      <div className="mb-4 flex items-center gap-3" aria-hidden>
-        <div className="h-px flex-1 bg-border-strong" />
-        <span className="text-[11px] uppercase tracking-wider text-ink-muted">Hoặc</span>
-        <div className="h-px flex-1 bg-border-strong" />
+      <div className="mb-6 rounded-lg border border-gold/20 bg-gold/5 px-4 py-3">
+        <p className="text-label-sm text-ink-variant">
+          <span className="font-semibold text-gold">⚠️ Khu vực bảo mật:</span> Chỉ dành cho quản trị viên hệ thống.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <Field label="Email" htmlFor="login-email" error={errors.email} required>
+        <Field label="Email quản trị" htmlFor="login-admin-email" error={errors.email} required>
           <Input
-            id="login-email"
+            id="login-admin-email"
             type="email"
             inputSize="md"
             autoComplete="email"
-            placeholder="Nhập email của bạn"
+            placeholder="admin@futurecv.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
 
-        <Field label="Mật khẩu" htmlFor="login-password" error={errors.password} required>
+        <Field label="Mật khẩu" htmlFor="login-admin-password" error={errors.password} required>
           <div className="relative">
             <Input
-              id="login-password"
+              id="login-admin-password"
               type={showPassword ? "text" : "password"}
               inputSize="md"
               autoComplete="current-password"
@@ -125,16 +111,10 @@ export default function LoginPage() {
       </form>
 
       <div className="mt-5 space-y-3 text-center text-label-sm">
-        <p className="text-ink-variant">
-          Bạn chưa có tài khoản?{" "}
-          <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
-            Đăng ký ngay
-          </Link>
-        </p>
         <p className="text-ink-muted">
-          Bạn là nhà tuyển dụng?{" "}
-          <Link to="/login-employer" className="font-semibold text-navy hover:underline">
-            Đăng nhập nhà tuyển dụng
+          Quay lại{" "}
+          <Link to="/login" className="font-semibold text-navy hover:underline">
+            Đăng nhập thường
           </Link>
         </p>
       </div>
