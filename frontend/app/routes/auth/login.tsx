@@ -1,13 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link } from "react-router";
 import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
 import { Field, Input, Button } from "~/components/ui";
 import { useLogin } from "~/features/auth/hooks/useLogin";
 import { useUIStore } from "~/stores/useUIStore";
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const login = useLogin();
   const showToast = useUIStore((s) => s.showToast);
 
@@ -29,15 +27,7 @@ export default function LoginPage() {
     if (!validate()) return;
     login.mutate(
       { email: email.trim(), password },
-      {
-        onError: (error) => showToast(error.message, "error"),
-        onSuccess: () => {
-          const returnTo = searchParams.get("returnTo");
-          if (returnTo?.startsWith("/")) {
-            navigate(returnTo, { replace: true });
-          }
-        },
-      },
+      { onError: (error) => showToast(error.message, "error") },
     );
   };
 
