@@ -106,9 +106,3 @@ venv/
 .ruff_cache/
 htmlcov/
 .coverage
-
-# Ignore all markdown files
-*.md
-
-# Exception: Keep README.md
-!README.md
