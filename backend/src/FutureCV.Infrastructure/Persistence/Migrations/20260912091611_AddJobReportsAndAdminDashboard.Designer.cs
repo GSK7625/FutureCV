@@ -3,6 +3,7 @@ using System;
 using FutureCV.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FutureCV.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912091611_AddJobReportsAndAdminDashboard")]
+    partial class AddJobReportsAndAdminDashboard
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -375,52 +378,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Companies");
-                });
-
-            modelBuilder.Entity("FutureCV.Domain.Entities.CvEvaluation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CvId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int?>("CvScore")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("GeneratedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ImprovementsJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("MissingSkillsJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("ModelVersion")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("StrengthsJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("WeaknessesJson")
-                        .HasColumnType("jsonb");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CvId")
-                        .IsUnique();
-
-                    b.ToTable("CVEvaluations", (string)null);
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
@@ -1449,17 +1406,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("Cv");
                 });
 
-            modelBuilder.Entity("FutureCV.Domain.Entities.CvEvaluation", b =>
-                {
-                    b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
-                        .WithOne("Evaluation")
-                        .HasForeignKey("FutureCV.Domain.Entities.CvEvaluation", "CvId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cv");
-                });
-
             modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
                 {
                     b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
@@ -1772,8 +1718,6 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FutureCV.Domain.Entities.CandidateCv", b =>
                 {
                     b.Navigation("CvParser");
-
-                    b.Navigation("Evaluation");
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.EmploymentType", b =>

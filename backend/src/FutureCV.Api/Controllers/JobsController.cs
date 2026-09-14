@@ -1,6 +1,7 @@
 using FutureCV.Application.Common.Models;
 using FutureCV.Application.Features.Job.DTOs;
 using FutureCV.Application.Features.Job.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FutureCV.Api.Controllers;
@@ -35,6 +36,19 @@ public class JobsController : ApiControllerBase
         Guid id, CancellationToken cancellationToken)
     {
         var result = await _jobService.GetJobDetailAsync(id, incrementView: true, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/report")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReportJob(
+        Guid id, [FromBody] CreateJobReportRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _jobService.ReportJobAsync(GetCurrentUserId(), id, request, cancellationToken);
         return ToHttpResult(result);
     }
 

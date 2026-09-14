@@ -22,6 +22,7 @@ public interface IApplicationDbContext
     DbSet<CandidateSkill> CandidateSkills { get; }
     DbSet<CandidateCv> CandidateCvs { get; }
     DbSet<CvParser> CvParsers { get; }
+    DbSet<CvEvaluation> CvEvaluations { get; }
     DbSet<Certificate> Certificates { get; }
     DbSet<Project> Projects { get; }
     DbSet<AuditLog> AuditLogs { get; }
@@ -35,6 +36,7 @@ public interface IApplicationDbContext
     DbSet<SavedJob> SavedJobs { get; }
     DbSet<JobApplication> Applications { get; }
     DbSet<ApplicationStatusHistory> ApplicationStatusHistories { get; }
+    DbSet<JobReport> JobReports { get; }
 
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }

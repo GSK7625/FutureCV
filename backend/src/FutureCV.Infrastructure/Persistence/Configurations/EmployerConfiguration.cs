@@ -35,5 +35,8 @@ public class EmployerConfiguration : IEntityTypeConfiguration<Employer>
             .WithMany()
             .HasForeignKey(e => e.CompanyId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(e => e.IsDeleted)
+            .HasDefaultValue(false);
     }
 }
