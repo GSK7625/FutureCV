@@ -130,18 +130,6 @@ export default function LoginPage() {
           Đăng ký ngay
         </Link>
       </p>
-
-      <div className="mt-4 rounded-lg border border-gold/30 bg-gold/5 p-4 text-center">
-        <p className="text-label-sm text-ink-variant">
-          Bạn là nhà tuyển dụng?{" "}
-          <Link
-            to="/register/employer"
-            className="font-semibold text-navy underline decoration-gold hover:text-gold"
-          >
-            Đăng ký tài khoản Nhà tuyển dụng
-          </Link>
-        </p>
-      </div>
     </div>
   );
 }
