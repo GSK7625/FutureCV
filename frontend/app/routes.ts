@@ -34,6 +34,8 @@ export default [
       route("jobs", "routes/hr/job-management.tsx"),
       route("pipeline", "routes/hr/candidate-pipeline.tsx"),
       route("interviews", "routes/hr/interview.tsx"),
+      route("company", "routes/hr/company-profile.tsx"),
+      route("profile", "routes/hr/recruiter-profile.tsx"),
     ]),
   ]),
 
