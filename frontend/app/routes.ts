@@ -26,6 +26,7 @@ export default [
   ...prefix("candidate", [
     layout("layouts/CandidateLayout.tsx", [
       route("applications", "routes/candidate/applications.tsx"),
+      route("cvs", "routes/candidate/my-cvs.tsx"),
       route("saved-jobs", "routes/candidate/saved-jobs.tsx"),
       route("personal-info", "routes/candidate/personal-info.tsx"),
       route("security", "routes/candidate/security.tsx"),
