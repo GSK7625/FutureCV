@@ -23,6 +23,19 @@ export interface RegisterCandidateDto {
   password: string;
   confirmPassword: string;
   fullName: string;
+  phoneNumber?: string;
+}
+
+export interface RegisterEmployerDto {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  fullName: string;
+  phone: string;
+  gender: string;
+  companyName: string;
+  locationId?: string;
+  wardName?: string;
 }
 
 export interface ForgotPasswordDto {
