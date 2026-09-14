@@ -182,7 +182,7 @@ export function PublicHeader() {
                 <div className="flex flex-col items-start">
                   <span className="text-label-sm text-ink-variant">Bạn là nhà tuyển dụng?</span>
                   <Link
-                    to="/register/employer"
+                    to="/register"
                     className="text-label font-bold text-navy transition-colors hover:text-gold"
                   >
                     Đăng tuyển ngay »
@@ -195,7 +195,7 @@ export function PublicHeader() {
               <div className="flex flex-col items-start">
                 <span className="text-label-sm text-ink-variant">Bạn là nhà tuyển dụng?</span>
                 <Link
-                  to="/register/employer"
+                  to="/register"
                   className="text-label font-bold text-navy transition-colors hover:text-gold"
                 >
                   Đăng tuyển ngay »
