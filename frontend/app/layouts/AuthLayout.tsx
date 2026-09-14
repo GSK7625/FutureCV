@@ -19,7 +19,7 @@ export default function AuthLayout() {
         user.role === "employer"
           ? "/hr"
           : user.role === "candidate"
-            ? "/candidate"
+            ? "/"
             : user.role === "admin"
               ? "/admin"
               : "/";

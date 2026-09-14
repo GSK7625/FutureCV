@@ -123,4 +123,77 @@ public class AdminController : ApiControllerBase
         var result = await _jobService.ModerateJobAsync(GetCurrentUserId(), id, request, cancellationToken);
         return ToHttpResult(result);
     }
+
+    [HttpPost("jobs/{id:guid}/ban")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> BanJob(
+        Guid id, [FromBody] BanJobRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { message = "Ban reason is required." });
+
+        var result = await _adminService.BanJobAsync(
+            GetCurrentUserId(), id, request.Reason, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("jobs/{id:guid}/unban")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnbanJob(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.UnbanJobAsync(
+            GetCurrentUserId(), id, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Job Reports (P3-UC03, P5-UC07)
+    // -------------------------------------------------------------------------
+
+    [HttpGet("job-reports")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<JobReportResponse>))]
+    public async Task<IActionResult> GetJobReports(
+        [FromQuery] JobReportFilterRequest filter, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetJobReportsAsync(filter, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpGet("job-reports/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(JobReportResponse))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetJobReportById(
+        Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetJobReportByIdAsync(id, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPatch("job-reports/{id:guid}/resolve")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResolveJobReport(
+        Guid id, [FromBody] ResolveJobReportRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.ResolveJobReportAsync(
+            GetCurrentUserId(), id, request, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Admin Dashboard (P5-UC05)
+    // -------------------------------------------------------------------------
+
+    [HttpGet("dashboard")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AdminDashboardStatsResponse))]
+    public async Task<IActionResult> GetDashboardStats(CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetDashboardStatsAsync(cancellationToken);
+        return ToHttpResult(result);
+    }
 }
