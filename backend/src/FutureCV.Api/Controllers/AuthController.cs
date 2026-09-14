@@ -64,9 +64,9 @@ public class AuthController : ApiControllerBase
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AuthResponse))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest? request, CancellationToken cancellationToken)
     {
-        var result = await _authService.RefreshTokenAsync(request, cancellationToken);
+        var result = await _authService.RefreshTokenAsync(request ?? new RefreshTokenRequest(), cancellationToken);
         return ToHttpResult(result);
     }
 
@@ -78,12 +78,12 @@ public class AuthController : ApiControllerBase
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MessageResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest? request, CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         if (userId == Guid.Empty) return Unauthorized();
 
-        var result = await _authService.LogoutAsync(userId, request.RefreshToken, cancellationToken);
+        var result = await _authService.LogoutAsync(userId, request?.RefreshToken, cancellationToken);
         return ToHttpResult(result);
     }
 

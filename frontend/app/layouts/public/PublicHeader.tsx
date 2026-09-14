@@ -20,6 +20,9 @@ import { useAuthStore } from "~/stores/useAuthStore";
 import { JobMegaMenu } from "./JobMegaMenu";
 import { CvMegaMenu } from "./CvMegaMenu";
 import { MobileNavDrawer } from "./MobileNavDrawer";
+import { CandidateProfileMenu } from "~/features/candidate/components/CandidateProfileMenu";
+import { authService } from "~/features/auth/services/authService";
+import { queryClient } from "~/lib/queryClient";
 
 export function PublicHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,9 +36,18 @@ export function PublicHeader() {
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
     setMobileOpen(false);
+    const { refreshToken } = useAuthStore.getState();
+    if (refreshToken) {
+      try {
+        await authService().logout(refreshToken);
+      } catch {
+        // Revoke best-effort
+      }
+    }
+    logout();
+    queryClient.removeQueries({ type: "all" });
     navigate("/");
   };
 
@@ -74,7 +86,7 @@ export function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border-subtle bg-surface shadow-sm">
-      <div className="container-page mx-auto flex h-[72px] items-center justify-between px-margin-mobile md:px-margin-desktop">
+      <div className="flex h-[72px] w-full items-center justify-between px-margin-mobile md:px-margin-desktop">
         {/* Logo & Navigation */}
         <div className="flex items-center gap-6 lg:gap-8">
           <Link to="/" className="flex items-center">
@@ -153,16 +165,20 @@ export function PublicHeader() {
               >
                 <IconBell size={22} stroke={1.6} />
               </button>
-              <div className="flex items-center gap-3">
-                <Avatar name={user.fullName || user.email || "U"} size="md" />
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="text-label text-ink-variant transition-colors hover:text-navy"
-                >
-                  Đăng xuất
-                </button>
-              </div>
+              {user.role === "candidate" ? (
+                <CandidateProfileMenu variant="light" />
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Avatar name={user.fullName || user.email || "U"} size="md" />
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="text-label text-ink-variant transition-colors hover:text-navy"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
               <div className="h-8 w-px bg-border-subtle" aria-hidden />
               {user.role === "employer" ? (
                 <Link
