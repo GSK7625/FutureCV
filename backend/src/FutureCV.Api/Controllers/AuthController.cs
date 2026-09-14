@@ -151,10 +151,30 @@ public class AuthController : ControllerBase
     [HttpPost("users/{userId:guid}/disable")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MessageResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DisableUser([FromRoute] Guid userId, CancellationToken cancellationToken)
     {
-        var result = await _authService.DisableUserAsync(userId, cancellationToken);
+        var currentAdminId = GetCurrentUserId();
+        if (currentAdminId is null) return Unauthorized();
+
+        var result = await _authService.DisableUserAsync(userId, currentAdminId.Value, cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Data)
+            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+    }
+
+    /// <summary>
+    /// Admin endpoint to re-enable a previously disabled user account.
+    /// </summary>
+    [HttpPost("users/{userId:guid}/enable")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MessageResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EnableUser([FromRoute] Guid userId, CancellationToken cancellationToken)
+    {
+        var result = await _authService.EnableUserAsync(userId, cancellationToken);
         return result.IsSuccess
             ? Ok(result.Data)
             : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
