@@ -516,4 +516,3 @@ for (const job of DEMO_JOBS) {
   job.employmentTypeId ??= matchDemoOption(DEMO_MASTER_DATA.employmentTypes, job.jobType);
   job.isDemoFallback = true;
 }
-

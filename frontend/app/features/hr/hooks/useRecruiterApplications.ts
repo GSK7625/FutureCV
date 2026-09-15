@@ -33,6 +33,18 @@ export function useRecruitmentPipeline(jobId: string) {
   });
 }
 
+export function usePipelineAnalytics(jobId: string) {
+  return useQuery({
+    queryKey: hrQueryKeys.applications.analytics(jobId),
+    queryFn: ({ signal }) => hrService.getPipelineAnalytics(jobId, signal),
+    enabled: Boolean(jobId),
+  });
+}
+
+export function useExportPipeline() {
+  return useMutation({ mutationFn: (jobId: string) => hrService.exportPipeline(jobId) });
+}
+
 function useRefreshApplications() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: hrQueryKeys.applications.all() });
