@@ -1,41 +1,45 @@
 /**
  * @file CvToolbar.tsx
- * @description Thanh công cụ nổi trên cùng của trang CV Builder (Đổi mẫu CV, Chọn bảng màu, Lưu nháp, Xuất file PDF, Reset).
- * @architecture Tuân thủ SRP: Chỉ đảm nhiệm các thao tác hành động mức trang (Toolbar Actions).
+ * @description Thanh công cụ nổi trên cùng của trang CV Builder.
+ * Các thao tác: Đổi màu chủ đạo, Đặt lại mẫu gốc, Lưu vào Kho CV (POST API thật), Tải PDF.
+ * @architecture SRP: Chỉ đảm nhiệm các thao tác hành động mức trang (Toolbar Actions).
  */
 
 import { Link } from "react-router";
-
 import {
   IconArrowLeft,
   IconDownload,
-  IconDeviceFloppy,
-  IconCheck,
   IconRotate,
+  IconCloudUpload,
 } from "@tabler/icons-react";
 import type { CvTemplate } from "~/features/candidate/data/cvTemplates";
+import {
+  useCvVaultSave,
+  CV_VAULT_SAVE_LABELS,
+} from "~/features/candidate/hooks/useCvVaultSave";
 
 interface CvToolbarProps {
   selectedTemplate: CvTemplate;
   activeColor: string;
-  isSaved: boolean;
+  personalInfoFullName?: string;
   onColorChange: (color: string) => void;
   onResetData: () => void;
-  onSaveCV: () => void;
   onExportPDF: () => void;
 }
 
 export function CvToolbar({
   selectedTemplate,
   activeColor,
-  isSaved,
+  personalInfoFullName,
   onColorChange,
   onResetData,
-  onSaveCV,
   onExportPDF,
 }: CvToolbarProps) {
+  const { trigger: saveToVault, state: vaultState, isBusy: isVaultBusy } =
+    useCvVaultSave(personalInfoFullName);
+
   return (
-    <div className="sticky top-0 z-40 border-b border-border-subtle bg-white/95 px-4 py-3.5 shadow-sm backdrop-blur">
+    <div className="sticky top-0 z-40 border-b border-border-subtle bg-white/95 px-4 py-3.5 shadow-sm backdrop-blur no-print print:hidden">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
@@ -55,7 +59,7 @@ export function CvToolbar({
         </div>
 
         {/* Color Palettes & Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Color circles */}
           <div className="flex items-center gap-1.5 border-r border-border-subtle pr-3">
             <span className="hidden text-[12px] font-medium text-ink-muted lg:inline">
@@ -77,25 +81,30 @@ export function CvToolbar({
             ))}
           </div>
 
+          {/* Reset to template default */}
           <button
             type="button"
             onClick={onResetData}
             title="Đặt lại về nội dung mẫu gốc"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border-strong bg-white px-3 py-2 text-label-sm font-medium text-ink-muted transition-all hover:border-navy hover:text-navy"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border-strong bg-white px-3 py-2 text-label-sm font-medium text-ink-muted transition-all hover:border-navy hover:text-navy active:scale-95"
           >
             <IconRotate size={16} />
             <span className="hidden sm:inline">Mẫu gốc</span>
           </button>
 
+          {/* Save to Vault (Real backend upload) */}
           <button
             type="button"
-            onClick={onSaveCV}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-navy bg-white px-4 py-2 text-label font-bold text-navy shadow-sm transition-all hover:bg-navy hover:text-white active:scale-95"
+            onClick={saveToVault}
+            disabled={isVaultBusy}
+            title="Kết xuất PDF chuẩn A4 và lưu thẳng vào Kho CV của bạn"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-navy bg-navy px-4 py-2 text-label font-bold text-white shadow-sm transition-all hover:bg-navy-light active:scale-95 disabled:cursor-wait disabled:opacity-70"
           >
-            {isSaved ? <IconCheck size={18} className="text-emerald-600" /> : <IconDeviceFloppy size={18} />}
-            <span>{isSaved ? "Đã lưu" : "Lưu CV"}</span>
+            <IconCloudUpload size={18} className={isVaultBusy ? "animate-pulse" : ""} />
+            <span>{CV_VAULT_SAVE_LABELS[vaultState]}</span>
           </button>
 
+          {/* Export / Download PDF */}
           <button
             type="button"
             onClick={onExportPDF}
