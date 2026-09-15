@@ -71,4 +71,3 @@ def test_compute_overall_match_score_v0_weighted_calculation():
     assert res.skill_score == 80.0
     assert res.experience_score == 60.0
     assert res.education_score == 50.0
-

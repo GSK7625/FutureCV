@@ -199,4 +199,3 @@ def test_comprehensive_pii_sanitization_across_all_field_categories():
     # Verify all raw phones in all Job fields are redacted
     for phone in ["0906666777", "0907777888"]:
         assert phone not in job_text
-

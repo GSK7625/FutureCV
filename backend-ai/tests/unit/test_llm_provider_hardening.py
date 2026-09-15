@@ -290,6 +290,7 @@ async def test_openai_200_content_non_string_raises_provider_error():
 @pytest.mark.asyncio
 async def test_openai_structured_content_invalid_json_raises_provider_error():
     """Rule 6: Structured generation with non-JSON content string raises controlled ProviderError."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"choices": [{"message": {"content": "This is plain text, not JSON"}}]})
 
@@ -307,6 +308,7 @@ async def test_openai_structured_content_invalid_json_raises_provider_error():
 @pytest.mark.asyncio
 async def test_openai_structured_content_schema_invalid_raises_provider_error():
     """Rule 7: Structured generation with valid JSON but invalid schema raises controlled ProviderError."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         # Missing required 'summary' and 'score' fields
         return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps({"unknown_field": 42})}}]})
@@ -325,6 +327,7 @@ async def test_openai_structured_content_schema_invalid_raises_provider_error():
 @pytest.mark.asyncio
 async def test_openai_normal_valid_response_still_works():
     """Rule 8: Verify normal valid text and structured generation continue to work flawlessly."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         if "response_format" in body:

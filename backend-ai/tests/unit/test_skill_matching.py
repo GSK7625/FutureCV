@@ -203,4 +203,3 @@ def test_matched_and_missing_skills_uniqueness_and_order():
     assert res.matched_required_count == 2
     assert res.matched_skills == ["TypeScript", "Node.js"]
     assert res.missing_skills == ["React"]
-

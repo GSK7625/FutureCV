@@ -61,7 +61,7 @@ FutureCV follows a **Modular Monolith** architecture where ASP.NET Core serves a
 | Component / Subsystem | Status | Description |
 | :--- | :--- | :--- |
 | **Architecture baseline** | **READY** | Clean Hexagonal architecture with strict AST dependency gates. |
-| **Python quality gates** | **PASSED** | 100% compileall, ruff, mypy strict, and pytest pass (146 tests). |
+| **Python quality gates** | **PASSED** | 100% compileall, ruff lint & format, mypy strict, and pytest pass (all automated tests pass). |
 | **Docker verification** | **NOT VERIFIED** | Local Docker daemon unavailable during automated checks. |
 | **Security hardening** | **READY** | Browser CORS disabled, internal API key validation, sanitized error outputs. |
 | **Input validation** | **READY** | Strict Pydantic v2 contracts (ranges, uniqueness, length limits). |
@@ -109,7 +109,7 @@ FutureCV follows a **Modular Monolith** architecture where ASP.NET Core serves a
     - Project relevance: 10% (Deterministic technology match ratio)
     - Semantic similarity: 20% (Pure Python domain cosine similarity)
     - Total: 100% (**UNCALIBRATED EXPERIMENTAL WEIGHTS**)
-- **Provenance Metadata:** `ResponseMeta` exposes `algorithm_version="1.0.0"`, `algorithm_variant` ("matching-v0" | "matching-v1-experimental"), explanation LLM (`provider`/`model`), embedding provenance (`embedding_provider`/`embedding_model`), and `llm_invoked` boolean.
+- **Provenance Metadata:** `ResponseMeta` exposes `contract_version="match-result-v1"`, `algorithm_version="1.0.0"`, `algorithm_variant` ("matching-v0" | "matching-v1-experimental"), explanation LLM (`provider`/`model`), embedding provenance (`embedding_provider`/`embedding_model`), and `llm_invoked` boolean.
 - **Candidate Ranking:** Evaluates N candidate CVs against 1 Job under bounded concurrency with `generate_explanation=False` (guaranteeing **zero LLM calls**). In v1, the target Job semantic text is embedded **exactly once**, and candidate CVs are embedded in bounded batches.
 
 
@@ -185,6 +185,6 @@ python -m ruff format --check app tests
 # 4. Static type check
 python -m mypy app
 
-# 5. Automated test suite (Unit, Integration, FastAPI/Pydantic API contract validation, Architecture: 106 passed)
+# 5. Automated test suite (Unit, Integration, FastAPI/Pydantic API contract validation, Architecture: 323 passed)
 python -m pytest tests -v
 ```

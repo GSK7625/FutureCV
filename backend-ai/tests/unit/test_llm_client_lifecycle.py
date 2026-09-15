@@ -134,9 +134,6 @@ async def test_different_settings_does_not_reuse_app_scoped_provider():
     await base_client.aclose()
 
 
-
-
-
 def test_lifespan_closes_client_once_at_application_shutdown():
     """Verify application lifespan creates provider on startup and closes client on shutdown."""
     test_app = create_application()
@@ -311,4 +308,3 @@ def test_llm_settings_fingerprint_distinguishes_keys_without_leaking_plaintext()
     assert key_b not in fp_str
     assert not any(key_a in str(item) for item in fp_a if item is not None)
     assert not any(key_b in str(item) for item in fp_b if item is not None)
-

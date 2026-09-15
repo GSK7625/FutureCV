@@ -400,4 +400,3 @@ async def test_openai_embedding_provider_no_raw_response_text_logged(caplog: pyt
 
     # Ensure the error body is nowhere in log output
     assert "confidential_internal_detail_12345" not in caplog.text
-

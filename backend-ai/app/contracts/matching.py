@@ -8,6 +8,8 @@ from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.job import StructuredJob
 
+MATCH_RESULT_CONTRACT_VERSION: str = "match-result-v1"
+
 
 class MatchRequest(BaseModel):
     """Request payload for matching a single CV against a single Job."""
@@ -19,7 +21,14 @@ class MatchRequest(BaseModel):
 class MatchResult(BaseModel):
     """Evaluation result comparing a candidate CV against a job description."""
 
-    match_score: int = Field(description="Compatibility score between 0 and 100", ge=0, le=100)
+    match_score: int = Field(
+        description=(
+            "Inspectable multi-criteria compatibility index between 0 and 100. Higher indicates a stronger match. "
+            "Note: this is NOT a CV quality score, probability of being hired, or automated hiring decision."
+        ),
+        ge=0,
+        le=100,
+    )
     matched_skills: list[Annotated[str, Field(max_length=200)]] = Field(
         default_factory=list,
         max_length=200,
@@ -45,12 +54,22 @@ class MatchResult(BaseModel):
         max_length=4000,
         description="Relevance of past projects to job domain",
     )
-    match_explanation: str = Field(
-        default="",
+    match_explanation: str | None = Field(
+        default=None,
         max_length=10000,
-        description="Comprehensive natural language match explanation",
+        description=("Natural language match explanation (optional; None or deterministic summary when unrequested)"),
     )
-    meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Execution metadata")
+    meta: ResponseMeta = Field(
+        default_factory=lambda: ResponseMeta(contract_version=MATCH_RESULT_CONTRACT_VERSION),
+        description="Execution metadata",
+    )
+
+    @model_validator(mode="after")
+    def _ensure_contract_version(self) -> "MatchResult":
+        """Ensure MatchResult provenance is stamped with MATCH_RESULT_CONTRACT_VERSION."""
+        if self.meta.contract_version is None:
+            self.meta.contract_version = MATCH_RESULT_CONTRACT_VERSION
+        return self
 
 
 class CandidateItem(BaseModel):
@@ -115,4 +134,14 @@ class CandidateRankResponse(BaseModel):
     job_title: str = Field(description="Title of evaluated job")
     total_evaluated: int = Field(description="Number of candidates evaluated")
     ranked_candidates: list[RankedCandidateItem] = Field(description="Candidates sorted by MatchScore descending")
-    meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Execution metadata")
+    meta: ResponseMeta = Field(
+        default_factory=lambda: ResponseMeta(contract_version=MATCH_RESULT_CONTRACT_VERSION),
+        description="Execution metadata",
+    )
+
+    @model_validator(mode="after")
+    def _ensure_contract_version(self) -> "CandidateRankResponse":
+        """Ensure CandidateRankResponse provenance is stamped with MATCH_RESULT_CONTRACT_VERSION."""
+        if self.meta.contract_version is None:
+            self.meta.contract_version = MATCH_RESULT_CONTRACT_VERSION
+        return self

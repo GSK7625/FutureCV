@@ -12,7 +12,6 @@ from app.infrastructure.llm.providers.mock_provider import MockLlmProvider
 
 
 class CareerPromptInterceptingLlm(MockLlmProvider):
-
     """Spy LLM provider capturing career assistant prompts."""
 
     def __init__(self) -> None:
@@ -349,4 +348,3 @@ async def test_career_assistant_free_text_pii_redaction():
     # 4. Redaction tokens MUST be present in the prompt
     assert "[EMAIL_REDACTED]" in prompt
     assert "[PHONE_REDACTED]" in prompt
-
