@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { authService } from "../services/authService";
 import { useAuthStore, type Role } from "~/stores/useAuthStore";
 import { useUIStore } from "~/stores/useUIStore";
@@ -31,6 +31,7 @@ function applySession(result: AuthResponseDto, inputEmail?: string): Role {
 export function useLogin() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const showToast = useUIStore((s) => s.showToast);
 
   return useMutation({
@@ -41,7 +42,13 @@ export function useLogin() {
       queryClient.removeQueries({ type: "all" });
       const role = applySession(result, variables.email);
       showToast("Đăng nhập thành công", "success");
-      const targetUrl = role === "candidate" ? "/candidate" : role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/";
+      // Nguồn duy nhất quyết định đích đến sau login: returnTo (server-side redirect flow) trước,
+      // fallback theo role (candidate vào home, header đã có menu cá nhân).
+      const returnTo = new URLSearchParams(location.search).get("returnTo");
+      const safeReturn =
+        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : null;
+      const targetUrl = safeReturn
+        ?? (role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/");
       navigate(targetUrl, { replace: true });
     },
   });

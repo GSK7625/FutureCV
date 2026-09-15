@@ -18,4 +18,5 @@ public class CandidateCv : BaseEntity
 
     public Candidate Candidate { get; set; } = null!;
     public CvParser? CvParser { get; set; }
+    public CvEvaluation? Evaluation { get; set; }
 }

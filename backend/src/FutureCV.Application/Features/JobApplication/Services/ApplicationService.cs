@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using FutureCV.Application.Common.Interfaces;
 using FutureCV.Application.Common.Models;
@@ -5,17 +6,20 @@ using FutureCV.Application.Features.JobApplication.DTOs;
 using FutureCV.Application.Features.JobApplication.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace FutureCV.Application.Features.JobApplication.Services;
+
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 
 public class ApplicationService : IApplicationService
 {
     private readonly IApplicationDbContext _context;
+    private readonly IIdentityService _identityService;
 
-    public ApplicationService(IApplicationDbContext context)
+    public ApplicationService(IApplicationDbContext context, IIdentityService identityService)
     {
         _context = context;
+        _identityService = identityService;
     }
 
     // -------------------------------------------------------------------------
@@ -49,12 +53,22 @@ public class ApplicationService : IApplicationService
         if (job is null)
             return ServiceResult.NotFound<ApplyJobResponse>("Job not found.");
 
-        if (!job.IsActive || job.ApprovalStatus != "Approved" || (job.Deadline.HasValue && job.Deadline.Value < DateTime.UtcNow))
+        if (!job.IsActive || job.ApprovalStatus != JobApprovalStatus.Approved || (job.Deadline.HasValue && job.Deadline.Value < DateTime.UtcNow))
             return ServiceResult.Failure<ApplyJobResponse>("Job is closed, expired, or not approved for applications.");
+
+        // Check self-application (dual-role user cannot apply to own job or own company)
+        if (job.PostedById == userId)
+            return ServiceResult.Failure<ApplyJobResponse>("You cannot apply to your own job posting.");
+
+        var employerProfile = await _context.Employers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.UserId == userId, cancellationToken);
+        if (employerProfile is not null && employerProfile.CompanyId == job.CompanyId)
+            return ServiceResult.Failure<ApplyJobResponse>("You cannot apply to a job posted by your own company.");
 
         // 4. Check for duplicate active application (P3-UC05 E2)
         var alreadyApplied = await _context.Applications
-            .AnyAsync(a => a.CandidateId == candidate.Id && a.JobId == jobId && !a.IsDeleted && a.Status != "Withdrawn", cancellationToken);
+            .AnyAsync(a => a.CandidateId == candidate.Id && a.JobId == jobId && !a.IsDeleted && a.Status != ApplicationStatus.Withdrawn, cancellationToken);
 
         if (alreadyApplied)
             return ServiceResult.Conflict<ApplyJobResponse>("You have already applied for this position.");
@@ -69,7 +83,7 @@ public class ApplicationService : IApplicationService
             JobId              = jobId,
             CvId               = request.CvId,
             CoverLetter        = request.CoverLetter,
-            Status             = "Applied",
+            Status             = ApplicationStatus.Applied,
             AppliedAt          = DateTime.UtcNow,
             MatchScore         = matchScore,
             MatchExplanation   = explanation,
@@ -83,7 +97,7 @@ public class ApplicationService : IApplicationService
         {
             Application  = application,
             FromStatus   = null,
-            ToStatus     = "Applied",
+            ToStatus     = ApplicationStatus.Applied.ToString(),
             ChangedById  = userId,
             Reason       = "Initial application submission",
             ChangedAt    = DateTime.UtcNow
@@ -96,7 +110,7 @@ public class ApplicationService : IApplicationService
             application.Id,
             job.Id,
             job.Title,
-            application.Status,
+            application.Status.ToString(),
             application.MatchScore,
             application.AppliedAt
         ));
@@ -115,9 +129,10 @@ public class ApplicationService : IApplicationService
             .AsNoTracking()
             .Where(a => a.CandidateId == candidate.Id && !a.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<ApplicationStatus>(filter.Status, true, out var appStatusEnum))
         {
-            query = query.Where(a => a.Status == filter.Status);
+            query = query.Where(a => a.Status == appStatusEnum);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -140,7 +155,7 @@ public class ApplicationService : IApplicationService
                 a.Job.SalaryMin,
                 a.Job.SalaryMax,
                 a.Job.SalaryCurrency,
-                a.Status,
+                a.Status.ToString(),
                 a.MatchScore,
                 a.AppliedAt,
                 a.UpdatedAt
@@ -189,7 +204,7 @@ public class ApplicationService : IApplicationService
             application.Cv.Title,
             application.Cv.FileUrl,
             application.CoverLetter,
-            application.Status,
+            application.Status.ToString(),
             application.MatchScore,
             application.MatchExplanation,
             matchedSkills,
@@ -218,20 +233,20 @@ public class ApplicationService : IApplicationService
             return ServiceResult.NotFound<bool>("Application not found.");
 
         // P3-UC07 E1: Cannot withdraw if already finalized (Offer, Hired, Rejected) or past Interview
-        if (application.Status is "Offer" or "Hired" or "Rejected" or "Interview")
+        if (application.Status is ApplicationStatus.Offer or ApplicationStatus.Hired or ApplicationStatus.Rejected or ApplicationStatus.Interview)
             return ServiceResult.Failure<bool>($"Cannot withdraw an application currently in '{application.Status}' status.");
 
-        if (application.Status == "Withdrawn")
+        if (application.Status == ApplicationStatus.Withdrawn)
             return ServiceResult.Failure<bool>("Application has already been withdrawn.");
 
         var oldStatus = application.Status;
-        application.Status = "Withdrawn";
+        application.Status = ApplicationStatus.Withdrawn;
 
         application.StatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
-            FromStatus    = oldStatus,
-            ToStatus      = "Withdrawn",
+            FromStatus    = oldStatus.ToString(),
+            ToStatus      = ApplicationStatus.Withdrawn.ToString(),
             ChangedById   = userId,
             Reason        = string.IsNullOrWhiteSpace(request.Reason) ? "Candidate withdrew application" : request.Reason.Trim(),
             ChangedAt     = DateTime.UtcNow
@@ -341,7 +356,7 @@ public class ApplicationService : IApplicationService
             .Include(j => j.Location)
             .Include(j => j.JobSkills)
                 .ThenInclude(js => js.Skill)
-            .Where(j => !j.IsDeleted && j.IsActive && j.ApprovalStatus == "Approved" && (!j.Deadline.HasValue || j.Deadline.Value >= now))
+            .Where(j => !j.IsDeleted && j.IsActive && j.ApprovalStatus == JobApprovalStatus.Approved && (!j.Deadline.HasValue || j.Deadline.Value >= now))
             .ToListAsync(cancellationToken);
 
         // Score each job using Rule-Based matching engine
@@ -392,6 +407,74 @@ public class ApplicationService : IApplicationService
         return ServiceResult.Success(new PagedResult<JobSuggestionResponse>(pagedItems, totalCount, pageIndex, pageSize));
     }
 
+    public async Task<ServiceResult<JobMatchPreviewResponse>> PreviewJobMatchAsync(
+        Guid userId, Guid jobId, PreviewJobMatchRequest request, CancellationToken cancellationToken = default)
+    {
+        var candidate = await _context.Candidates
+            .Include(c => c.Skills)
+                .ThenInclude(cs => cs.Skill)
+            .Include(c => c.CVs)
+            .FirstOrDefaultAsync(c => c.UserId == userId && !c.IsDeleted, cancellationToken);
+
+        if (candidate is null)
+            return ServiceResult.NotFound<JobMatchPreviewResponse>("Candidate profile not found.");
+
+        var job = await _context.Jobs
+            .AsNoTracking()
+            .Include(j => j.JobSkills)
+                .ThenInclude(js => js.Skill)
+            .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
+
+        if (job is null)
+            return ServiceResult.NotFound<JobMatchPreviewResponse>("Job not found.");
+
+        if (job.IsBanned || !job.IsActive || job.ApprovalStatus != JobApprovalStatus.Approved)
+            return ServiceResult.Failure<JobMatchPreviewResponse>("Job is closed, expired, or not approved for applications.", ServiceErrorType.Validation);
+
+        CandidateCv? selectedCv = null;
+        if (request.CvId.HasValue)
+        {
+            selectedCv = candidate.CVs.FirstOrDefault(c => c.Id == request.CvId.Value && !c.IsDeleted);
+            if (selectedCv is null)
+                return ServiceResult.NotFound<JobMatchPreviewResponse>("The specified CV was not found in your profile.");
+        }
+        else
+        {
+            selectedCv = candidate.CVs
+                .Where(c => !c.IsDeleted)
+                .OrderByDescending(c => c.CreatedAt)
+                .FirstOrDefault();
+
+            if (selectedCv is null)
+                return ServiceResult.Failure<JobMatchPreviewResponse>("No active CV found. Please upload a CV first.", ServiceErrorType.Validation);
+        }
+
+        var (score, explanation, matchedSkills, missingSkills) = CalculateMatchScore(candidate, job);
+
+        var locationMatched = !job.LocationId.HasValue ||
+            (!string.IsNullOrWhiteSpace(candidate.DesiredLocationId) &&
+             string.Equals(candidate.DesiredLocationId, job.LocationId.Value.ToString(), StringComparison.OrdinalIgnoreCase));
+
+        var salaryMatched = !job.SalaryMin.HasValue || !candidate.DesiredSalaryMax.HasValue ||
+            (candidate.DesiredSalaryMin.GetValueOrDefault(0) <= (job.SalaryMax ?? int.MaxValue) &&
+             candidate.DesiredSalaryMax.Value >= job.SalaryMin.Value);
+
+        var response = new JobMatchPreviewResponse(
+            job.Id,
+            job.Title,
+            selectedCv.Id,
+            selectedCv.Title,
+            score,
+            matchedSkills,
+            missingSkills,
+            explanation,
+            locationMatched,
+            salaryMatched
+        );
+
+        return ServiceResult.Success(response);
+    }
+
     // -------------------------------------------------------------------------
     // Recruiter Operations
     // -------------------------------------------------------------------------
@@ -421,9 +504,10 @@ public class ApplicationService : IApplicationService
             .Include(a => a.Cv)
             .Where(a => a.JobId == jobId && !a.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<ApplicationStatus>(filter.Status, true, out var appStatusEnum))
         {
-            query = query.Where(a => a.Status == filter.Status);
+            query = query.Where(a => a.Status == appStatusEnum);
         }
 
         if (filter.MinRating.HasValue)
@@ -456,7 +540,7 @@ public class ApplicationService : IApplicationService
                 a.CvId,
                 a.Cv.Title,
                 a.Cv.FileUrl,
-                a.Status,
+                a.Status.ToString(),
                 a.Rating,
                 a.EvaluationLabel,
                 a.MatchScore,
@@ -495,7 +579,7 @@ public class ApplicationService : IApplicationService
             application.Cv.Title,
             application.Cv.FileUrl,
             application.CoverLetter,
-            application.Status,
+            application.Status.ToString(),
             application.Rating,
             application.EvaluationLabel,
             application.PrivateNotes,
@@ -530,17 +614,20 @@ public class ApplicationService : IApplicationService
         var (application, error) = await FindApplicationWithRecruiterOwnershipAsync(userId, applicationId, cancellationToken);
         if (error is not null) return ServiceResult.Failure<bool>(error.ErrorMessage ?? "Access denied.", error.ErrorType);
 
-        if (application!.Status == "Withdrawn")
+        if (!Enum.TryParse<ApplicationStatus>(request.NewStatus, true, out var newStatusEnum))
+            return ServiceResult.Failure<bool>($"Invalid application status: '{request.NewStatus}'.", ServiceErrorType.Validation);
+
+        if (application!.Status == ApplicationStatus.Withdrawn)
             return ServiceResult.Failure<bool>("Cannot update status of a withdrawn application.");
 
         var oldStatus = application.Status;
-        application.Status = request.NewStatus;
+        application.Status = newStatusEnum;
 
         application.StatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
-            FromStatus    = oldStatus,
-            ToStatus      = request.NewStatus,
+            FromStatus    = oldStatus.ToString(),
+            ToStatus      = newStatusEnum.ToString(),
             ChangedById   = userId,
             Reason        = request.Reason,
             ChangedAt     = DateTime.UtcNow
@@ -573,25 +660,50 @@ public class ApplicationService : IApplicationService
             .AsNoTracking()
             .Include(a => a.Candidate)
             .Include(a => a.Cv)
-            .Where(a => a.JobId == jobId && !a.IsDeleted && a.Status != "Withdrawn")
+            .Include(a => a.StatusHistories)
+            .Where(a => a.JobId == jobId && !a.IsDeleted && a.Status != ApplicationStatus.Withdrawn)
             .ToListAsync(cancellationToken);
 
         var pipelineStages = new[] { "Applied", "Screening", "Interview", "Offer", "Hired", "Rejected" };
+        var now = DateTime.UtcNow;
 
         var stageResponses = pipelineStages.Select(stage =>
         {
-            var appsInStage = applications.Where(a => a.Status.Equals(stage, StringComparison.OrdinalIgnoreCase)).ToList();
-            var cards = appsInStage.Select(a => new PipelineCandidateCardResponse(
-                a.Id,
-                a.CandidateId,
-                a.Candidate.FullName,
-                a.Candidate.AvatarUrl,
-                a.Rating,
-                a.EvaluationLabel,
-                a.MatchScore,
-                a.AppliedAt,
-                a.Cv.FileUrl
-            )).ToList();
+            var appsInStage = applications.Where(a => a.Status.ToString().Equals(stage, StringComparison.OrdinalIgnoreCase)).ToList();
+            var cards = appsInStage.Select(a =>
+            {
+                var lastHistory = a.StatusHistories
+                    .OrderByDescending(h => h.ChangedAt)
+                    .FirstOrDefault();
+                var lastStatusChangedAt = lastHistory?.ChangedAt ?? a.AppliedAt;
+                var daysInStage = (int)Math.Max(0, (now - lastStatusChangedAt).TotalDays);
+
+                var stageAlert = "Normal";
+                if (a.Status is not (ApplicationStatus.Hired or ApplicationStatus.Rejected))
+                {
+                    stageAlert = daysInStage switch
+                    {
+                        > 14 => "Critical",
+                        > 7  => "Warning",
+                        _    => "Normal"
+                    };
+                }
+
+                return new PipelineCandidateCardResponse(
+                    a.Id,
+                    a.CandidateId,
+                    a.Candidate.FullName,
+                    a.Candidate.AvatarUrl,
+                    a.Rating,
+                    a.EvaluationLabel,
+                    a.MatchScore,
+                    a.AppliedAt,
+                    a.Cv.FileUrl,
+                    daysInStage,
+                    stageAlert,
+                    lastStatusChangedAt
+                );
+            }).ToList();
 
             return new PipelineStageResponse(stage, cards.Count, cards);
         }).ToList();
@@ -604,6 +716,234 @@ public class ApplicationService : IApplicationService
         );
 
         return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<PipelineAnalyticsResponse>> GetPipelineAnalyticsAsync(
+        Guid userId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var employer = await _context.Employers
+            .FirstOrDefaultAsync(e => e.UserId == userId, cancellationToken);
+
+        if (employer is null)
+            return ServiceResult.NotFound<PipelineAnalyticsResponse>("Employer profile not found.");
+
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
+
+        if (job is null)
+            return ServiceResult.NotFound<PipelineAnalyticsResponse>("Job not found.");
+
+        if (job.CompanyId != employer.CompanyId)
+            return ServiceResult.Forbidden<PipelineAnalyticsResponse>("Access denied. You do not own this job.");
+
+        var applications = await _context.Applications
+            .AsNoTracking()
+            .Include(a => a.StatusHistories)
+            .Where(a => a.JobId == jobId && !a.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var totalApplications = applications.Count;
+        var hiredCount = applications.Count(a => a.Status == ApplicationStatus.Hired);
+        var rejectedCount = applications.Count(a => a.Status == ApplicationStatus.Rejected);
+        var withdrawnCount = applications.Count(a => a.Status == ApplicationStatus.Withdrawn);
+        var activeApplications = totalApplications - hiredCount - rejectedCount - withdrawnCount;
+
+        // Overall conversion rate: Hired / Total
+        var overallConversionRate = totalApplications > 0
+            ? Math.Round((double)hiredCount / totalApplications * 100, 1)
+            : 0.0;
+
+        // Average Time-to-Hire in days
+        var hiredApps = applications.Where(a => a.Status == ApplicationStatus.Hired).ToList();
+        double? averageTimeToHireDays = null;
+        if (hiredApps.Count > 0)
+        {
+            var daysList = hiredApps.Select(a =>
+            {
+                var hiredHistory = a.StatusHistories
+                    .OrderByDescending(h => h.ChangedAt)
+                    .FirstOrDefault(h => h.ToStatus == "Hired");
+                var hiredAt = hiredHistory?.ChangedAt ?? a.UpdatedAt ?? a.AppliedAt;
+                return Math.Max(0, (hiredAt - a.AppliedAt).TotalDays);
+            }).ToList();
+
+            averageTimeToHireDays = Math.Round(daysList.Average(), 1);
+        }
+
+        // Funnel stages: Applied -> Screening -> Interview -> Offer -> Hired
+        int CountReached(ApplicationStatus targetStatus)
+        {
+            var targetStr = targetStatus.ToString();
+            return applications.Count(a =>
+                a.Status == targetStatus ||
+                a.StatusHistories.Any(h => h.ToStatus.Equals(targetStr, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var countApplied = totalApplications;
+        var countScreening = CountReached(ApplicationStatus.Screening);
+        var countInterview = CountReached(ApplicationStatus.Interview);
+        var countOffer = CountReached(ApplicationStatus.Offer);
+        var countHired = hiredCount;
+
+        static double CalcRate(int from, int to) => from > 0 ? Math.Round((double)to / from * 100, 1) : 0.0;
+
+        var stageConversionRates = new List<StageConversionDto>
+        {
+            new("Applied", "Screening", countApplied, countScreening, CalcRate(countApplied, countScreening)),
+            new("Screening", "Interview", countScreening, countInterview, CalcRate(countScreening, countInterview)),
+            new("Interview", "Offer", countInterview, countOffer, CalcRate(countInterview, countOffer)),
+            new("Offer", "Hired", countOffer, countHired, CalcRate(countOffer, countHired))
+        };
+
+        // Active stages duration & bottleneck detection
+        var activeStages = new[] { "Applied", "Screening", "Interview", "Offer" };
+        var stageDurations = new List<StageDurationDto>();
+        var now = DateTime.UtcNow;
+        int overdueCandidatesCount = 0;
+
+        string? bottleneckStage = null;
+        double maxAvgDays = -1;
+
+        foreach (var stage in activeStages)
+        {
+            var appsInStage = applications.Where(a => a.Status.ToString().Equals(stage, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (appsInStage.Count == 0)
+            {
+                stageDurations.Add(new StageDurationDto(stage, 0.0, 0, 0));
+                continue;
+            }
+
+            var daysInStageList = appsInStage.Select(a =>
+            {
+                var lastH = a.StatusHistories.OrderByDescending(h => h.ChangedAt).FirstOrDefault();
+                var changedAt = lastH?.ChangedAt ?? a.AppliedAt;
+                return Math.Max(0, (now - changedAt).TotalDays);
+            }).ToList();
+
+            var avgDays = Math.Round(daysInStageList.Average(), 1);
+            var overdueInStage = daysInStageList.Count(d => d > 7);
+            overdueCandidatesCount += overdueInStage;
+
+            stageDurations.Add(new StageDurationDto(stage, avgDays, appsInStage.Count, overdueInStage));
+
+            if (avgDays > maxAvgDays && appsInStage.Count > 0)
+            {
+                maxAvgDays = avgDays;
+                bottleneckStage = stage;
+            }
+        }
+
+        var response = new PipelineAnalyticsResponse(
+            job.Id,
+            job.Title,
+            totalApplications,
+            activeApplications,
+            hiredCount,
+            rejectedCount,
+            withdrawnCount,
+            averageTimeToHireDays,
+            overallConversionRate,
+            stageConversionRates,
+            stageDurations,
+            bottleneckStage,
+            overdueCandidatesCount
+        );
+
+        return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<byte[]>> ExportPipelineCsvAsync(
+        Guid userId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var employer = await _context.Employers
+            .FirstOrDefaultAsync(e => e.UserId == userId, cancellationToken);
+
+        if (employer is null)
+            return ServiceResult.NotFound<byte[]>("Employer profile not found.");
+
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
+
+        if (job is null)
+            return ServiceResult.NotFound<byte[]>("Job not found.");
+
+        if (job.CompanyId != employer.CompanyId)
+            return ServiceResult.Forbidden<byte[]>("Access denied. You do not own this job.");
+
+        var applications = await _context.Applications
+            .AsNoTracking()
+            .Include(a => a.Candidate)
+            .Include(a => a.Cv)
+            .Include(a => a.StatusHistories)
+            .Where(a => a.JobId == jobId && !a.IsDeleted)
+            .OrderByDescending(a => a.AppliedAt)
+            .ToListAsync(cancellationToken);
+
+        // Fetch candidate emails
+        var candidateUserIds = applications.Select(a => a.Candidate.UserId).Distinct().ToList();
+        var userEmails = new Dictionary<Guid, string?>();
+        foreach (var uid in candidateUserIds)
+        {
+            userEmails[uid] = await _identityService.GetUserEmailAsync(uid, cancellationToken);
+        }
+
+        var sb = new StringBuilder();
+
+        // CSV Header
+        sb.AppendLine("\"Mã ứng tuyển\",\"Họ tên ứng viên\",\"Email\",\"Số điện thoại\",\"Tiêu đề CV\",\"Trạng thái\",\"Số ngày ở stage\",\"Mức cảnh báo\",\"Đánh giá (Sao)\",\"Nhãn đánh giá\",\"Độ tương thích (%)\",\"Ngày nộp đơn\",\"Ghi chú nội bộ\"");
+
+        var now = DateTime.UtcNow;
+
+        foreach (var a in applications)
+        {
+            var lastHistory = a.StatusHistories
+                .OrderByDescending(h => h.ChangedAt)
+                .FirstOrDefault();
+            var lastStatusChangedAt = lastHistory?.ChangedAt ?? a.AppliedAt;
+            var daysInStage = (int)Math.Max(0, (now - lastStatusChangedAt).TotalDays);
+
+            var stageAlert = "Normal";
+            if (a.Status is not (ApplicationStatus.Hired or ApplicationStatus.Rejected or ApplicationStatus.Withdrawn))
+            {
+                stageAlert = daysInStage switch
+                {
+                    > 14 => "Critical",
+                    > 7  => "Warning",
+                    _    => "Normal"
+                };
+            }
+
+            var email = userEmails.GetValueOrDefault(a.Candidate.UserId) ?? string.Empty;
+            var ratingStr = a.Rating.HasValue ? a.Rating.Value.ToString() : string.Empty;
+            var matchScoreStr = a.MatchScore.HasValue ? a.MatchScore.Value.ToString() : string.Empty;
+
+            static string Escape(string? val) => $"\"{(val ?? string.Empty).Replace("\"", "\"\"")}\"";
+
+            sb.AppendLine(string.Join(",",
+                Escape(a.Id.ToString()),
+                Escape(a.Candidate.FullName),
+                Escape(email),
+                Escape(a.Candidate.Phone),
+                Escape(a.Cv.Title),
+                Escape(a.Status.ToString()),
+                daysInStage,
+                Escape(stageAlert),
+                ratingStr,
+                Escape(a.EvaluationLabel),
+                matchScoreStr,
+                Escape(a.AppliedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+                Escape(a.PrivateNotes)
+            ));
+        }
+
+        // Include UTF-8 BOM so Excel opens with proper accents
+        var preamble = Encoding.UTF8.GetPreamble();
+        var dataBytes = Encoding.UTF8.GetBytes(sb.ToString());
+        var fullBytes = new byte[preamble.Length + dataBytes.Length];
+        Buffer.BlockCopy(preamble, 0, fullBytes, 0, preamble.Length);
+        Buffer.BlockCopy(dataBytes, 0, fullBytes, preamble.Length, dataBytes.Length);
+
+        return ServiceResult.Success(fullBytes);
     }
 
     // -------------------------------------------------------------------------
@@ -653,9 +993,36 @@ public class ApplicationService : IApplicationService
         var missingSkillNames = new List<string>();
 
         double skillScore = 0;
+        string skillExplanation;
 
-        if (requiredJobSkills.Count > 0)
+        if (job.JobSkills.Count == 0)
         {
+            // Case 1: Employer did not specify any skills for the job
+            // Candidate is not blocked by skill requirements -> gets full 70% skill weight
+            skillScore = 70.0;
+            skillExplanation = "Tin tuyển dụng không yêu cầu kỹ năng cụ thể (hưởng trọn 70% điểm kỹ năng)";
+        }
+        else if (requiredJobSkills.Count == 0 && optionalJobSkills.Count > 0)
+        {
+            // Case 2: Employer specified only optional/preferred skills, no mandatory ones
+            int matchedOptCount = 0;
+            foreach (var js in optionalJobSkills)
+            {
+                if (candidateSkillIds.Contains(js.SkillId))
+                {
+                    matchedOptCount++;
+                    if (js.Skill != null) matchedSkillNames.Add(js.Skill.Name);
+                }
+            }
+
+            // 60% baseline (no mandatory barriers) + up to 10% bonus for optional skills
+            var optBonus = ((double)matchedOptCount / optionalJobSkills.Count) * 10.0;
+            skillScore = 60.0 + optBonus;
+            skillExplanation = $"Tin tuyển dụng không có kỹ năng bắt buộc (phù hợp {matchedOptCount}/{optionalJobSkills.Count} kỹ năng ưu tiên: +{Math.Round(optBonus, 1)}%)";
+        }
+        else
+        {
+            // Case 3: Employer specified mandatory required skills
             int matchedReqCount = 0;
             foreach (var js in requiredJobSkills)
             {
@@ -687,11 +1054,15 @@ public class ApplicationService : IApplicationService
                 }
                 skillScore += ((double)matchedOptCount / optionalJobSkills.Count) * 10.0;
             }
-        }
-        else
-        {
-            // If job does not specify required skills, default baseline skill score
-            skillScore = 50.0;
+
+            if (missingSkillNames.Count == 0)
+            {
+                skillExplanation = $"Trùng khớp toàn bộ {matchedReqCount}/{requiredJobSkills.Count} kỹ năng yêu cầu";
+            }
+            else
+            {
+                skillExplanation = $"Trùng khớp {matchedReqCount}/{requiredJobSkills.Count} kỹ năng yêu cầu (còn thiếu: {string.Join(", ", missingSkillNames)})";
+            }
         }
 
         // 2. Location matching (15%)
@@ -724,8 +1095,8 @@ public class ApplicationService : IApplicationService
 
         int totalScore = (int)Math.Clamp(Math.Round(skillScore + locationScore + salaryScore), 0, 100);
 
-        string explanation = $"Trùng khớp {matchedSkillNames.Count}/{job.JobSkills.Count} kỹ năng yêu cầu. " +
-                             $"Điểm tương thích kỹ năng: {(int)skillScore}%, Địa điểm: {(int)locationScore}%, Mức lương: {(int)salaryScore}%.";
+        string explanation = $"{skillExplanation}. " +
+                             $"Điểm kỹ năng: {Math.Round(skillScore, 1)}%, Địa điểm: {(int)locationScore}%, Mức lương: {(int)salaryScore}%.";
 
         return (totalScore, explanation, matchedSkillNames, missingSkillNames);
     }

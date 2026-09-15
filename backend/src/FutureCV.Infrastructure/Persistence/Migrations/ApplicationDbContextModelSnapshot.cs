@@ -332,6 +332,11 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Property<string>("Industry")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("LogoUrl")
                         .HasColumnType("text");
 
@@ -370,6 +375,52 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Companies");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.CvEvaluation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CvId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("CvScore")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImprovementsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("MissingSkillsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ModelVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("StrengthsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WeaknessesJson")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CvId")
+                        .IsUnique();
+
+                    b.ToTable("CVEvaluations", (string)null);
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
@@ -491,6 +542,11 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Property<string>("Gender")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Phone")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
@@ -605,6 +661,15 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ApprovedByAdminId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("BannedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("BannedByAdminId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BannedReason")
+                        .HasColumnType("text");
+
                     b.Property<string>("Benefits")
                         .HasColumnType("text");
 
@@ -637,6 +702,11 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
+
+                    b.Property<bool>("IsBanned")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -697,6 +767,8 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApprovedByAdminId");
+
+                    b.HasIndex("BannedByAdminId");
 
                     b.HasIndex("CategoryId");
 
@@ -846,6 +918,68 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("JobLevels", (string)null);
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AdminNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ReporterUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ResolvedByAdminId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId");
+
+                    b.HasIndex("ReporterUserId");
+
+                    b.HasIndex("ResolvedByAdminId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("JobReports", (string)null);
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.JobSkill", b =>
@@ -1315,6 +1449,17 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("Cv");
                 });
 
+            modelBuilder.Entity("FutureCV.Domain.Entities.CvEvaluation", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
+                        .WithOne("Evaluation")
+                        .HasForeignKey("FutureCV.Domain.Entities.CvEvaluation", "CvId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cv");
+                });
+
             modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
                 {
                     b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
@@ -1370,6 +1515,11 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("ApprovedByAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("BannedByAdminId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("FutureCV.Domain.Entities.JobCategory", "Category")
@@ -1450,6 +1600,28 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobReport", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.Job", "Job")
+                        .WithMany("Reports")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReporterUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ResolvedByAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Job");
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.JobSkill", b =>
@@ -1600,6 +1772,8 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FutureCV.Domain.Entities.CandidateCv", b =>
                 {
                     b.Navigation("CvParser");
+
+                    b.Navigation("Evaluation");
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.EmploymentType", b =>
@@ -1612,6 +1786,8 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("Applications");
 
                     b.Navigation("JobSkills");
+
+                    b.Navigation("Reports");
 
                     b.Navigation("SavedJobs");
                 });
