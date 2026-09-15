@@ -9,9 +9,7 @@ import { fetcher } from "~/lib/fetcher";
 import type { CvResponse } from "../types";
 import type {
   CvAnalysisResponse,
-  CvStructuredDataResponse,
   UpdateCvTitleRequest,
-  UpdateStructuredCvDataRequest,
 } from "../types/cv.types";
 
 export const candidateCvService = {
@@ -106,50 +104,5 @@ export const candidateCvService = {
       method: "POST",
       auth: true,
     });
-  },
-
-  // ── Structured Data ─────────────────────────────────────────────────────────
-
-  /**
-   * GET /api/candidate/cvs/{id}/structured-data — Lấy dữ liệu bóc tách.
-   * Khi chưa có AI parser, BE sinh baseline từ bảng Profile.
-   */
-  async getStructuredData(
-    id: string,
-    signal?: AbortSignal
-  ): Promise<CvStructuredDataResponse> {
-    return fetcher<CvStructuredDataResponse>(
-      `/api/candidate/cvs/${id}/structured-data`,
-      { method: "GET", auth: true, signal }
-    );
-  },
-
-  /**
-   * PUT /api/candidate/cvs/{id}/structured-data — Lưu & xác nhận dữ liệu bóc tách.
-   * Kết quả: isVerifiedByUser = true, ParseStatus = "Parsed".
-   */
-  async updateStructuredData(
-    id: string,
-    data: UpdateStructuredCvDataRequest
-  ): Promise<CvStructuredDataResponse> {
-    return fetcher<CvStructuredDataResponse>(
-      `/api/candidate/cvs/${id}/structured-data`,
-      {
-        method: "PUT",
-        auth: true,
-        body: data,
-      }
-    );
-  },
-
-  /**
-   * POST /api/candidate/cvs/{id}/structured-data/revert — Khôi phục bản bóc tách gốc.
-   * Chỉ khả dụng khi ParseStatus != "Pending" (BE trả 400 nếu chưa có dữ liệu).
-   */
-  async revertStructuredData(id: string): Promise<CvStructuredDataResponse> {
-    return fetcher<CvStructuredDataResponse>(
-      `/api/candidate/cvs/${id}/structured-data/revert`,
-      { method: "POST", auth: true }
-    );
   },
 };
