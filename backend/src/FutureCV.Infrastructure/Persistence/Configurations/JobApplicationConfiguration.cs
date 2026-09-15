@@ -1,4 +1,5 @@
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -13,9 +14,10 @@ public class JobApplicationConfiguration : IEntityTypeConfiguration<JobApplicati
         builder.HasKey(a => a.Id);
 
         builder.Property(a => a.Status)
+            .HasConversion<string>()
             .IsRequired()
             .HasMaxLength(20)
-            .HasDefaultValue("Applied");
+            .HasDefaultValue(ApplicationStatus.Applied);
 
         builder.Property(a => a.CoverLetter)
             .HasMaxLength(2000);

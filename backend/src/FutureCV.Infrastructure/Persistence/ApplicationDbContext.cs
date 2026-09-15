@@ -44,6 +44,7 @@ public class ApplicationDbContext
     public DbSet<SavedJob> SavedJobs => Set<SavedJob>();
     public DbSet<JobApplication> Applications => Set<JobApplication>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
+    public DbSet<JobReport> JobReports => Set<JobReport>();
 
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
