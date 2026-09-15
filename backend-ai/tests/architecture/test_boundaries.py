@@ -295,3 +295,10 @@ def test_ast_checker_detects_domain_relative_import_violations():
     for snippet in domain_allowed_snippets:
         violations = _find_violations(domain_matching_file, forbidden_in_domain, source=snippet)
         assert len(violations) == 0, f"Expected NO violation for Domain snippet: {snippet}, got: {violations}"
+
+
+def test_experience_match_does_not_import_contract_validators():
+    """Rule: app.domain.matching.experience_match must not import app.contracts.validators."""
+    exp_file = APP_DIR / "domain" / "matching" / "experience_match.py"
+    violations = _find_violations(exp_file, {"app.contracts.validators"})
+    assert not violations, "experience_match.py imports forbidden 'app.contracts.validators':\n" + "\n".join(violations)
