@@ -5,17 +5,35 @@
  */
 
 import { Link } from "react-router";
-import { IconMapPin, IconClock, IconBriefcase } from "@tabler/icons-react";
+import { IconMapPin, IconClock, IconBriefcase, IconHeart, IconHeartFilled } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/Badge";
 import { formatSalary, timeAgo } from "~/utils";
+import { useSavedJobIds } from "../../hooks/useSavedJobIds";
+import { useToggleSaveJob } from "../../hooks/useToggleSaveJob";
 import type { Job } from "../../types";
 
-interface JobListItemRowProps {
+export interface JobListItemRowProps {
   job: Job;
+  saved?: boolean;
+  onToggleSave?: () => void;
 }
 
-export function JobListItemRow({ job }: JobListItemRowProps) {
+export function JobListItemRow({ job, saved, onToggleSave }: JobListItemRowProps) {
   const companyInitial = job.company ? job.company.charAt(0).toUpperCase() : "J";
+  const { data: savedJobIds } = useSavedJobIds();
+  const { toggleSave, isPending } = useToggleSaveJob();
+
+  const isSaved = saved !== undefined ? saved : (savedJobIds ? savedJobIds.has(job.id) : false);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onToggleSave) {
+      onToggleSave();
+    } else {
+      toggleSave(job.id);
+    }
+  };
 
   return (
     <article className="group relative rounded-default border border-border-subtle bg-surface p-5 shadow-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-navy hover:shadow-card">
@@ -47,9 +65,24 @@ export function JobListItemRow({ job }: JobListItemRowProps) {
                 {job.title}
               </Link>
             </h3>
-            <Badge variant="gold" className="shrink-0 font-bold text-label">
-              {formatSalary(job.salaryMin, job.salaryMax)}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-2">
+              <Badge variant="gold" className="font-bold text-label">
+                {formatSalary(job.salaryMin, job.salaryMax)}
+              </Badge>
+              <button
+                type="button"
+                aria-label={isSaved ? "Bỏ lưu việc làm" : "Lưu việc làm"}
+                onClick={handleToggle}
+                disabled={isPending}
+                className="rounded-full p-1.5 text-ink-muted transition-colors hover:bg-surface-high hover:text-danger focus-visible:outline-none disabled:opacity-50"
+              >
+                {isSaved ? (
+                  <IconHeartFilled size={18} className="text-danger" />
+                ) : (
+                  <IconHeart size={18} stroke={1.6} />
+                )}
+              </button>
+            </div>
           </div>
 
           <p className="mt-1 text-label font-medium uppercase tracking-wide text-ink-variant">

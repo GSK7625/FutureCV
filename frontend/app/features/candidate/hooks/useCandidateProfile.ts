@@ -26,7 +26,7 @@ export function useCandidateProfile() {
     isLoading: query.isLoading,
     isError: query.isError,
     // Fallback thông tin khi profile chưa load xong hoặc offline
-    displayName: query.data?.fullName || user?.fullName || "Ứng viên",
+    displayName: query.data?.fullName || user?.fullName || "",
     email: query.data?.email || user?.email || "",
     avatarUrl: query.data?.avatarUrl,
     candidateId: query.data?.id || user?.id || null,

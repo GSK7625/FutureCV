@@ -8,6 +8,8 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { IconChevronRight, IconFileText } from "@tabler/icons-react";
 import { useJobDetail } from "../../hooks/useJobDetail";
+import { useSavedJobIds } from "../../hooks/useSavedJobIds";
+import { useToggleSaveJob } from "../../hooks/useToggleSaveJob";
 import { useUIStore } from "~/stores/useUIStore";
 import { QueryBoundary } from "~/components/shared";
 import { EmptyState } from "~/components/ui/EmptyState";
@@ -25,7 +27,10 @@ interface JobDetailViewProps {
 export function JobDetailView({ jobId }: JobDetailViewProps) {
   const query = useJobDetail(jobId);
   const showToast = useUIStore((s) => s.showToast);
-  const [saved, setSaved] = useState(false);
+  const { data: savedJobIds } = useSavedJobIds();
+  const { toggleSave } = useToggleSaveJob();
+
+  const isSaved = savedJobIds ? savedJobIds.has(jobId) : false;
 
   const handleShare = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -37,14 +42,7 @@ export function JobDetailView({ jobId }: JobDetailViewProps) {
   };
 
   const handleToggleSave = () => {
-    setSaved((prev) => {
-      const next = !prev;
-      showToast(
-        next ? "Đã lưu việc làm vào danh sách quan tâm!" : "Đã bỏ lưu việc làm.",
-        "info",
-      );
-      return next;
-    });
+    toggleSave(jobId);
   };
 
   return (
@@ -98,7 +96,7 @@ export function JobDetailView({ jobId }: JobDetailViewProps) {
             {/* Header Banner */}
             <JobDetailHeader
               job={query.data}
-              saved={saved}
+              saved={isSaved}
               onToggleSave={handleToggleSave}
               onShare={handleShare}
             />
