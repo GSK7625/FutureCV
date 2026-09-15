@@ -7,8 +7,10 @@ from app.application.ranking_service import RankingService
 from app.contracts.cv import EducationItem, ProjectItem, StructuredCv, WorkExperienceItem
 from app.contracts.job import StructuredJob
 from app.contracts.matching import CandidateItem, CandidateRankRequest
+from app.core.exceptions import ProviderError
 from app.infrastructure.embeddings.providers.mock_provider import MockEmbeddingProvider
 from app.infrastructure.llm.providers.mock_provider import MockLlmProvider
+from app.ports.embeddings import EmbeddingPort
 
 
 class SpyLlmProvider(MockLlmProvider):
@@ -397,3 +399,187 @@ async def test_ranking_project_relevance_under_matching_v1():
 
     assert "1/1 dự án thực tế" in cand_rel.match_result.project_domain_relevance
     assert "chưa thể hiện sự trùng khớp" in cand_unrel.match_result.project_domain_relevance
+
+
+@pytest.mark.asyncio
+async def test_matching_v1_single_and_ranking_parity():
+    """Verify single match and ranking produce exact identical match score and component values under matching-v1."""
+    llm = MockLlmProvider()
+    embedding_provider = MockEmbeddingProvider()
+
+    matching_service = MatchingService(
+        llm=llm,
+        embedding_provider=embedding_provider,
+        matching_algorithm="matching-v1-experimental",
+    )
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(
+        title="Senior Python Backend",
+        description="Build scalable distributed microservices.",
+        required_skills=["Python", "FastAPI"],
+        preferred_skills=["Docker"],
+        minimum_experience_years=3.0,
+        education_requirement="Bachelor",
+    )
+
+    cv = StructuredCv(
+        full_name="Nguyen Van Parity",
+        skills=["Python", "FastAPI", "Docker"],
+        work_experience=[
+            WorkExperienceItem(
+                job_title="Backend Developer",
+                company="Parity Labs",
+                years_of_experience=4.0,
+                description="Built high-performance APIs.",
+            )
+        ],
+        education=[EducationItem(degree="Bachelor", institution="HUST")],
+        projects=[ProjectItem(name="API Platform", technologies=["Python", "Docker"])],
+    )
+
+    # 1. Single match evaluation
+    single_res = await matching_service.match(cv=cv, job=job, generate_explanation=False)
+
+    # 2. Ranking evaluation
+    req = CandidateRankRequest(job=job, candidates=[CandidateItem(candidate_id="cand-01", cv=cv)])
+    rank_resp = await ranking_service.rank_candidates(req)
+    ranked_res = rank_resp.ranked_candidates[0].match_result
+
+    # 3. Assert exact parity
+    assert single_res.match_score == ranked_res.match_score
+    assert single_res.matched_skills == ranked_res.matched_skills
+    assert single_res.missing_skills == ranked_res.missing_skills
+    assert single_res.experience_comparison == ranked_res.experience_comparison
+    assert single_res.education_comparison == ranked_res.education_comparison
+    assert single_res.project_domain_relevance == ranked_res.project_domain_relevance
+    assert single_res.match_explanation == ranked_res.match_explanation
+    assert ranked_res.meta.llm_invoked is False
+    assert ranked_res.meta.algorithm_variant == "matching-v1-experimental"
+
+
+class FailingRankingEmbeddingProvider(EmbeddingPort):
+    """Failing embedding provider for ranking error testing."""
+
+    @property
+    def provider_name(self) -> str:
+        return "failing-ranking-emb"
+
+    @property
+    def model_name(self) -> str:
+        return "fail-rank-model"
+
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        raise ProviderError("Ranking embedding service down", provider="failing-ranking-emb")
+
+
+@pytest.mark.asyncio
+async def test_ranking_v1_embedding_failure_fails_fast():
+    """Verify Candidate Ranking raises ProviderError without silent fallback when embedding provider fails."""
+    matching_service = MatchingService(
+        llm=MockLlmProvider(),
+        embedding_provider=FailingRankingEmbeddingProvider(),
+        matching_algorithm="matching-v1-experimental",
+    )
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(title="Backend Dev", required_skills=["Python"])
+    candidates = [CandidateItem(candidate_id="c1", cv=StructuredCv(skills=["Python"]))]
+    req = CandidateRankRequest(job=job, candidates=candidates)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await ranking_service.rank_candidates(req)
+
+    assert "Ranking embedding service down" in str(exc_info.value)
+
+
+class CardinalityMismatchedRankingProvider(EmbeddingPort):
+    """Embedding provider returning custom vector counts for job vs candidates."""
+
+    def __init__(self, job_vector_count: int = 1, candidate_vector_count: int | None = None) -> None:
+        self.job_vector_count = job_vector_count
+        self.candidate_vector_count = candidate_vector_count
+        self.calls = 0
+
+    @property
+    def provider_name(self) -> str:
+        return "cardinality-mismatch-rank-emb"
+
+    @property
+    def model_name(self) -> str:
+        return "mismatch-model"
+
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        self.calls += 1
+        if self.calls == 1:
+            # First call is Job embedding
+            return [[1.0, 0.0] for _ in range(self.job_vector_count)]
+        # Subsequent calls are candidate chunks
+        count = self.candidate_vector_count if self.candidate_vector_count is not None else len(texts)
+        return [[1.0, 0.0] for _ in range(count)]
+
+
+@pytest.mark.asyncio
+async def test_ranking_v1_job_embedding_cardinality_mismatch():
+    """Rule: When provider returns wrong vector count for Job text, RankingService raises ProviderError."""
+    matching_service = MatchingService(
+        llm=MockLlmProvider(),
+        embedding_provider=CardinalityMismatchedRankingProvider(job_vector_count=2),
+        matching_algorithm="matching-v1-experimental",
+    )
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(title="Backend Dev", required_skills=["Python"])
+    candidates = [CandidateItem(candidate_id="c1", cv=StructuredCv(skills=["Python"]))]
+    req = CandidateRankRequest(job=job, candidates=candidates)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await ranking_service.rank_candidates(req)
+
+    assert "Embedding provider returned 2 vectors for 1 requested job text" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_ranking_v1_candidate_chunk_cardinality_too_few():
+    """Rule: When provider returns fewer vectors than candidate chunk count, RankingService raises ProviderError."""
+    matching_service = MatchingService(
+        llm=MockLlmProvider(),
+        embedding_provider=CardinalityMismatchedRankingProvider(job_vector_count=1, candidate_vector_count=1),
+        matching_algorithm="matching-v1-experimental",
+    )
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(title="Backend Dev", required_skills=["Python"])
+    candidates = [
+        CandidateItem(candidate_id="c1", cv=StructuredCv(skills=["Python"])),
+        CandidateItem(candidate_id="c2", cv=StructuredCv(skills=["Java"])),
+    ]
+    req = CandidateRankRequest(job=job, candidates=candidates)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await ranking_service.rank_candidates(req)
+
+    assert "Embedding provider returned 1 vectors for 2 requested candidate texts" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_ranking_v1_candidate_chunk_cardinality_too_many():
+    """Rule: When provider returns more vectors than candidate chunk count, RankingService raises ProviderError."""
+    matching_service = MatchingService(
+        llm=MockLlmProvider(),
+        embedding_provider=CardinalityMismatchedRankingProvider(job_vector_count=1, candidate_vector_count=3),
+        matching_algorithm="matching-v1-experimental",
+    )
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(title="Backend Dev", required_skills=["Python"])
+    candidates = [
+        CandidateItem(candidate_id="c1", cv=StructuredCv(skills=["Python"])),
+        CandidateItem(candidate_id="c2", cv=StructuredCv(skills=["Java"])),
+    ]
+    req = CandidateRankRequest(job=job, candidates=candidates)
+
+    with pytest.raises(ProviderError) as exc_info:
+        await ranking_service.rank_candidates(req)
+
+    assert "Embedding provider returned 3 vectors for 2 requested candidate texts" in str(exc_info.value)
