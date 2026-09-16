@@ -33,8 +33,6 @@ select = [
     "RUF",   # Ruff-specific rules
 ]
 ignore = [
-    "ANN101",  # Missing type annotation for `self`
-    "ANN102",  # Missing type annotation for `cls`
     "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
     "S101",    # Use of `assert` detected (OK in tests)
     "B008",    # Do not perform function call in argument defaults (FastAPI Depends)
