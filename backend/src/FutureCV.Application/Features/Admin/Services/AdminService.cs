@@ -244,6 +244,66 @@ public class AdminService : IAdminService
         return ServiceResult.Success(response);
     }
 
+    public async Task<ServiceResult<bool>> ApproveCompanyAsync(
+        Guid adminUserId, Guid companyId, string? ipAddress, CancellationToken cancellationToken = default)
+    {
+        var company = await _context.Companies
+            .FirstOrDefaultAsync(c => c.Id == companyId && !c.IsDeleted, cancellationToken);
+
+        if (company is null)
+            return ServiceResult.NotFound<bool>("Company not found.");
+
+        if (company.VerifiedStatus == CompanyVerificationStatus.Verified)
+            return ServiceResult.Failure<bool>("Company is already verified.", ServiceErrorType.Conflict);
+
+        company.VerifiedStatus = CompanyVerificationStatus.Verified;
+        company.VerifiedAt     = DateTimeOffset.UtcNow;
+
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId      = adminUserId,
+            Action      = "Company.Approved",
+            EntityType  = "Company",
+            EntityId    = companyId.ToString(),
+            PayloadJson = JsonSerializer.Serialize(new { Status = "Verified" }),
+            IpAddress   = ipAddress,
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return ServiceResult.Success(true);
+    }
+
+    public async Task<ServiceResult<bool>> RejectCompanyAsync(
+        Guid adminUserId, Guid companyId, string reason, string? ipAddress, CancellationToken cancellationToken = default)
+    {
+        var company = await _context.Companies
+            .FirstOrDefaultAsync(c => c.Id == companyId && !c.IsDeleted, cancellationToken);
+
+        if (company is null)
+            return ServiceResult.NotFound<bool>("Company not found.");
+
+        if (company.VerifiedStatus == CompanyVerificationStatus.Rejected)
+            return ServiceResult.Failure<bool>("Company is already rejected.", ServiceErrorType.Conflict);
+
+        company.VerifiedStatus = CompanyVerificationStatus.Rejected;
+        company.VerifiedAt     = null;
+
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId      = adminUserId,
+            Action      = "Company.Rejected",
+            EntityType  = "Company",
+            EntityId    = companyId.ToString(),
+            PayloadJson = JsonSerializer.Serialize(new { Status = "Rejected", Reason = reason }),
+            IpAddress   = ipAddress,
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return ServiceResult.Success(true);
+    }
+
     // -------------------------------------------------------------------------
     // Audit Log Management
     // -------------------------------------------------------------------------

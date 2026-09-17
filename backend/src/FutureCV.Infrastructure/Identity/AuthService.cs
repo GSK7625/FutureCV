@@ -218,7 +218,7 @@ public class AuthService : IAuthService
                 {
                     Name = request.CompanyName,
                     TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                    VerifiedStatus = CompanyVerificationStatus.Unverified
+                    VerifiedStatus = CompanyVerificationStatus.Pending
                 };
                 _context.Companies.Add(company);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -268,7 +268,7 @@ public class AuthService : IAuthService
             {
                 Name = request.CompanyName,
                 TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                VerifiedStatus = CompanyVerificationStatus.Unverified
+                VerifiedStatus = CompanyVerificationStatus.Pending
             };
             _context.Companies.Add(newCompany);
             await _context.SaveChangesAsync(cancellationToken);
@@ -918,7 +918,7 @@ public class AuthService : IAuthService
                 {
                     Name = request.CompanyName,
                     TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                    VerifiedStatus = CompanyVerificationStatus.Unverified
+                    VerifiedStatus = CompanyVerificationStatus.Pending
                 };
                 _context.Companies.Add(company);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -962,7 +962,7 @@ public class AuthService : IAuthService
             {
                 Name = request.CompanyName,
                 TaxCode = "TEMP_" + Guid.NewGuid().ToString("N")[..8],
-                VerifiedStatus = CompanyVerificationStatus.Unverified
+                VerifiedStatus = CompanyVerificationStatus.Pending
             };
             _context.Companies.Add(newCompany);
             await _context.SaveChangesAsync(cancellationToken);
