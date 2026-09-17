@@ -55,7 +55,7 @@ export function JobDetailOverview({ job }: JobDetailOverviewProps) {
 
   return (
     <div className="rounded-xl border border-border-subtle bg-surface p-6 shadow-surface">
-      <h2 className="text-title font-bold text-navy mb-4">Thông tin chung</h2>
+      <h2 className="text-headline-md font-bold text-navy mb-4">Thông tin chung</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item, idx) => (
           <div

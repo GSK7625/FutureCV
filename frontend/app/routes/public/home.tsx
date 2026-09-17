@@ -307,53 +307,52 @@ export default function HomePage() {
           )}
 
           {/* Main Content: 2 columns grid + Banner */}
-          <div className="flex flex-col items-start gap-5 lg:flex-row">
-            <div className="flex w-full flex-1 flex-col justify-between">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {(featuredJobs?.items ?? []).map((job, i) => (
-                  <AnimatedJobCard key={job.id} job={job} index={i} />
-                ))}
-              </div>
-
-              {/* Pagination */}
-              <div className="mt-8 flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  aria-label="Trang trước"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border-strong bg-surface text-ink-variant transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <IconChevronLeft size={16} />
-                </button>
-                <span className="text-label-sm font-medium text-ink-muted">
-                  {page} / {Math.max(1, Math.ceil((featuredJobs?.total ?? 8) / 8))} trang
-                </span>
-                <button
-                  type="button"
-                  aria-label="Trang sau"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={page >= Math.max(1, Math.ceil((featuredJobs?.total ?? 8) / 8))}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border-strong bg-surface text-ink-variant transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <IconChevronRight size={16} />
-                </button>
-              </div>
+          <div className="flex flex-col items-stretch gap-5 lg:flex-row">
+            {/* Left: Cards Grid */}
+            <div className="grid w-full flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+              {(featuredJobs?.items ?? []).map((job, i) => (
+                <AnimatedJobCard key={job.id} job={job} index={i} />
+              ))}
             </div>
 
-            {/* Shrunk Vertical Banner */}
-            <div className="w-full shrink-0 self-start lg:w-[250px]">
+            {/* Right: Vertical Banner */}
+            <div className="w-full shrink-0 lg:w-[250px]">
               <Link
                 to="/jobs"
-                className="group relative block overflow-hidden rounded-xl bg-surface shadow-sm transition-all duration-300 hover:shadow-md"
+                className="group relative block h-full overflow-hidden rounded-xl bg-surface shadow-sm transition-all duration-300 hover:shadow-md"
               >
                 <img
                   src="/banner2.png"
                   alt="2000+ Việc làm phổ thông thu nhập hấp dẫn"
-                  className="h-auto w-full object-contain rounded-xl"
+                  className="h-full w-full object-cover rounded-xl"
                 />
               </Link>
             </div>
+          </div>
+
+          {/* Pagination */}
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              aria-label="Trang trước"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-border-strong bg-surface text-ink-variant transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <IconChevronLeft size={16} />
+            </button>
+            <span className="text-label-sm font-medium text-ink-muted">
+              {page} / {Math.max(1, Math.ceil((featuredJobs?.total ?? 8) / 8))} trang
+            </span>
+            <button
+              type="button"
+              aria-label="Trang sau"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= Math.max(1, Math.ceil((featuredJobs?.total ?? 8) / 8))}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-border-strong bg-surface text-ink-variant transition-colors hover:border-navy hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <IconChevronRight size={16} />
+            </button>
           </div>
         </div>
       </section>

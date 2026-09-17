@@ -11,7 +11,7 @@ export function useJobDetail(id?: string) {
   return useQuery({
     queryKey: id ? candidateQueryKeys.jobs.detail(id) : candidateQueryKeys.jobs.all,
     queryFn: ({ signal }) => {
-      if (!id) throw new Error("Job ID is required");
+      if (!id) throw new Error("Mã việc làm không được để trống.");
       return jobService().detail(id, signal);
     },
     enabled: Boolean(id),
