@@ -83,25 +83,35 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
   );
 
   // Kích hoạt phân tích độ phù hợp với hiệu ứng quét thời gian thực
-  const handleAnalyze = async () => {
-    if (!selectedCvId) {
+  const handleAnalyze = async (targetCvId?: string) => {
+    const cvToAnalyze = targetCvId || selectedCvId;
+    if (!cvToAnalyze) {
       showToast("Vui lòng chọn hoặc tải lên một bản CV trước khi phân tích.", "error");
       return;
     }
 
     setIsAnalyzing(true);
     setHasAnalyzed(true);
-    setAnalyzedCvId(selectedCvId);
+    setAnalyzedCvId(cvToAnalyze);
 
     try {
       await Promise.all([
         refetchMatch(),
-        new Promise((resolve) => setTimeout(resolve, 650)),
+        new Promise((resolve) => setTimeout(resolve, 500)),
       ]);
     } catch {
       // Error được phản hồi trong query/preview
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // Tự động phân tích lại mượt mà ngay khi ứng viên click chọn bản CV khác
+  const handleSelectCv = (id: string) => {
+    if (id === selectedCvId) return;
+    setSelectedCvId(id);
+    if (hasAnalyzed) {
+      handleAnalyze(id);
     }
   };
 
@@ -127,6 +137,9 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
         title: cvTitleFromFile(file.name),
       });
       setSelectedCvId(newCv.id);
+      if (hasAnalyzed) {
+        handleAnalyze(newCv.id);
+      }
     } catch {
       // Error đã được handle trong hook toast
     } finally {
@@ -138,6 +151,7 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!selectedCvId) {
+
       showToast("Vui lòng chọn hoặc tải lên một bản CV để ứng tuyển.", "error");
       return;
     }
@@ -269,10 +283,10 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
                   {job.salaryMin && job.salaryMax
                     ? `${job.salaryMin} - ${job.salaryMax} triệu`
                     : job.salaryMin
-                    ? `Từ ${job.salaryMin} triệu`
-                    : job.salaryMax
-                    ? `Đến ${job.salaryMax} triệu`
-                    : "Thương lượng"}
+                      ? `Từ ${job.salaryMin} triệu`
+                      : job.salaryMax
+                        ? `Đến ${job.salaryMax} triệu`
+                        : "Thương lượng"}
                 </p>
               </div>
             </div>
@@ -293,7 +307,7 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
           <CvPickerSection
             cvs={cvs}
             selectedCvId={selectedCvId}
-            onSelectCv={setSelectedCvId}
+            onSelectCv={handleSelectCv}
             isLoading={isCvsLoading}
             isUploadingInline={isUploadingInline}
             onUploadFile={handleInlineFileUpload}

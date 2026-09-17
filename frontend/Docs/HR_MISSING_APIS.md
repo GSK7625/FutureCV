@@ -1,6 +1,6 @@
 # API còn thiếu cho giao diện Nhà tuyển dụng
 
-Tài liệu này đối chiếu giao diện HR với backend trên `master` sau commit `a36ae3c`. Frontend chỉ tích hợp endpoint và DTO đã được backend công bố.
+Tài liệu này đối chiếu giao diện HR với backend trên `origin/master` tại commit `22a4ce9`. Các API mới cần Backend chạy phiên bản này hoặc mới hơn; Backend trong nhánh `giao-dien-HR` hiện vẫn là bản cũ.
 
 ## API Application đã có và đã tích hợp
 
@@ -9,6 +9,11 @@ Tài liệu này đối chiếu giao diện HR với backend trên `master` sau 
 - `PUT /api/employer/applications/{id}/evaluation`: rating, nhãn đánh giá và ghi chú riêng.
 - `PATCH /api/employer/applications/{id}/status`: cập nhật trạng thái và lý do.
 - `GET /api/employer/jobs/{jobId}/pipeline`: Recruitment Pipeline theo Job.
+- Thẻ pipeline hiển thị `daysInStage`, `stageAlert`, `lastStatusChangedAt` từ Backend.
+- `GET /api/employer/jobs/{jobId}/pipeline/analytics`: thống kê theo Job, chuyển đổi stage, thời gian trung bình, bottleneck và ứng viên quá hạn.
+- `GET /api/employer/jobs/{jobId}/pipeline/export`: tải CSV theo Job bằng nút Xuất CSV trong trang Pipeline.
+- `POST /api/auth/logout`: nút đăng xuất HR thu hồi phiên ở Backend trước khi xóa phiên và cache trên Frontend.
+- Request gửi cookie cùng thông tin xác thực; thông báo lỗi hỗ trợ `message`, `errors`, `detail`, `title`.
 
 ## API hoặc dữ liệu vẫn còn thiếu
 
@@ -25,7 +30,7 @@ Chưa có endpoint thống kê tổng hợp cho:
 - Số lịch phỏng vấn sắp tới.
 - Conversion rate, time to hire hoặc bottleneck.
 
-Dashboard hiện chỉ hiển thị số liệu Job lấy chính xác từ `GET /api/employer/jobs`.
+Dashboard hiện chỉ hiển thị số liệu Job lấy chính xác từ `GET /api/employer/jobs`. Trang Pipeline đã có thống kê tuyển dụng theo Job qua API analytics; chưa có thống kê toàn công ty.
 
 ### Interview
 

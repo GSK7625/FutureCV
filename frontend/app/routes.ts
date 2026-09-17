@@ -55,6 +55,9 @@ export default [
     layout("layouts/AdminLayout.tsx", [
       index("routes/admin/dashboard.tsx"),
       route("users", "routes/admin/user-management.tsx"),
+      route("companies", "routes/admin/company-management.tsx"),
+      route("jobs", "routes/admin/job-management.tsx"),
+      route("audit-logs", "routes/admin/audit-logs.tsx"),
       route("roles", "routes/admin/role-permission.tsx"),
       route("config", "routes/admin/system-config.tsx"),
     ]),

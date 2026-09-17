@@ -1,6 +1,8 @@
 import { useAuthStore } from "~/stores/useAuthStore";
 import { prepareRequestBody } from "./requestBody";
+
 import { translateErrorMessage } from "./errorMapper";
+
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -23,6 +25,7 @@ export interface FetchOptions extends Omit<RequestInit, "body"> {
   auth?: boolean;
   /** Mặc định 15s. Truyền Infinity để tắt. */
   timeoutMs?: number;
+
 }
 
 async function parseErrorMessage(response: Response): Promise<string> {
@@ -43,6 +46,7 @@ async function parseErrorMessage(response: Response): Promise<string> {
     // Body không phải JSON -> dùng message mặc định
   }
   return translateErrorMessage(rawMessage, response.status);
+
 }
 
 async function requestOnce<T>(
@@ -50,7 +54,7 @@ async function requestOnce<T>(
   options: FetchOptions,
   externalSignal?: AbortSignal,
 ): Promise<T> {
-  const { body, auth = false, headers, timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...rest } = options;
+  const { body, auth = false, headers, timeoutMs = DEFAULT_TIMEOUT_MS, responseType = "json", signal, ...rest } = options;
   const preparedBody = prepareRequestBody(body);
 
   const targetSignal: AbortSignal | undefined = externalSignal ?? (signal ?? undefined);
@@ -76,6 +80,7 @@ async function requestOnce<T>(
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
+      credentials: "include",
       ...rest,
       signal: compositeSignal,
       headers: requestHeaders,
@@ -91,19 +96,9 @@ async function requestOnce<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(await parseErrorMessage(response), response.status);
+    throw new ApiError(await readApiError(response), response.status);
   }
-  if (response.status === 204) return undefined as T;
-  const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("application/json")) {
-    return (await response.json()) as T;
-  }
-  const text = await response.text();
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return text as unknown as T;
-  }
+  return (await readApiResponse(response, responseType)) as T;
 }
 
 export async function fetcher<T>(path: string, options: FetchOptions = {}): Promise<T> {
