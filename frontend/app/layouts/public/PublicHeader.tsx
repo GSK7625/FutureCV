@@ -102,9 +102,8 @@ export function PublicHeader() {
             >
               <Link
                 to="/"
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-label font-semibold transition-all duration-200 ${
-                  jobDropdownOpen ? "text-gold" : "text-navy hover:text-gold"
-                }`}
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-label font-semibold transition-all duration-200 ${jobDropdownOpen ? "text-gold" : "text-navy hover:text-gold"
+                  }`}
               >
                 <span>Việc làm</span>
                 {jobDropdownOpen ? (
@@ -131,9 +130,8 @@ export function PublicHeader() {
             >
               <Link
                 to="/cv/templates"
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-label font-semibold transition-all duration-200 ${
-                  cvDropdownOpen ? "text-gold" : "text-navy hover:text-gold"
-                }`}
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-label font-semibold transition-all duration-200 ${cvDropdownOpen ? "text-gold" : "text-navy hover:text-gold"
+                  }`}
               >
                 <span>Tạo CV</span>
                 {cvDropdownOpen ? (
@@ -198,7 +196,7 @@ export function PublicHeader() {
                 <div className="flex flex-col items-start">
                   <span className="text-label-sm text-ink-variant">Bạn là nhà tuyển dụng?</span>
                   <Link
-                    to="/register"
+                    to="/login-employer"
                     className="text-label font-bold text-navy transition-colors hover:text-gold"
                   >
                     Đăng tuyển ngay »

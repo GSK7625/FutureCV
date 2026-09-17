@@ -41,8 +41,6 @@ const SECTIONS = [
     items: [
       { label: "Việc làm đã lưu", href: "/candidate/saved-jobs" },
       { label: "Việc làm đã ứng tuyển", href: "/candidate/applications" },
-      { label: "Việc làm phù hợp với bạn", href: "/candidate/matching-jobs" },
-      { label: "Cài đặt gợi ý việc làm", href: "/candidate/job-alerts" },
     ],
   },
   {
@@ -51,7 +49,6 @@ const SECTIONS = [
     icon: IconFileText,
     items: [
       { label: "CV của tôi", href: "/candidate/cvs" },
-      { label: "Nhà tuyển dụng xem hồ sơ", href: "/candidate/profile-views" },
     ],
   },
   {

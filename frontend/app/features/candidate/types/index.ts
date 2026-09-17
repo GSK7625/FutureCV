@@ -272,7 +272,11 @@ export interface JobMatchPreviewResponse {
   explanation: string;
   locationMatched: boolean;
   salaryMatched: boolean;
+  experienceComparison?: string | null;
+  educationComparison?: string | null;
+  projectDomainRelevance?: string | null;
 }
+
 
 export interface ApiTimelineItem {
   fromStatus: string | null;

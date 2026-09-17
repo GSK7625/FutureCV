@@ -181,10 +181,13 @@ export function CvManagementView() {
       {/* ── Page Header ──────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 border-b border-navy/10 pb-6">
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-navy/5 text-navy text-[10px] uppercase tracking-[0.2em] font-semibold">
-            <IconFolderOpen size={13} />
-            Hồ sơ ứng tuyển
-          </div>
+          <nav className="flex items-center gap-2 text-xs text-ink-muted mb-1.5">
+            <Link to="/" className="hover:text-navy transition-colors">
+              Trang chủ
+            </Link>
+            <span>/</span>
+            <span className="font-semibold text-navy">Hồ sơ ứng tuyển</span>
+          </nav>
           <h1 className="text-2xl sm:text-3xl font-bold text-navy tracking-tight">
             Kho CV của tôi
           </h1>
@@ -228,9 +231,9 @@ export function CvManagementView() {
       <CvMetricsDeck cvs={cvs} primaryCv={primaryCv} />
 
       {/* ── Main Split Layout (8 / 4 Grid) ────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-[750px]">
         {/* ── Left Column: CV List & Management (8 cols) ──────────── */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 flex flex-col space-y-6 min-h-0 h-full">
           {/* Smart Upload Zone Drawer */}
           {showUpload && (
             <section className="rounded-2xl border border-gold/30 bg-gold/5 p-5 space-y-4 shadow-xs">
@@ -287,22 +290,20 @@ export function CvManagementView() {
               <button
                 type="button"
                 onClick={() => setActiveTab("all")}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
-                  activeTab === "all"
+                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === "all"
                     ? "bg-navy text-white shadow-xs"
                     : "text-ink-variant hover:bg-surface-low"
-                }`}
+                  }`}
               >
                 Tất cả ({cvs.length})
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("primary")}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
-                  activeTab === "primary"
+                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === "primary"
                     ? "bg-navy text-white shadow-xs"
                     : "text-ink-variant hover:bg-surface-low"
-                }`}
+                  }`}
               >
                 CV chính
               </button>
@@ -333,7 +334,7 @@ export function CvManagementView() {
               }}
             />
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto pr-1.5 pb-2 flex-1 min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-navy/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-navy/30">
               {filteredCvs.map((cv) => (
                 <CvCard
                   key={cv.id}
