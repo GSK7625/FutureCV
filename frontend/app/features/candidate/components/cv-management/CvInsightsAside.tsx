@@ -9,7 +9,7 @@ import { IconSparkles, IconTemplate, IconArrowRight, IconLock } from "@tabler/ic
 
 export function CvInsightsAside() {
   return (
-    <aside className="lg:col-span-4 space-y-6">
+    <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
       {/* Widget 1: Lời khuyên tối ưu CV */}
       <section className="rounded-2xl border border-border-subtle bg-surface p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2">

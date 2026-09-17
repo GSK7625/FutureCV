@@ -22,7 +22,7 @@ export function JobDetailCompanyCard({ job }: JobDetailCompanyCardProps) {
 
   return (
     <div className="rounded-xl border border-border-subtle bg-surface p-6 shadow-surface">
-      <h3 className="text-title font-bold text-navy mb-4">Thông tin công ty</h3>
+      <h3 className="text-headline-md font-bold text-navy mb-4">Thông tin công ty</h3>
 
       <div className="flex items-center gap-3 pb-4 border-b border-border-subtle">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border-subtle bg-surface-low p-1.5">

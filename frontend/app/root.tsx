@@ -10,6 +10,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 
 import type { Route } from "./+types/root";
 import { queryClient } from "~/lib/queryClient";
+import { translateErrorMessage } from "~/lib/errorMapper";
 import { ToastViewport } from "~/components/ui";
 import "@fontsource-variable/hanken-grotesk";
 import "./app.css";
@@ -53,9 +54,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     details =
       error.status === 404
         ? "Trang bạn tìm kiếm không tồn tại hoặc đã bị di chuyển."
-        : (error.statusText || details);
+        : translateErrorMessage(error.statusText, error.status);
   } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
+    details = translateErrorMessage(error.message);
     stack = error.stack;
   }
 

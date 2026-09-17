@@ -10,6 +10,7 @@ export default [
     ...prefix("cv", [
       route("templates", "routes/candidate/cv-templates.tsx"),
       route("builder/:templateId", "routes/candidate/cv-builder.tsx"),
+      route("upload", "routes/candidate/cv-upload.tsx"),
     ]),
   ]),
 

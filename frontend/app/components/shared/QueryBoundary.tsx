@@ -4,6 +4,7 @@ import { Skeleton } from "~/components/ui/Skeleton";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { Button } from "~/components/ui/Button";
 import { ApiError } from "~/lib/fetcher";
+import { translateErrorMessage } from "~/lib/errorMapper";
 
 interface QueryBoundaryProps {
   isLoading: boolean;
@@ -20,16 +21,20 @@ export function QueryBoundary({ isLoading, error, onRetry, skeleton, children }:
   if (isLoading) return <>{skeleton}</>;
 
   if (error) {
-    const message =
-      error instanceof ApiError
-        ? error.isNetworkError
-          ? "Mất kết nối tới máy chủ. Kiểm tra mạng và thử lại."
-          : error.status === 401
-            ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
-            : error.status >= 500
-              ? "Máy chủ đang gặp sự cố. Vui lòng thử lại sau ít phút."
-              : error.message
-        : "Không thể tải dữ liệu. Kiểm tra kết nối và thử lại.";
+    let message = "Không thể tải dữ liệu. Kiểm tra kết nối và thử lại.";
+    if (error instanceof ApiError) {
+      if (error.isNetworkError) {
+        message = "Mất kết nối tới máy chủ. Kiểm tra mạng và thử lại.";
+      } else if (error.status === 401) {
+        message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+      } else if (error.status >= 500) {
+        message = "Máy chủ đang gặp sự cố. Vui lòng thử lại sau ít phút.";
+      } else {
+        message = translateErrorMessage(error.message, error.status);
+      }
+    } else if (error instanceof Error) {
+      message = translateErrorMessage(error.message);
+    }
 
     return (
       <EmptyState
