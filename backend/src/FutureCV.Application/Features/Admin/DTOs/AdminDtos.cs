@@ -127,3 +127,23 @@ public sealed record ResolveJobReportRequest(
 
 public sealed record BanJobRequest(
     string Reason);
+
+// -----------------------------------------------------------------------------
+// Admin Company Management DTO
+// -----------------------------------------------------------------------------
+
+public sealed record AdminCompanyProfileResponse(
+    Guid Id,
+    Guid UserId,
+    string CompanyName,
+    string Email,
+    string? PhoneNumber,
+    string? Website,
+    string? Address,
+    string? CompanySize,
+    string? Industry,
+    string? Description,
+    string? LogoUrl,
+    string Status,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
