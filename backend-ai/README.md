@@ -1,18 +1,18 @@
-# 🤖 FutureCV — Backend AI Service
+# 🤖 FutureCV Backend AI (Python FastAPI - Clean & Hexagonal Architecture)
 
-Stateless AI computation subsystem for the FutureCV platform built with **Python 3.11** and **FastAPI**.
+Tài liệu hướng dẫn cấu trúc, thiết lập và phát triển hệ thống tính toán trí tuệ nhân tạo (**AI Service**) của dự án **FutureCV**.
 
 ---
 
-## 🏛️ System Architecture & Responsibility Boundaries
+## 🏛️ 1. Kiến trúc hệ thống (Clean & Hexagonal Architecture)
 
-FutureCV follows a **Modular Monolith** architecture where ASP.NET Core serves as the central application authority:
+Hệ thống FutureCV tuân thủ mô hình **Modular Monolith**, trong đó **ASP.NET Core** đóng vai trò là Application Server trung tâm điều phối, còn **Python FastAPI** đóng vai trò là một **Stateless AI Compute Service** (Dịch vụ tính toán AI phi trạng thái):
 
 ```text
                ┌───────────────────────┐
                │    React Frontend     │
                └──────────┬────────────┘
-                          │ HTTPS / REST
+                          │ HTTPS / REST (Public Client)
                           ▼
                ┌───────────────────────┐
                │  ASP.NET Core Backend │
@@ -28,163 +28,177 @@ FutureCV follows a **Modular Monolith** architecture where ASP.NET Core serves a
                       └──────────┬────────────┘
                                  │
                                  ▼
-                     LLM / Document Providers
+                     LLM & Embedding Providers
+                   (OpenAI / Gemini / Mock Local)
 ```
 
-### System Responsibility Split:
-
-- **ASP.NET Core owns:**
-  - Authentication & Authorization
-  - Candidate, Recruiter, Company, Job, CV, Application lifecycle states
-  - PostgreSQL database persistence & migrations
-  - Orchestration of AI requests & persisting AI computation results
-  - All business state transitions & hiring decisions
-
-- **FastAPI owns ONLY stateless AI computation:**
-  - CV PDF document parsing & text extraction
-  - Structured entity extraction (`StructuredCv`)
-  - Deterministic CV quality analysis & scoring (`CvAnalysis`)
-  - Hybrid Job Matching (`matching-v0` baseline with skills, experience, and education breakdown)
-  - Candidate Ranking (reusing the Matching Engine under bounded concurrency without LLM overhead)
-  - Career Assistant conversational guidance over sanitized context supplied by ASP.NET Core
-
-### Strict System Invariants:
-1. React **NEVER** calls FastAPI directly (Browser CORS is disabled).
-2. FastAPI **NEVER** connects to PostgreSQL or uses any ORM (no SQLAlchemy, no psycopg).
-3. FastAPI is completely **stateless** and does not own application or user state.
-4. AI outputs are **decision-support information only**; AI never makes autonomous hiring decisions.
+### 🔒 Các nguyên tắc bất biến (Strict System Invariants):
+1. **Frontend KHÔNG BAO GIỜ gọi thẳng FastAPI:** Trình duyệt chỉ giao tiếp với ASP.NET Core; FastAPI đã tắt Browser CORS.
+2. **FastAPI KHÔNG kết nối Database:** Toàn bộ dữ liệu được lưu trữ và quản lý bởi ASP.NET Core qua PostgreSQL; FastAPI không sử dụng bất kỳ ORM nào (không SQLAlchemy, không psycopg).
+3. **Hoàn toàn phi trạng thái (Stateless):** FastAPI không lưu session, không giữ state của người dùng; cùng dữ liệu đầu vào luôn cho kết quả xử lý độc lập.
+4. **Xác thực bảo mật nội bộ:** Mọi request từ ASP.NET Core sang FastAPI được bảo vệ bằng mã khóa bí mật qua header `X-Internal-API-Key` với cơ chế so khớp Constant-time (`hmac.compare_digest`).
 
 ---
 
-## 🎯 Implementation Status Matrix
+### 📂 Cấu trúc thư mục mã nguồn
 
-| Component / Subsystem | Status | Description |
-| :--- | :--- | :--- |
-| **Architecture baseline** | **READY** | Clean Hexagonal architecture with strict AST dependency gates. |
-| **Python quality gates** | **PASSED** | 100% compileall, ruff lint & format, mypy strict, and pytest pass (all automated tests pass). |
-| **Docker verification** | **NOT VERIFIED** | Local Docker daemon unavailable during automated checks. |
-| **Security hardening** | **READY** | Browser CORS disabled, internal API key validation, sanitized error outputs. |
-| **Input validation** | **READY** | Strict Pydantic v2 contracts (ranges, uniqueness, length limits). |
-| **PDF protection** | **READY** | 5 MB upload limit, 64KB bounded streaming, incremental char checks. |
-| **CV Analyzer baseline** | **IMPLEMENTED** | Entity extraction, structural scoring, PII redaction, qualitative merge. |
-| **Matching Engine (v0)** | **DEFAULT BASELINE** | 50/30/20 heuristic weights (engineering baseline, uncalibrated, 0 embedding calls). |
-| **Matching Engine (v1)** | **EXPERIMENTAL** | 40/20/10/10/20 hybrid with pure domain cosine similarity (uncalibrated experimental weights). |
-| **Candidate Ranking** | **OPTIMIZED** | Concurrently evaluates candidates; Job embedded exactly once; bounded CV batching; zero LLM calls. |
-| **Project relevance** | **IMPLEMENTED** | Deterministic canonical technology intersection; informational in v0, 10% in v1. |
-| **Semantic Similarity** | **IMPLEMENTED (v1)** | Pure domain cosine similarity without external Vector DB; clamped 0-100 score mapping. |
-| **Evaluation Suite** | **READY** | 25 structured sanity test cases, comparative metrics CLI (`python -m evaluation.matching.evaluate`). |
-| **Career Assistant** | **FOUNDATION IMPLEMENTED** | PII-minimized context, strict user/assistant roles, untrusted delimiters. |
-| **Job Ranking** | **NOT IMPLEMENTED** | Not implemented in current scope. |
-| **AI calibration** | **NOT IMPLEMENTED** | Empirical tuning against labeled recruitment datasets pending. |
-| **.NET runtime integration** | **NOT IMPLEMENTED** | Python API contracts are defined, but cross-language runtime compatibility has not yet been verified because the .NET AI client/DTO integration is not implemented. |
+Mã nguồn được tổ chức theo kiến trúc **Hexagonal (Ports & Adapters)** chuẩn mực:
 
-*(Note: Backend-AI is an engineering baseline foundation, not a fully completed MVP).*
-
----
-
-## 📐 Logical AI Capability Model
-
-### 1. CV Analyzer
-- **Input:** CV PDF document bytes or pre-extracted text.
-- **Pipeline:** `PDF Bytes` → `Bounded Chunk Reader` → `Document Parser` → `Structured Extraction` → `StructuredCv` → `Quality Scoring` → `PII Redaction` → `Qualitative LLM Critique` → `Independent Merge & Dedup` → `CvAnalysis`.
-- **Output:** `CvAnalysisResponse` containing:
-  - `cv_score`: Deterministic, explainable quality score (0–100).
-  - `strengths`: Structural completeness & qualitative strengths.
-  - `weaknesses`: Structural gaps & specific weaknesses.
-  - `improvement_suggestions`: Actionable recommendations.
-
-### 2. Matching Engine (`matching-v0` and `matching-v1-experimental`)
-- **Input:** `StructuredCv` + `StructuredJob`.
-- **Algorithms:**
-  - **`matching-v0` (Default Baseline):**
-    - Skill match: 50%
-    - Experience comparison: 30%
-    - Education comparison: 20%
-    - Project relevance: Informational only (0%)
-    - Embedding calls: **Zero**
-  - **`matching-v1-experimental` (Experimental Hypothesis):**
-    - Skill match: 40%
-    - Experience comparison: 20%
-    - Education comparison: 10%
-    - Project relevance: 10% (Deterministic technology match ratio)
-    - Semantic similarity: 20% (Pure Python domain cosine similarity)
-    - Total: 100% (**UNCALIBRATED EXPERIMENTAL WEIGHTS**)
-- **Provenance Metadata:** `ResponseMeta` exposes `contract_version="match-result-v1"`, `algorithm_version="1.0.0"`, `algorithm_variant` ("matching-v0" | "matching-v1-experimental"), explanation LLM (`provider`/`model`), embedding provenance (`embedding_provider`/`embedding_model`), and `llm_invoked` boolean.
-- **Candidate Ranking:** Evaluates N candidate CVs against 1 Job under bounded concurrency with `generate_explanation=False` (guaranteeing **zero LLM calls**). In v1, the target Job semantic text is embedded **exactly once**, and candidate CVs are embedded in bounded batches.
-
-
-### 3. Career Assistant
-- **Input:** User message + conversation history + minimized profile context.
-- **Security:** All user messages, history, and context are marked as `UNTRUSTED DATA` with explicit boundary delimiters. Sensitive PII (candidate ID, full name, email, phone) is stripped from LLM prompts.
+```text
+backend-ai/
+├── .env.example                 # File mẫu cấu hình biến môi trường
+├── requirements.txt             # Danh sách thư viện runtime cho ứng dụng
+├── requirements-dev.txt         # Danh sách thư viện phục vụ test và linter
+├── pyproject.toml               # Cấu hình tập trung cho Ruff, Mypy, Pytest
+├── Dockerfile                   # Cấu hình đóng gói container chạy production
+│
+├── app/
+│   ├── main.py                  # Entry Point của FastAPI application (Lifespan, Middleware)
+│   ├── api/                     # [Tầng Giao tiếp API] Router v1, Dependencies, Exception Handlers
+│   │   └── v1/                  # Endpoints: CV parsing/analysis, Job Matching, Candidate Ranking, Assistant
+│   ├── application/             # [Tầng Dịch vụ Ứng dụng] CvAnalyzerService, MatchingService, RankingService
+│   ├── domain/                  # [Tầng Lõi Nghiệp vụ] Logic toán học thuần túy, KHÔNG phụ thuộc framework
+│   │   ├── cv/                  # Chấm điểm chất lượng CV (scoring.py), chuẩn hóa kỹ năng (normalization.py)
+│   │   └── matching/            # Thuật toán so khớp: skill_match, experience_match, education_match, scoring
+│   ├── contracts/               # [Hợp đồng Dữ liệu] Pydantic v2 schemas: StructuredCv, StructuredJob, MatchResult
+│   ├── ports/                   # [Interfaces Trừu tượng] LlmPort, EmbeddingPort, DocumentParserPort
+│   ├── infrastructure/          # [Tầng Hạ tầng / Adapter] Triển khai gọi OpenAI, Gemini, PyMuPDF, Mock
+│   ├── prompts/                 # [Quản lý Prompt AI] Prompt templates có phiên bản (v1) với Delimiters bảo mật
+│   ├── core/                    # Cấu hình ứng dụng (Settings), Custom Exceptions, Temporal utils
+│   └── observability/           # Structured Logging, Correlation ID tracing
+│
+├── evaluation/                  # Bộ công cụ đánh giá & Benchmark chất lượng Matching độc lập
+└── tests/                       # Hơn 470+ Unit, Integration & Architecture tests tự động
+```
 
 ---
 
-## 🔒 Security & Resilience Protections
+## ️ 2. Yêu cầu môi trường (Prerequisites)
 
-1. **Authentication:** Internal pre-shared key (`X-Internal-API-Key`) verified with constant-time comparison (`hmac.compare_digest`). Enforced strictly in production.
-2. **Internal-Only Service:** Zero browser CORS middleware configured. Traffic flows exclusively through ASP.NET Core.
-3. **Upload Memory DoS Prevention:** Uploaded PDF files are read in bounded 64 KB chunks up to the 5 MB limit. Exceeding chunks immediately abort reading and raise `413 Payload Too Large`.
-4. **Incremental Text Extraction Safety:** PDF pages are parsed page-by-page. Extracted character count is evaluated after each page against `max_extracted_text_chars` (50,000 chars), raising controlled errors rather than silently truncating.
-5. **OpenAI Client Lifecycle & Resilience:** Single reusable `httpx.AsyncClient` per provider instance closed via `aclose()`. Exponential backoff retries for transient status codes (408, 429, 500, 502, 503, 504) honoring `Retry-After`. Non-transient 4xx errors fail immediately.
-6. **Prompt Injection Hardening:** Prompts treat all CV, Job, and history content as **untrusted data**, delimited with explicit boundary markers and strict instructions prohibiting prompt overrides.
-7. **Error Sanitization:** Stack traces and provider error bodies are suppressed from HTTP responses and logged internally with correlation IDs.
+* **Python 3.11** trở lên (khuyên dùng Python 3.11 hoặc 3.12).
+* **Git** để quản lý mã nguồn.
+* **IDE/Editor khuyến nghị**: VS Code (cài extension *Python*, *Pylance*, *Ruff*), PyCharm, hoặc Cursor.
 
 ---
 
-## 🚀 Getting Started
+##  3. Hướng dẫn chạy dự án ở máy Local
 
-### 1. Setup Environment
+### **Bước 1: Chuyển vào thư mục `backend-ai`**
+Mở terminal và di chuyển vào thư mục dịch vụ AI:
 ```bash
 cd backend-ai
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# Linux / macOS
-source .venv/bin/activate
 ```
 
-### 2. Install Dependencies
+### **Bước 2: Khởi tạo và kích hoạt Môi trường ảo (Virtual Environment)**
+- **Trên Windows (PowerShell):**
+  ```powershell
+  python -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  ```
+  *(Nếu gặp lỗi Execution Policy trên PowerShell, chạy trước: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`)*
+
+- **Trên macOS / Linux:**
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  ```
+
+### **Bước 3: Cài đặt các thư viện cần thiết**
+Cài đặt toàn bộ dependencies cho runtime và công cụ kiểm thử:
 ```bash
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
 
-### 3. Configure `.env`
-```bash
-cp .env.example .env
-```
-*(Supported providers: `mock`, `openai`. By default, `LLM_PROVIDER=mock` works immediately for local development and test execution without external API keys).*
+### **Bước 4: Cấu hình Biến môi trường (`.env`)**
+1. Sao chép file cấu hình mẫu `.env.example` thành `.env`:
+   - **Windows PowerShell:**
+     ```powershell
+     Copy-Item .env.example .env
+     ```
+   - **macOS / Linux / Bash:**
+     ```bash
+     cp .env.example .env
+     ```
+2. Mở file `.env` vừa tạo để kiểm tra cấu hình:
+   - **Chế độ Mặc định (Local Offline - Không cần API Key):**
+     ```env
+     LLM_PROVIDER=mock
+     EMBEDDING_PROVIDER=mock
+     MATCHING_ALGORITHM=matching-v0
+     INTERNAL_API_KEY=
+     ```
+     *(Hệ thống sẽ chạy hoàn toàn độc lập ở máy local với Mock Provider mà không tốn tiền API).*
+   - **Chế độ Kết nối AI Thật (OpenAI / Gemini):**
+     ```env
+     LLM_PROVIDER=openai
+     OPENAI_API_KEY=sk-...
+     EMBEDDING_PROVIDER=openai
+     MATCHING_ALGORITHM=matching-v1-experimental
+     INTERNAL_API_KEY=futurecv-local-shadow-test
+     ```
 
-### 4. Run Server
+### **Bước 5: Khởi chạy AI Service**
+Chạy ứng dụng bằng máy chủ Uvicorn với chế độ tự động reload khi sửa code:
 ```bash
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-- **Health probe:** `GET http://127.0.0.1:8000/health`
-- **Readiness probe:** `GET http://127.0.0.1:8000/ready`
-- **Swagger Docs:** `http://127.0.0.1:8000/docs` (available in non-production environments)
+### **Bước 6: Kiểm tra và truy cập Swagger UI**
+Sau khi ứng dụng khởi chạy thành công:
+- 👉 **Health Check Probe**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+- 👉 **Readiness Check Probe**: [http://127.0.0.1:8000/ready](http://127.0.0.1:8000/ready)
+- 👉 **Interactive API Docs (Swagger UI)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- 👉 **Alternative Documentation (ReDoc)**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ---
 
-## 🧪 Quality Gates & Testing
+## 🎯 4. Các tính năng cốt lõi & API Endpoints
 
-To execute all automated quality checks:
+| Endpoint | Method | Mô tả chức năng |
+| :--- | :---: | :--- |
+| `/api/v1/cv/parse-pdf` | `POST` | Đọc và bóc tách văn bản thô từ file PDF CV (hỗ trợ file tới 5MB, chặn DoS bộ nhớ). |
+| `/api/v1/cv/analyze` | `POST` | Bóc tách thực thể CV (`StructuredCv`), chấm điểm chất lượng CV (0–100) và đưa ra gợi ý cải thiện. |
+| `/api/v1/matching/match` | `POST` | So khớp độ phù hợp giữa 1 CV và 1 Tin tuyển dụng (Job), tính điểm và sinh nhận xét chi tiết. |
+| `/api/v1/matching/rank-candidates` | `POST` | Xếp hạng hàng loạt ứng viên cho 1 Job với tốc độ cao (tối ưu hóa batching, 0 tốn phí LLM). |
+| `/api/v1/assistant/chat` | `POST` | Trợ lý tư vấn lộ trình sự nghiệp thông minh (đã ẩn danh hóa thông tin nhạy cảm PII). |
+
+---
+
+## ⚙️ 5. Quy định phát triển & Tiêu chuẩn chất lượng (Quality Gates)
+
+Toàn bộ mã nguồn trước khi commit hoặc tạo Pull Request phải vượt qua **5 bài kiểm tra chất lượng tự động**:
 
 ```bash
-# 1. Bytecode compilation
+# 1. Kiểm tra cú pháp và biên dịch bytecode Python
 python -m compileall app tests
 
-# 2. Lint check
+# 2. Kiểm tra chất lượng và phong cách mã nguồn (Linter)
 python -m ruff check app tests
 
-# 3. Format check
+# 3. Kiểm tra định dạng code tự động (Formatter)
 python -m ruff format --check app tests
 
-# 4. Static type check
+# 4. Kiểm tra an toàn kiểu dữ liệu tĩnh (Strict Static Type Check)
 python -m mypy app
 
-# 5. Automated test suite (Unit, Integration, FastAPI/Pydantic API contract validation, Architecture: 323 passed)
+# 5. Chạy toàn bộ bộ kiểm thử tự động (Hơn 470+ Unit & Integration Tests)
 python -m pytest tests -v
 ```
+
+> [!TIP]
+> **Tự động sửa lỗi format nhanh:** Bạn có thể chạy lệnh `python -m ruff format app tests` và `python -m ruff check --fix app tests` để công cụ tự động căn chỉnh code chuẩn quy cách PEP 8.
+
+---
+
+## 🛡️ 6. Tiêu chuẩn bảo mật & Phòng vệ dữ liệu
+
+1. **Bảo vệ PII (Personally Identifiable Information):** Họ tên, số điện thoại, email của ứng viên luôn được làm sạch qua bộ lọc `sanitize_free_text` trước khi gửi lên mô hình ngôn ngữ lớn (LLM).
+2. **Chống tấn công Prompt Injection:** Toàn bộ nội dung CV và JD được bao bọc trong các thẻ phân tách rõ ràng (`<<<BEGIN UNTRUSTED DATA>>>...<<<END UNTRUSTED DATA>>>`), ngăn chặn các chỉ thị độc hại can thiệp vào hành vi của AI.
+3. **Phòng chống DoS tệp tải lên:** File PDF được đọc theo luồng phân đoạn nhỏ (Stream Chunks 64KB) và giới hạn tối đa 5MB, chặn đứng nguy cơ tràn RAM máy chủ.
+
+---
+
+## 🤝 7. Liên hệ & Đóng góp
+
+Nếu gặp bất kỳ khó khăn nào trong quá trình thiết lập môi trường Python hoặc cần tích hợp thêm mô hình AI mới, vui lòng liên hệ thành viên phụ trách AI Module hoặc tạo issue trên repository dự án.
