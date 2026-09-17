@@ -415,19 +415,45 @@ public class CandidateService : ICandidateService
         var oldPublicId = cv!.PublicId;
         cv.IsDeleted = true;
 
-        // If deleted CV was primary, reassign to the next most recent CV
+        // If deleted CV was primary, reassign to the next most recent CV atomically
         if (cv.IsPrimary)
         {
             var candidate = await FindByUserIdAsync(userId, cancellationToken);
-            var next = await _context.CandidateCvs
-                .Where(c => c.CandidateId == candidate!.Id && c.Id != cvId && !c.IsDeleted)
-                .OrderByDescending(c => c.CreatedAt)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (next is not null) next.IsPrimary = true;
-            cv.IsPrimary = false;
-        }
+            if (candidate is null)
+                return ServiceResult.NotFound<bool>("Candidate profile not found.");
 
-        await _context.SaveChangesAsync(cancellationToken);
+            // Use an explicit database transaction to ensure atomicity and avoid unique index collision
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                // Step 1: Reset primary flag on deleted CV and persist to release unique filtered index
+                cv.IsPrimary = false;
+                await _context.SaveChangesAsync(cancellationToken);
+
+                // Step 2: Promote next most recent non-deleted CV to primary if available
+                var next = await _context.CandidateCvs
+                    .Where(c => c.CandidateId == candidate.Id && c.Id != cvId && !c.IsDeleted)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (next is not null)
+                {
+                    next.IsPrimary = true;
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+        else
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
 
         // Best-effort cleanup on Cloudinary after DB is committed
         if (!string.IsNullOrEmpty(oldPublicId))
@@ -442,16 +468,48 @@ public class CandidateService : ICandidateService
         var (cv, error) = await FindCvWithOwnershipAsync(userId, cvId, cancellationToken);
         if (error is not null) return error;
 
+        // Fast-path: If the selected CV is already primary, return immediately (Idempotent)
+        if (cv!.IsPrimary)
+            return ServiceResult.Success(MapToCvResponse(cv));
+
         var candidate = await FindByUserIdAsync(userId, cancellationToken);
+        if (candidate is null)
+            return ServiceResult.NotFound<CvResponse>("Candidate profile not found.");
 
-        // Unset current primary
-        var currentPrimary = await _context.CandidateCvs
-            .FirstOrDefaultAsync(c => c.CandidateId == candidate!.Id && c.IsPrimary && !c.IsDeleted, cancellationToken);
-        if (currentPrimary is not null) currentPrimary.IsPrimary = false;
+        // Wrap operations in an explicit database transaction to guarantee atomicity and
+        // prevent Unique Filtered Index collision (IX_CandidateCvs_CandidateId_IsPrimary)
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            // Step 1: Unset any existing primary CV(s) for the candidate and persist immediately
+            // to release PostgreSQL unique filtered index constraint
+            var currentPrimaries = await _context.CandidateCvs
+                .Where(c => c.CandidateId == candidate.Id && c.Id != cvId && c.IsPrimary && !c.IsDeleted)
+                .ToListAsync(cancellationToken);
 
-        cv!.IsPrimary = true;
-        await _context.SaveChangesAsync(cancellationToken);
-        return ServiceResult.Success(MapToCvResponse(cv));
+            foreach (var p in currentPrimaries)
+            {
+                p.IsPrimary = false;
+            }
+
+            if (currentPrimaries.Count > 0)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            // Step 2: Assign target CV as primary and persist
+            cv.IsPrimary = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Commit the entire atomic unit of work
+            await transaction.CommitAsync(cancellationToken);
+            return ServiceResult.Success(MapToCvResponse(cv));
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     // -------------------------------------------------------------------------
