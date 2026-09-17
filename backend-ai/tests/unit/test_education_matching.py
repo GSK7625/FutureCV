@@ -304,3 +304,12 @@ def test_education_score_bounds_and_numeric_types():
         assert 0.0 <= res.score <= 100.0
         assert isinstance(res.comparison_text, str)
         assert len(res.comparison_text) > 0
+
+
+def test_education_match_none_or_unknown_degree_does_not_award_bachelor_match():
+    """Verify that None/empty or Unknown degrees do NOT award positive match points when Bachelor is required."""
+    res_empty = calculate_education_match(candidate_degrees=[], required_education="Bachelor")
+    assert res_empty.score == 50.0
+
+    res_unknown = calculate_education_match(candidate_degrees=["Unknown"], required_education="Bachelor")
+    assert res_unknown.score == 50.0

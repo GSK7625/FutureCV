@@ -42,3 +42,4 @@ class CvAnalysisResponse(BaseModel):
         description="Actionable suggestions to improve CV quality and impact",
     )
     meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Execution metadata")
+    raw_text: str | None = Field(default=None, description="Raw extracted text of the CV document")
