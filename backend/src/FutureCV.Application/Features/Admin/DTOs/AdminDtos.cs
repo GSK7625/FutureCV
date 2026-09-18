@@ -17,6 +17,9 @@ public sealed record UpdateCompanyStatusRequest(
     string Status,
     string? Note);
 
+public sealed record RejectCompanyRequest(
+    string Reason);
+
 public sealed record AuditLogResponse(
     Guid Id,
     Guid? UserId,
@@ -127,3 +130,23 @@ public sealed record ResolveJobReportRequest(
 
 public sealed record BanJobRequest(
     string Reason);
+
+// -----------------------------------------------------------------------------
+// Admin Company Management DTO
+// -----------------------------------------------------------------------------
+
+public sealed record AdminCompanyProfileResponse(
+    Guid Id,
+    Guid UserId,
+    string CompanyName,
+    string Email,
+    string? PhoneNumber,
+    string? Website,
+    string? Address,
+    string? CompanySize,
+    string? Industry,
+    string? Description,
+    string? LogoUrl,
+    string Status,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);

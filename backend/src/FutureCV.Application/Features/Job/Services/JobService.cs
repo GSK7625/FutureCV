@@ -481,6 +481,12 @@ public class JobService : IJobService
             Enum.TryParse<JobApprovalStatus>(filter.ApprovalStatus, true, out var approvalStatusEnum))
         {
             query = query.Where(j => j.ApprovalStatus == approvalStatusEnum);
+            
+            // Tab "Đang tuyển": chỉ hiện jobs đã duyệt, active và chưa hết hạn
+            if (approvalStatusEnum == JobApprovalStatus.Approved)
+            {
+                query = query.Where(j => j.IsActive && !j.IsExpired);
+            }
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -533,7 +539,7 @@ public class JobService : IJobService
         job.ApprovalStatus    = request.IsApproved ? JobApprovalStatus.Approved : JobApprovalStatus.Rejected;
         job.ApprovedByAdminId = adminUserId;
         job.ApprovedAt        = DateTimeOffset.UtcNow;
-        job.RejectionReason   = request.IsApproved ? null : request.RejectionReason;
+        job.RejectionReason   = request.IsApproved ? null : (request.RejectionReason ?? request.Note);
 
         await _context.SaveChangesAsync(cancellationToken);
 

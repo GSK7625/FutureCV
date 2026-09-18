@@ -61,6 +61,19 @@ export function adminService() {
         auth: true,
       }),
 
+    approveCompany: (companyId: string) =>
+      fetcher<boolean>(`/api/admin/companies/${companyId}/approve`, {
+        method: "POST",
+        auth: true,
+      }),
+
+    rejectCompany: (companyId: string, reason: string) =>
+      fetcher<boolean>(`/api/admin/companies/${companyId}/reject`, {
+        method: "POST",
+        body: { reason },
+        auth: true,
+      }),
+
     // Audit Logs
     getAuditLogs: (filter: AuditLogQueryFilter) =>
       fetcher<PagedResult<AuditLogResponse>>(
