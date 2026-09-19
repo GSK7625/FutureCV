@@ -1,0 +1,99 @@
+using FutureCV.Application.Common.Models;
+using FutureCV.Application.Features.Admin.DTOs;
+using FutureCV.Application.Features.Admin.Interfaces;
+using FutureCV.Application.Features.Employer.DTOs;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace FutureCV.Api.Controllers;
+
+[Authorize(Roles = "Admin")]
+[Route("api/admin")]
+public class AdminController : ApiControllerBase
+{
+    private readonly IAdminService _adminService;
+
+    public AdminController(IAdminService adminService)
+    {
+        _adminService = adminService;
+    }
+
+    // -------------------------------------------------------------------------
+    // User Management
+    // -------------------------------------------------------------------------
+
+    [HttpGet("users")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AdminUserResponse>))]
+    public async Task<IActionResult> GetUsers(
+        [FromQuery] UserQueryFilter filter, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetUsersAsync(filter, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("users/{id:guid}/lock")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LockUser(
+        Guid id, [FromBody] LockUserRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { message = "Lock reason is required." });
+
+        var result = await _adminService.LockUserAsync(
+            GetCurrentUserId(), id, request.Reason, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("users/{id:guid}/unlock")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnlockUser(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.UnlockUserAsync(
+            GetCurrentUserId(), id, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Company Verification & Management
+    // -------------------------------------------------------------------------
+
+    [HttpGet("companies")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<CompanyProfileResponse>))]
+    public async Task<IActionResult> GetCompanies(
+        [FromQuery] CompanyQueryFilter filter, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetCompaniesAsync(filter, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPut("companies/{id:guid}/status")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CompanyProfileResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateCompanyStatus(
+        Guid id, [FromBody] UpdateCompanyStatusRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Status))
+            return BadRequest(new { message = "Status is required." });
+
+        var result = await _adminService.UpdateCompanyStatusAsync(
+            GetCurrentUserId(), id, request, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Audit Log Management
+    // -------------------------------------------------------------------------
+
+    [HttpGet("audit-logs")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AuditLogResponse>))]
+    public async Task<IActionResult> GetAuditLogs(
+        [FromQuery] AuditLogQueryFilter filter, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.GetAuditLogsAsync(filter, cancellationToken);
+        return ToHttpResult(result);
+    }
+}
