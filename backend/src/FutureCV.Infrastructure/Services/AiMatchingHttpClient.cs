@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -56,7 +57,7 @@ public class AiMatchingHttpClient : IAiMatchingClient
         // 2. Configure Timeout
         var timeoutSeconds = _options.TimeoutSeconds > 0
             ? _options.TimeoutSeconds
-            : (double.TryParse(_configuration["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 30.0);
+            : (double.TryParse(_configuration["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 90.0);
 
         if (_httpClient.Timeout == TimeSpan.FromSeconds(100)) // default HttpClient timeout
         {
@@ -100,8 +101,11 @@ public class AiMatchingHttpClient : IAiMatchingClient
                 requestUri,
                 effectiveCorrelationId);
 
-            // 4. Execute HTTP Call
+            // 4. Execute HTTP Call with duration timing
+            var stopwatch = Stopwatch.StartNew();
             using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            stopwatch.Stop();
+            var durationMs = stopwatch.ElapsedMilliseconds;
 
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -111,7 +115,8 @@ public class AiMatchingHttpClient : IAiMatchingClient
                 if (string.IsNullOrWhiteSpace(responseBody))
                 {
                     _logger.LogError(
-                        "AI Matching Service returned empty or whitespace response body [CorrelationId: {CorrelationId}]",
+                        "AI Matching Service returned empty or whitespace response body in {DurationMs}ms [CorrelationId: {CorrelationId}]",
+                        durationMs,
                         effectiveCorrelationId);
                     return ServiceResult.Failure<AiMatchResultDto>(
                         "AI matching service returned an empty response.",
@@ -127,7 +132,8 @@ public class AiMatchingHttpClient : IAiMatchingClient
                 {
                     _logger.LogError(
                         ex,
-                        "AI Matching Service returned malformed JSON body [CorrelationId: {CorrelationId}]",
+                        "AI Matching Service returned malformed JSON body at {Endpoint} [CorrelationId: {CorrelationId}]",
+                        requestUri,
                         effectiveCorrelationId);
                     return ServiceResult.Failure<AiMatchResultDto>(
                         "Failed to parse response from AI matching service.",
@@ -137,7 +143,8 @@ public class AiMatchingHttpClient : IAiMatchingClient
                 if (matchResult == null)
                 {
                     _logger.LogError(
-                        "AI Matching Service returned null payload [CorrelationId: {CorrelationId}]",
+                        "AI Matching Service returned null payload at {Endpoint} [CorrelationId: {CorrelationId}]",
+                        requestUri,
                         effectiveCorrelationId);
                     return ServiceResult.Failure<AiMatchResultDto>(
                         "Failed to parse response from AI matching service.",
@@ -157,18 +164,47 @@ public class AiMatchingHttpClient : IAiMatchingClient
                 }
 
                 _logger.LogInformation(
-                    "AI Matching succeeded: Score={Score} [CorrelationId: {CorrelationId}]",
+                    "AI Matching succeeded: Score={Score} in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
                     matchResult.MatchScore,
+                    durationMs,
+                    requestUri,
                     effectiveCorrelationId);
 
                 return ServiceResult.Success(matchResult);
             }
 
-            // 5. Handle Error Responses
+            // 5. Handle Error Responses without logging response body to protect PII
+            string? errorCode = null;
+            string? errorMessage = null;
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+                try
+                {
+                    var errorObj = JsonSerializer.Deserialize<AiErrorResponseDto>(responseBody, _jsonOptions);
+                    errorCode = errorObj?.ErrorCode;
+                    errorMessage = errorObj?.Message;
+
+                    if (string.IsNullOrWhiteSpace(errorCode))
+                    {
+                        using var doc = JsonDocument.Parse(responseBody);
+                        if (doc.RootElement.TryGetProperty("code", out var codeProp))
+                        {
+                            errorCode = codeProp.GetString();
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback if error body is not standard AiErrorResponseDto
+                }
+            }
+
             _logger.LogWarning(
-                "AI Matching Service returned HTTP {StatusCode}: {ResponseBody} [CorrelationId: {CorrelationId}]",
+                "AI Matching Service returned HTTP {StatusCode}, ErrorCode={ErrorCode} in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
                 (int)response.StatusCode,
-                responseBody,
+                errorCode ?? "N/A",
+                durationMs,
+                requestUri,
                 effectiveCorrelationId);
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -181,19 +217,9 @@ public class AiMatchingHttpClient : IAiMatchingClient
             if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity ||
                 response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
-                try
-                {
-                    var errorObj = JsonSerializer.Deserialize<AiErrorResponseDto>(responseBody, _jsonOptions);
-                    return ServiceResult.Failure<AiMatchResultDto>(
-                        errorObj?.Message ?? "Invalid matching request parameters.",
-                        ServiceErrorType.Validation);
-                }
-                catch
-                {
-                    return ServiceResult.Failure<AiMatchResultDto>(
-                        "Validation error occurred in AI matching service.",
-                        ServiceErrorType.Validation);
-                }
+                return ServiceResult.Failure<AiMatchResultDto>(
+                    errorMessage ?? "Invalid matching request parameters.",
+                    ServiceErrorType.Validation);
             }
 
             return ServiceResult.Failure<AiMatchResultDto>(

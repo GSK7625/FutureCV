@@ -314,4 +314,113 @@ public class CvPdfScannerIntegrationTests
         Assert.Equal("Fintech App", structuredDto.Projects[0].Name);
         Assert.Contains("Docker", structuredDto.Projects[0].Technologies);
     }
+
+    [Fact]
+    public void FastApiCvMapper_WithMissingDates_OmitsExperienceWithoutArbitraryTwoYearsFallback()
+    {
+        // Arrange: Experience without StartDate, and experience without EndDate (not containing present)
+        var fastApiCv = new FastApiStructuredCvDto(
+            FullName: "Nguyen Van A",
+            Email: null,
+            Phone: null,
+            CareerSummary: null,
+            Skills: [],
+            WorkExperience: [
+                new FastApiWorkExperienceDto(
+                    JobTitle: "Role Without Start Date",
+                    Company: "Company Without Date",
+                    Duration: "",
+                    StartDate: null,
+                    EndDate: null,
+                    YearsOfExperience: 0.0,
+                    Description: "No date recorded"
+                ),
+                new FastApiWorkExperienceDto(
+                    JobTitle: "Past Engineer",
+                    Company: "Previous Co",
+                    Duration: "2021 - 2022",
+                    StartDate: "2021-01",
+                    EndDate: null,
+                    YearsOfExperience: 1.0,
+                    Description: "Past role where EndDate is null but duration is not ongoing"
+                )
+            ],
+            Education: [],
+            Certificates: [],
+            Projects: [],
+            Technologies: []
+        );
+
+        // Act
+        var structuredDto = FastApiCvMapper.ToStructuredCvDataDto(fastApiCv);
+
+        // Assert:
+        // 1. The experience with null StartDate MUST be omitted (no arbitrary AddYears(-2) fallback)
+        Assert.Single(structuredDto.Experiences);
+        var exp = structuredDto.Experiences[0];
+        Assert.Equal("Past Engineer", exp.Position);
+        Assert.Equal(new DateOnly(2021, 1, 1), exp.StartDate);
+
+        // 2. Since EndDate is null and Duration does not say "present/hiện tại/nay", IsCurrent must be FALSE
+        Assert.False(exp.IsCurrent);
+        Assert.Null(exp.EndDate);
+    }
+
+    [Fact]
+    public void FastApiCvMapper_WithMissingPlaceholders_DoesNotSynthesizeCompanyOrUniversityOrProject()
+    {
+        // Arrange
+        var fastApiCv = new FastApiStructuredCvDto(
+            FullName: null,
+            Email: null,
+            Phone: null,
+            CareerSummary: null,
+            Skills: [],
+            WorkExperience: [
+                new FastApiWorkExperienceDto(
+                    JobTitle: "Solo Freelancer",
+                    Company: null,
+                    Duration: "2022-01 - 2023-01",
+                    StartDate: "2022-01",
+                    EndDate: "2023-01",
+                    YearsOfExperience: 1.0,
+                    Description: "Independent work"
+                )
+            ],
+            Education: [
+                new FastApiEducationDto(
+                    Degree: "Self-taught Engineer",
+                    Institution: null,
+                    FieldOfStudy: null,
+                    GraduationYear: null
+                )
+            ],
+            Certificates: [],
+            Projects: [
+                new FastApiProjectDto(
+                    Name: "",
+                    Description: "Project with empty name",
+                    Technologies: []
+                )
+            ],
+            Technologies: []
+        );
+
+        // Act
+        var structuredDto = FastApiCvMapper.ToStructuredCvDataDto(fastApiCv);
+
+        // Assert:
+        // 1. Company was null -> maps to empty string, NOT "Company"
+        Assert.Single(structuredDto.Experiences);
+        Assert.Equal(string.Empty, structuredDto.Experiences[0].CompanyName);
+        Assert.NotEqual("Company", structuredDto.Experiences[0].CompanyName);
+
+        // 2. Institution was null -> maps to empty string, NOT "University"
+        Assert.Single(structuredDto.Educations);
+        Assert.Equal(string.Empty, structuredDto.Educations[0].School);
+        Assert.NotEqual("University", structuredDto.Educations[0].School);
+
+        // 3. Project had empty name -> omitted, NOT named "Project"
+        Assert.Empty(structuredDto.Projects);
+    }
 }
