@@ -10,7 +10,6 @@ from app.ports.llm import LlmPort
 T = TypeVar("T", bound=BaseModel)
 
 
-
 class MockLlmProvider(LlmPort):
     """Mock LLM implementation that generates realistic deterministic responses without network calls."""
 
@@ -56,21 +55,26 @@ class MockLlmProvider(LlmPort):
                     f"Ứng viên hoàn toàn tự tin để ứng tuyển và có triển vọng cao vượt qua vòng sơ loại."
                 )
 
-            elif score >= 50:
-                missing_part = f"còn thiếu các kỹ năng trọng yếu ({missing})" if missing != "Không có" else "cần củng cố thêm kinh nghiệm chuyên sâu"
+            if score >= 50:
+                missing_part = (
+                    f"còn thiếu các kỹ năng trọng yếu ({missing})"
+                    if missing != "Không có"
+                    else "cần củng cố thêm kinh nghiệm chuyên sâu"
+                )
                 return (
                     f"Ứng viên có tiềm năng với vị trí {job_title} (Độ phù hợp: {score}%). "
                     f"Đã đáp ứng một số kỹ năng yêu cầu ({matched}), tuy nhiên {missing_part}. "
                     f"{exp_cmp} "
                     f"Khuyến nghị ứng viên làm nổi bật thêm các dự án thực tế liên quan để tăng sức cạnh tranh."
                 )
-            else:
-                return (
-                    f"Hồ sơ hiện tại có độ tương thích chưa cao ({score}%) so với yêu cầu của vị trí {job_title}. "
-                    f"Ứng viên còn thiếu các kỹ năng bắt buộc cốt lõi ({missing}). "
-                    f"{exp_cmp} "
-                    f"Khuyến nghị ứng viên bổ sung các dự án thực chiến hoặc trau dồi thêm các kỹ năng còn thiếu trước khi nộp hồ sơ."
-                )
+
+            return (
+                f"Hồ sơ hiện tại có độ tương thích chưa cao ({score}%) so với yêu cầu của vị trí {job_title}. "
+                f"Ứng viên còn thiếu các kỹ năng bắt buộc cốt lõi ({missing}). "
+                f"{exp_cmp} "
+                f"Khuyến nghị ứng viên bổ sung các dự án thực chiến hoặc trau dồi thêm các kỹ năng "
+                f"còn thiếu trước khi nộp hồ sơ."
+            )
 
         if "CV Review" in prompt or "phản hồi" in prompt or "đánh giá" in prompt.lower():
             return "Ứng viên có nền tảng vững chắc về kỹ năng công nghệ và dự án thực tế."
@@ -82,7 +86,6 @@ class MockLlmProvider(LlmPort):
         return (
             "Chào bạn, tôi là FutureCV Career Assistant. Tôi sẵn sàng hỗ trợ giải đáp mọi thắc mắc sự nghiệp của bạn."
         )
-
 
     async def generate_structured(
         self,

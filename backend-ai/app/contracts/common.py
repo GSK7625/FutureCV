@@ -43,6 +43,22 @@ class ResponseMeta(BaseModel):
         default=None,
         description="Embedding model identifier used",
     )
+    semantic_similarity: float | None = Field(
+        default=None,
+        description="Semantic similarity score between CV and Job description",
+    )
+    semantic_score: int | None = Field(
+        default=None,
+        description="Semantic score scaled to 0-100",
+    )
+    semantic_mode: str | None = Field(
+        default=None,
+        description="Mode of semantic matching: 'advisory', 'integrated', or None",
+    )
+    semantic_available: bool | None = Field(
+        default=None,
+        description="Whether semantic embedding was successfully computed and available",
+    )
     llm_invoked: bool | None = Field(
         default=None,
         description=(
