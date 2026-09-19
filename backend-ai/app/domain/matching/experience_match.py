@@ -181,6 +181,7 @@ class ExperienceMatchResult:
     comparison_text: str
     candidate_years: float
     required_years: float
+    is_active: bool = True
 
 
 def calculate_experience_match(
@@ -191,18 +192,19 @@ def calculate_experience_match(
     Compare candidate's years of experience against minimum requirement.
 
     Scoring:
-    - If requirement is None or 0: 100.
-    - If candidate meets or exceeds requirement: 100.
-    - If candidate has partial experience: proportional score.
+    - If requirement is None or 0: 100.0 (inactive criterion).
+    - If candidate meets or exceeds requirement: 100.0 (active).
+    - If candidate has partial experience: proportional score (active).
     """
     req_years = required_years or 0.0
 
-    if req_years <= 0.0:
+    if required_years is None or req_years <= 0.0:
         return ExperienceMatchResult(
             score=100.0,
             comparison_text="Vị trí không yêu cầu số năm kinh nghiệm tối thiểu.",
             candidate_years=candidate_years,
             required_years=0.0,
+            is_active=False,
         )
 
     if candidate_years >= req_years:
@@ -216,6 +218,7 @@ def calculate_experience_match(
             comparison_text=text,
             candidate_years=candidate_years,
             required_years=req_years,
+            is_active=True,
         )
 
     # Partial experience
@@ -233,4 +236,5 @@ def calculate_experience_match(
         comparison_text=text,
         candidate_years=candidate_years,
         required_years=req_years,
+        is_active=True,
     )

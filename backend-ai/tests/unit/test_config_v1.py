@@ -96,12 +96,29 @@ def test_unsupported_matching_algorithm_rejected():
 
 
 def test_unsupported_embedding_provider_rejected():
-    """7. Rule: Embedding providers outside Literal['mock', 'openai'] are rejected."""
+    """7. Rule: Embedding providers outside Literal['mock', 'openai', 'gemini'] are rejected."""
     with pytest.raises(ValidationError):
         Settings(EMBEDDING_PROVIDER="cohere")
 
-    with pytest.raises(ValidationError):
-        Settings(EMBEDDING_PROVIDER="gemini")
+    # gemini is now supported
+    settings = Settings(EMBEDDING_PROVIDER="gemini", GEMINI_API_KEY="test-key")
+    assert settings.embedding_provider == "gemini"
+
+
+def test_matching_v1_with_gemini_embedding_missing_key_rejected():
+    """Rule: When matching-v1 is active and EMBEDDING_PROVIDER=gemini, GEMINI_API_KEY is strictly required."""
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            ENV="development",
+            LLM_PROVIDER="mock",
+            MATCHING_ALGORITHM="matching-v1-experimental",
+            EMBEDDING_PROVIDER="gemini",
+            GEMINI_API_KEY=None,
+        )
+    assert (
+        "GEMINI_API_KEY must be configured when EMBEDDING_PROVIDER is 'gemini' and matching-v1-experimental is active"
+        in str(exc_info.value)
+    )
 
 
 def test_matching_config_environment_aliases():
