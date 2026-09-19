@@ -1,8 +1,7 @@
 import { useAuthStore } from "~/stores/useAuthStore";
 import { prepareRequestBody } from "./requestBody";
-
+import { readApiResponse } from "./apiResponse";
 import { translateErrorMessage } from "./errorMapper";
-
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -25,7 +24,7 @@ export interface FetchOptions extends Omit<RequestInit, "body"> {
   auth?: boolean;
   /** Mặc định 15s. Truyền Infinity để tắt. */
   timeoutMs?: number;
-
+  responseType?: "json" | "blob";
 }
 
 async function parseErrorMessage(response: Response): Promise<string> {
@@ -96,7 +95,7 @@ async function requestOnce<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(await readApiError(response), response.status);
+    throw new ApiError(await parseErrorMessage(response), response.status);
   }
   return (await readApiResponse(response, responseType)) as T;
 }
