@@ -40,7 +40,7 @@ export function CvUploadView() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl py-6 px-4 sm:px-6 space-y-8">
+    <div className="container-page mx-auto px-margin-mobile py-8 md:px-margin-desktop space-y-8">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 border-b border-navy/10 pb-6">
         <div className="space-y-1.5">
