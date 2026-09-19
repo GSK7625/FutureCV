@@ -4,6 +4,7 @@
  * @architecture Dumb component điều khiển bởi props từ URL search params.
  */
 
+import { memo } from "react";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { Button } from "~/components/ui/Button";
 
@@ -15,7 +16,7 @@ interface JobListPaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export function JobListPagination({
+export const JobListPagination = memo(function JobListPagination({
   currentPage,
   totalPages,
   hasPreviousPage,
@@ -113,4 +114,4 @@ export function JobListPagination({
       </Button>
     </nav>
   );
-}
+});

@@ -4,7 +4,7 @@
  * @architecture Uncontrolled/Local-state cho từ khóa tới khi submit; chọn địa điểm kích hoạt submit ngay.
  */
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, memo, type FormEvent } from "react";
 import { IconSearch, IconMapPin } from "@tabler/icons-react";
 import { Button } from "~/components/ui/Button";
 import type { LookupOption } from "../../types";
@@ -18,7 +18,7 @@ export interface JobSearchBarProps {
   onSubmit: (v: { keyword: string; locationId?: string }) => void;
 }
 
-export function JobSearchBar({
+export const JobSearchBar = memo(function JobSearchBar({
   keyword,
   locationId,
   locations = [],
@@ -100,4 +100,4 @@ export function JobSearchBar({
       </Button>
     </form>
   );
-}
+});
