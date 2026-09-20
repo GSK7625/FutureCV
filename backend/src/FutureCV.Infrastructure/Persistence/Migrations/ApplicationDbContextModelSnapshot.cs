@@ -377,6 +377,52 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.ToTable("Companies");
                 });
 
+            modelBuilder.Entity("FutureCV.Domain.Entities.CvEvaluation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CvId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("CvScore")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImprovementsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("MissingSkillsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ModelVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("StrengthsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WeaknessesJson")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CvId")
+                        .IsUnique();
+
+                    b.ToTable("CVEvaluations", (string)null);
+                });
+
             modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1403,6 +1449,17 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("Cv");
                 });
 
+            modelBuilder.Entity("FutureCV.Domain.Entities.CvEvaluation", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
+                        .WithOne("Evaluation")
+                        .HasForeignKey("FutureCV.Domain.Entities.CvEvaluation", "CvId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cv");
+                });
+
             modelBuilder.Entity("FutureCV.Domain.Entities.CvParser", b =>
                 {
                     b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
@@ -1715,6 +1772,8 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FutureCV.Domain.Entities.CandidateCv", b =>
                 {
                     b.Navigation("CvParser");
+
+                    b.Navigation("Evaluation");
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.EmploymentType", b =>
