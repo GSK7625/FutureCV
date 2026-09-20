@@ -69,7 +69,7 @@ export default function ApplyFormPage() {
                 Tìm việc khác
               </Link>
               <Link
-                to="/candidate/profile"
+                to="/candidate/personal-info"
                 className="inline-flex h-11 items-center rounded-default border border-navy px-6 font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
               >
                 Xem hồ sơ
