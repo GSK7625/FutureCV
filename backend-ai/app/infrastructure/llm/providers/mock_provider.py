@@ -200,3 +200,27 @@ class MockLlmProvider(LlmPort):
                 mock_data[field_name] = None
 
         return response_model.model_validate(mock_data)
+
+    async def extract_text_from_document(
+        self,
+        document_bytes: bytes,
+        mime_type: str = "application/pdf",
+        instruction: str | None = None,
+    ) -> str:
+        """Mock multimodal document text extraction."""
+        return (
+            "Nguyễn Văn An\n"
+            "Email: nguyenvanan@example.com | Điện thoại: 0912345678\n\n"
+            "TÓM TẮT NGHỀ NGHIỆP\n"
+            "Kỹ sư phần mềm Fullstack với hơn 3 năm kinh nghiệm phát triển hệ thống web quy mô lớn.\n\n"
+            "KINH NGHIỆM LÀM VIỆC\n"
+            "Công ty Công nghệ ABC - Senior Backend Developer (2022 - 2024)\n"
+            "- Thiết kế và tối ưu kiến trúc Microservices sử dụng Python FastAPI và .NET Core.\n"
+            "- Tối ưu hóa cơ sở dữ liệu PostgreSQL và Redis caching giảm 40% độ trễ hệ thống.\n\n"
+            "HỌC VẤN\n"
+            "Đại học Bách Khoa Hà Nội - Kỹ sư Công nghệ Thông tin (2018 - 2022)\n"
+            "- Tốt nghiệp loại Giỏi, GPA 3.6/4.0.\n\n"
+            "KỸ NĂNG CHUYÊN MÔN\n"
+            "Python, C#, FastAPI, .NET Core, Docker, PostgreSQL, React, TypeScript, Git, Redis."
+        )
+

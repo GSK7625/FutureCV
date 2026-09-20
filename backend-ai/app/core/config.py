@@ -136,6 +136,10 @@ class Settings(BaseSettings):
     max_pdf_pages: int = Field(default=20, alias="MAX_PDF_PAGES", ge=1, le=100)
     max_extracted_text_chars: int = Field(default=50_000, alias="MAX_EXTRACTED_TEXT_CHARS")
 
+    # Multimodal OCR Fallback
+    enable_ocr_fallback: bool = Field(default=True, alias="ENABLE_OCR_FALLBACK")
+    ocr_min_char_threshold: int = Field(default=50, alias="OCR_MIN_CHAR_THRESHOLD", ge=0, le=1000)
+
     @property
     def is_production(self) -> bool:
         """Return True if running in production environment."""
