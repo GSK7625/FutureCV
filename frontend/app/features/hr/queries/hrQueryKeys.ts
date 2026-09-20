@@ -15,7 +15,6 @@ export const hrQueryKeys = {
       [...hrQueryKeys.applications.all(), "list", jobId, filters] as const,
     detail: (id: string) => [...hrQueryKeys.applications.all(), "detail", id] as const,
     pipeline: (jobId: string) => [...hrQueryKeys.applications.all(), "pipeline", jobId] as const,
-    analytics: (jobId: string) => [...hrQueryKeys.applications.all(), "analytics", jobId] as const,
   },
   masterData: () => [...hrQueryKeys.all, "master-data"] as const,
 };
