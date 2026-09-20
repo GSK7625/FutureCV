@@ -4,10 +4,8 @@ import { Avatar, Button, Card, CardContent, EmptyState, Input, Skeleton } from "
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
 import { useDebounce } from "~/hooks/useDebounce";
 import { useEmployerJobs } from "../hooks/useEmployerJobs";
-import { useExportPipeline, useRecruiterApplications, useRecruitmentPipeline } from "../hooks/useRecruiterApplications";
+import { useRecruiterApplications, useRecruitmentPipeline } from "../hooks/useRecruiterApplications";
 import type { ApplicationStatus, PipelineCandidate, RecruiterApplicationFilters } from "../types";
-import { useUIStore } from "~/stores/useUIStore";
-import { PipelineAnalyticsPanel } from "./PipelineAnalyticsPanel";
 import { ApplicationDetailsModal } from "./ApplicationDetailsModal";
 import { ApplicationStatusBadge, applicationStatusLabels, updatableApplicationStatuses } from "./ApplicationStatusBadge";
 
@@ -21,27 +19,6 @@ export function RecruitmentPipelinePage() {
   const debouncedSearch = useDebounce(search, 300);
   const [filters, setFilters] = useState<RecruiterApplicationFilters>({ pageIndex: 1, pageSize: 10 });
   const [applicationId, setApplicationId] = useState<string | null>(null);
-  const exportPipeline = useExportPipeline();
-  const showToast = useUIStore((state) => state.showToast);
-
-  const downloadCsv = async () => {
-    if (!jobId || exportPipeline.isPending) return;
-    try {
-      const selectedJobId = jobId;
-      const blob = await exportPipeline.mutateAsync(selectedJobId);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `pipeline_${selectedJobId}_${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast("Đã tải báo cáo pipeline CSV", "success");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Không thể xuất báo cáo", "error");
-    }
-  };
 
   useEffect(() => {
     if (!jobId && jobsQuery.data?.items[0]) setJobId(jobsQuery.data.items[0].id);
@@ -54,13 +31,11 @@ export function RecruitmentPipelinePage() {
 
   return (
     <section aria-labelledby="pipeline-title">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-label font-semibold text-gold">ỨNG VIÊN</p><h1 id="pipeline-title" className="mt-1 text-headline text-navy">Recruitment Pipeline</h1><p className="mt-2 text-ink-variant">Theo dõi, đánh giá và cập nhật ứng viên theo từng tin tuyển dụng.</p></div><div className="flex rounded-default border border-border-strong bg-surface p-1"><ViewButton active={view === "pipeline"} onClick={() => setView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Pipeline</ViewButton><ViewButton active={view === "list"} onClick={() => setView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton></div></div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-label font-semibold text-gold">ỨNG VIÊN</p><h1 id="pipeline-title" className="mt-1 text-headline text-navy">Recruitment Pipeline</h1><p className="mt-2 text-ink-variant">Theo dõi và cập nhật ứng viên theo từng tin tuyển dụng.</p></div><div className="flex rounded-default border border-border-strong bg-surface p-1"><ViewButton active={view === "pipeline"} onClick={() => setView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Pipeline</ViewButton><ViewButton active={view === "list"} onClick={() => setView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton></div></div>
 
       <QueryBoundary isLoading={jobsQuery.isLoading} error={jobsQuery.error} onRetry={() => jobsQuery.refetch()} skeleton={<Skeleton className="mt-6 h-20" />}>
         {jobs.length === 0 ? <EmptyState className="mt-6" icon={<IconUsers size={42} aria-hidden="true" />} title="Chưa có tin tuyển dụng" description="Tạo tin tuyển dụng trước khi quản lý ứng viên." /> : <>
           <div className="mt-6 rounded-default border border-border-subtle bg-surface p-4 shadow-surface"><label htmlFor="pipeline-job" className="mb-2 block text-label font-semibold text-ink">Tin tuyển dụng</label><select id="pipeline-job" value={jobId} onChange={(event) => { setJobId(event.target.value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} className="h-11 w-full rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold">{jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></div>
-          <div className="mt-4 flex justify-end"><Button variant="secondary" disabled={!jobId || exportPipeline.isPending} onClick={() => void downloadCsv()}>{exportPipeline.isPending ? "Đang xuất..." : "Xuất CSV"}</Button></div>
-          {jobId && <PipelineAnalyticsPanel jobId={jobId} />}
           {view === "pipeline" ? <PipelineView query={pipelineQuery} onOpen={setApplicationId} /> : <ApplicationListView search={search} setSearch={(value) => { setSearch(value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} filters={filters} setFilters={setFilters} query={applicationsQuery} onOpen={setApplicationId} />}
         </>}
       </QueryBoundary>
@@ -80,17 +55,12 @@ function PipelineView({ query, onOpen }: { query: ReturnType<typeof useRecruitme
 }
 
 function PipelineCandidateCard({ candidate, onOpen }: { candidate: PipelineCandidate; onOpen: (id: string) => void }) {
-  const critical = candidate.stageAlert === "Critical";
-  const warning = candidate.stageAlert === "Warning";
   return (
     <button type="button" onClick={() => onOpen(candidate.applicationId)} className="flex min-h-16 w-full items-start gap-3 rounded-default border border-border-subtle bg-surface-low p-3 text-left hover:border-gold focus-visible:ring-2 focus-visible:ring-gold">
       <Avatar src={candidate.candidateAvatarUrl ?? undefined} name={candidate.candidateFullName} />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold text-ink">{candidate.candidateFullName}</span>
-        <span className="mt-1 block text-label text-ink-muted">{candidate.rating ? `${candidate.rating}/5 sao` : "Chưa đánh giá"} · Match {candidate.matchScore === null ? "—" : `${candidate.matchScore}%`}</span>
-        {candidate.daysInStage !== undefined && <span className="mt-2 block text-label-sm text-ink-variant">{candidate.daysInStage} ngày tại stage này</span>}
-        {(critical || warning) && <span className={critical ? "mt-2 inline-block rounded-tag bg-danger/10 px-2 py-1 text-label-sm font-semibold text-danger" : "mt-2 inline-block rounded-tag bg-warning/10 px-2 py-1 text-label-sm font-semibold text-warning"}>{critical ? "Cần xử lý gấp" : "Cần theo dõi"}</span>}
-        {candidate.lastStatusChangedAt && <span className="mt-1 block text-label-sm text-ink-muted">Cập nhật: {new Date(candidate.lastStatusChangedAt).toLocaleDateString("vi-VN")}</span>}
+        <span className="mt-1 block text-label text-ink-muted">Ứng tuyển {new Date(candidate.appliedAt).toLocaleDateString("vi-VN")}</span>
       </span>
     </button>
   );
@@ -98,5 +68,5 @@ function PipelineCandidateCard({ candidate, onOpen }: { candidate: PipelineCandi
 
 function ApplicationListView({ search, setSearch, filters, setFilters, query, onOpen }: { search: string; setSearch: (value: string) => void; filters: RecruiterApplicationFilters; setFilters: React.Dispatch<React.SetStateAction<RecruiterApplicationFilters>>; query: ReturnType<typeof useRecruiterApplications>; onOpen: (id: string) => void }) {
   const applications = query.data?.items ?? [];
-  return <div className="mt-5"><div className="grid gap-3 rounded-default border border-border-subtle bg-surface p-4 md:grid-cols-[minmax(0,1fr)_12rem_10rem]"><Input aria-label="Tìm ứng viên" icon={<IconSearch size={18} aria-hidden="true" />} placeholder="Tên hoặc email ứng viên" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Lọc trạng thái" value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as ApplicationStatus | "", pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5"><option value="">Mọi trạng thái</option>{[...updatableApplicationStatuses, "Withdrawn" as const].map((status) => <option key={status} value={status}>{applicationStatusLabels[status]}</option>)}</select><select aria-label="Lọc đánh giá" value={filters.minRating ?? ""} onChange={(event) => setFilters((current) => ({ ...current, minRating: event.target.value ? Number(event.target.value) : undefined, pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5"><option value="">Mọi đánh giá</option>{[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>Từ {rating} sao</option>)}</select></div><QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<Skeleton className="mt-4 h-72" />}>{applications.length ? <><div className="mt-4 grid gap-3">{applications.map((application) => <button key={application.id} type="button" onClick={() => onOpen(application.id)} className="grid min-h-20 w-full gap-3 rounded-default border border-border-subtle bg-surface p-4 text-left shadow-surface hover:border-gold sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"><span className="flex min-w-0 items-center gap-3"><Avatar src={application.candidateAvatarUrl ?? undefined} name={application.candidateFullName} /><span className="min-w-0"><span className="block truncate font-semibold text-navy">{application.candidateFullName}</span><span className="block truncate text-label text-ink-muted">{application.candidateEmail ?? application.cvTitle ?? "Chưa có thông tin liên hệ"}</span></span></span><ApplicationStatusBadge status={application.status} /><span className="text-label tabular-nums text-ink-variant">{application.rating ? `${application.rating}/5 sao` : "Chưa đánh giá"} · Match {application.matchScore ?? "—"}%</span></button>)}</div><div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-label text-ink-muted">{query.data?.totalCount ?? 0} ứng viên · Trang {query.data?.pageIndex ?? 1}/{Math.max(query.data?.totalPages ?? 1, 1)}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!query.data?.hasPreviousPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: Math.max(1, (current.pageIndex ?? 1) - 1) }))}>Trang trước</Button><Button variant="secondary" size="sm" disabled={!query.data?.hasNextPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: (current.pageIndex ?? 1) + 1 }))}>Trang sau</Button></div></div></> : <EmptyState className="mt-4" icon={<IconUsers size={40} aria-hidden="true" />} title="Chưa có ứng viên" description="Không tìm thấy Application phù hợp với bộ lọc hiện tại." />}</QueryBoundary></div>;
+  return <div className="mt-5"><div className="grid gap-3 rounded-default border border-border-subtle bg-surface p-4 md:grid-cols-[minmax(0,1fr)_14rem]"><Input aria-label="Tìm ứng viên" icon={<IconSearch size={18} aria-hidden="true" />} placeholder="Tên ứng viên" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Lọc trạng thái" value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as ApplicationStatus | "", pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5"><option value="">Mọi trạng thái</option>{[...updatableApplicationStatuses, "Withdrawn" as const].map((status) => <option key={status} value={status}>{applicationStatusLabels[status]}</option>)}</select></div><QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<Skeleton className="mt-4 h-72" />}>{applications.length ? <><div className="mt-4 grid gap-3">{applications.map((application) => <button key={application.id} type="button" onClick={() => onOpen(application.id)} className="grid min-h-20 w-full gap-3 rounded-default border border-border-subtle bg-surface p-4 text-left shadow-surface hover:border-gold sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><span className="flex min-w-0 items-center gap-3"><Avatar src={application.candidateAvatarUrl ?? undefined} name={application.candidateFullName} /><span className="min-w-0"><span className="block truncate font-semibold text-navy">{application.candidateFullName}</span><span className="block truncate text-label text-ink-muted">{application.candidatePhone ?? application.cvTitle ?? "CV ứng tuyển"}</span></span></span><ApplicationStatusBadge status={application.status} /></button>)}</div><div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-label text-ink-muted">{query.data?.totalCount ?? 0} ứng viên · Trang {query.data?.pageIndex ?? 1}/{Math.max(query.data?.totalPages ?? 1, 1)}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!query.data?.hasPreviousPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: Math.max(1, (current.pageIndex ?? 1) - 1) }))}>Trang trước</Button><Button variant="secondary" size="sm" disabled={!query.data?.hasNextPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: (current.pageIndex ?? 1) + 1 }))}>Trang sau</Button></div></div></> : <EmptyState className="mt-4" icon={<IconUsers size={40} aria-hidden="true" />} title="Chưa có ứng viên" description="Không tìm thấy Application phù hợp với bộ lọc hiện tại." />}</QueryBoundary></div>;
 }

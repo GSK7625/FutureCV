@@ -3,7 +3,6 @@ import { useUIStore } from "~/stores/useUIStore";
 import { hrQueryKeys } from "../queries/hrQueryKeys";
 import { hrService } from "../services/hrService";
 import type {
-  EvaluateApplicationRequest,
   RecruiterApplicationFilters,
   UpdateApplicationStatusRequest,
 } from "../types";
@@ -33,34 +32,9 @@ export function useRecruitmentPipeline(jobId: string) {
   });
 }
 
-export function usePipelineAnalytics(jobId: string) {
-  return useQuery({
-    queryKey: hrQueryKeys.applications.analytics(jobId),
-    queryFn: ({ signal }) => hrService.getPipelineAnalytics(jobId, signal),
-    enabled: Boolean(jobId),
-  });
-}
-
-export function useExportPipeline() {
-  return useMutation({ mutationFn: (jobId: string) => hrService.exportPipeline(jobId) });
-}
-
 function useRefreshApplications() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: hrQueryKeys.applications.all() });
-}
-
-export function useEvaluateApplication() {
-  const refreshApplications = useRefreshApplications();
-  const showToast = useUIStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: EvaluateApplicationRequest }) =>
-      hrService.evaluateApplication(id, input),
-    onSuccess: async () => {
-      showToast("Đã lưu đánh giá ứng viên", "success");
-      await refreshApplications();
-    },
-  });
 }
 
 export function useUpdateApplicationStatus() {
