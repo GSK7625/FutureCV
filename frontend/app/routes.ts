@@ -21,6 +21,7 @@ export default [
     route("login-admin", "routes/auth/login-admin.tsx"),
     route("register", "routes/auth/register.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
+    route("reset-password", "routes/auth/reset-password.tsx"),
   ]),
 
   // ── Candidate Protected Routes ─────────────────────────────
