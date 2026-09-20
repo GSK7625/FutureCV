@@ -1,6 +1,6 @@
 """Dependency injection providers for API routes and application services."""
 
-from collections.abc import Generator
+from collections.abc import AsyncIterator, Generator
 
 from fastapi import Depends
 
@@ -32,9 +32,13 @@ def get_document_parser(settings: Settings = Depends(get_settings_dep)) -> Docum
     return PyMuPdfDocumentParser(settings=settings)
 
 
-def get_llm(settings: Settings = Depends(get_settings_dep)) -> LlmPort:
-    """Provide configured LLM implementation."""
-    return get_llm_provider(settings=settings)
+async def get_llm(settings: Settings = Depends(get_settings_dep)) -> AsyncIterator[LlmPort]:
+    """Provide configured LLM implementation with lifecycle cleanup."""
+    provider = get_llm_provider(settings=settings)
+    try:
+        yield provider
+    finally:
+        await provider.aclose()
 
 
 def get_cv_analyzer_service(

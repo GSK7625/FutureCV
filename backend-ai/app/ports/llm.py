@@ -9,7 +9,19 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class LlmPort(ABC):
-    """Abstract interface for LLM operations."""
+    """Abstract interface for LLM operations and provider lifecycle management."""
+
+    @property
+    @abstractmethod
+    def provider_name(self) -> str:
+        """Name of the LLM provider (e.g. 'mock', 'openai')."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def model_name(self) -> str:
+        """Name of the specific LLM model used (e.g. 'mock-deterministic', 'gpt-4o-mini')."""
+        raise NotImplementedError
 
     @abstractmethod
     async def generate_text(
@@ -32,3 +44,6 @@ class LlmPort(ABC):
         """Generate validated, structured output conforming to a Pydantic model."""
         raise NotImplementedError
 
+    async def aclose(self) -> None:
+        """Asynchronously close network sessions or underlying clients."""
+        return

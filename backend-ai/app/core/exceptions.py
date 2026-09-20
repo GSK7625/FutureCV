@@ -116,4 +116,3 @@ class ValidationError(FutureCvAiError):
             status_code=422,
             details=details,
         )
-

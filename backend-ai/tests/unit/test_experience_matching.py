@@ -21,4 +21,3 @@ def test_experience_match_no_requirement():
     """When no requirement set, candidate gets 100 score."""
     res = calculate_experience_match(candidate_years=1.0, required_years=None)
     assert res.score == 100.0
-

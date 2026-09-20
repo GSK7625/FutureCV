@@ -4,7 +4,6 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.exception_handlers import register_exception_handlers
 from app.api.middleware.correlation_id import CorrelationIdMiddleware
@@ -49,17 +48,8 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Middleware execution order in Starlette: last added is executed first
-    # 1. CORS
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    # 2. Correlation ID
+    # Middleware execution order in Starlette:
+    # Correlation ID middleware for request tracing across ASP.NET Core and FastAPI
     app.add_middleware(CorrelationIdMiddleware)
 
     # Register centralized exception handlers
@@ -75,4 +65,3 @@ def create_application() -> FastAPI:
 
 
 app = create_application()
-

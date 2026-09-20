@@ -44,165 +44,79 @@ FutureCV follows a **Modular Monolith** architecture where ASP.NET Core serves a
   - CV PDF document parsing & text extraction
   - Structured entity extraction (`StructuredCv`)
   - Deterministic CV quality analysis & scoring (`CvAnalysis`)
-  - Hybrid Job Matching (`MatchResult` with skills, experience, and education breakdown)
-  - Candidate Ranking (reusing the Matching Engine under bounded concurrency)
-  - Career Assistant conversational guidance over context supplied by ASP.NET Core
+  - Hybrid Job Matching (`matching-v0` baseline with skills, experience, and education breakdown)
+  - Candidate Ranking (reusing the Matching Engine under bounded concurrency without LLM overhead)
+  - Career Assistant conversational guidance over sanitized context supplied by ASP.NET Core
 
 ### Strict System Invariants:
-1. React **NEVER** calls FastAPI directly.
+1. React **NEVER** calls FastAPI directly (Browser CORS is disabled).
 2. FastAPI **NEVER** connects to PostgreSQL or uses any ORM (no SQLAlchemy, no psycopg).
 3. FastAPI is completely **stateless** and does not own application or user state.
 4. AI outputs are **decision-support information only**; AI never makes autonomous hiring decisions.
 
 ---
 
-## 🎯 Logical AI Capability Model
+## 🎯 Implementation Status Matrix
 
-The AI Service provides **three core capabilities**:
+| Component / Subsystem | Status | Description |
+| :--- | :--- | :--- |
+| **Architecture baseline** | **READY** | Clean Hexagonal architecture with strict AST dependency gates. |
+| **Python quality gates** | **PASSED** | 100% compileall, ruff, mypy strict, and pytest pass (106 tests). |
+| **Docker verification** | **NOT VERIFIED** | Local Docker daemon unavailable during automated checks. |
+| **Security hardening** | **READY** | Browser CORS disabled, internal API key validation, sanitized error outputs. |
+| **Input validation** | **READY** | Strict Pydantic v2 contracts (ranges, uniqueness, length limits). |
+| **PDF protection** | **READY** | 5 MB upload limit, 64KB bounded streaming, incremental char checks. |
+| **CV Analyzer baseline** | **IMPLEMENTED** | Entity extraction, structural scoring, PII redaction, qualitative merge. |
+| **Matching Engine** | **matching-v0 BASELINE** | 50/30/20 heuristic weights (engineering baseline, uncalibrated). |
+| **Candidate Ranking** | **IMPLEMENTED** | Concurrently evaluates candidates; sorts descending with zero LLM explanation calls. |
+| **Project relevance** | **INFORMATIONAL BASELINE** | Deterministic canonical technology intersection; informational baseline in `matching-v0`. |
+| **Career Assistant** | **FOUNDATION IMPLEMENTED** | PII-minimized context, strict user/assistant roles, untrusted delimiters. |
+| **Semantic Similarity** | **NOT IMPLEMENTED** | Not implemented in `matching-v0`. |
+| **Job Ranking** | **NOT IMPLEMENTED** | Not implemented in current scope. |
+| **AI calibration** | **NOT IMPLEMENTED** | Empirical tuning against labeled recruitment datasets pending. |
+| **.NET runtime integration** | **NOT IMPLEMENTED** | Python API contracts are defined, but cross-language runtime compatibility has not yet been verified because the .NET AI client/DTO integration is not implemented. |
+
+*(Note: Backend-AI is an engineering baseline foundation, not a fully completed MVP).*
+
+---
+
+## 📐 Logical AI Capability Model
 
 ### 1. CV Analyzer
 - **Input:** CV PDF document bytes or pre-extracted text.
-- **Pipeline:** `PDF Bytes` → `Document Parser` → `Structured Extraction` → `StructuredCv` → `Quality Scoring` → `CvAnalysis`.
-- **Output:** `CvAnalysis` containing:
+- **Pipeline:** `PDF Bytes` → `Bounded Chunk Reader` → `Document Parser` → `Structured Extraction` → `StructuredCv` → `Quality Scoring` → `PII Redaction` → `Qualitative LLM Critique` → `Independent Merge & Dedup` → `CvAnalysis`.
+- **Output:** `CvAnalysisResponse` containing:
   - `cv_score`: Deterministic, explainable quality score (0–100).
-  - `strengths`: Verified structural & content strengths.
-  - `weaknesses`: Gaps in information or presentation.
+  - `strengths`: Structural completeness & qualitative strengths.
+  - `weaknesses`: Structural gaps & specific weaknesses.
   - `improvement_suggestions`: Actionable recommendations.
-- *(Note: CV Improvement is part of CV Analysis, not an independent engine).*
 
-### 2. Matching Engine
+### 2. Matching Engine (`matching-v0`)
 - **Input:** `StructuredCv` + `StructuredJob`.
 - **Computation:** Multi-criteria deterministic comparison:
-  - Skills match (80% required + 20% preferred with canonical normalization).
-  - Experience comparison (years required vs. total candidate experience).
-  - Education comparison (academic qualification level).
-  - LLM synthesized natural-language explanation.
-- **Output:** `MatchResult` with `match_score` (0–100), skill lists, and breakdown text.
-- **Reuse:** The **exact same Matching Engine** is reused for:
-  - **Single Match:** 1 CV + 1 Job → `MatchResult`.
-  - **Candidate Ranking:** 1 Job + N Candidate CVs → Reuses Matching Engine N times (with bounded concurrency) → sorted descending by `match_score`.
+  - Skills match: Case A (80% req + 20% pref), Case B (100% req), Case C (100% pref), Case D (100% neutral).
+  - Experience comparison: years required vs. candidate experience.
+  - Education comparison: qualification level matching.
+  - Informational Project Relevance: normalized technology overlap.
+  - Optional LLM synthesized explanation (`generate_explanation=True`).
+- **Output:** `MatchResult` with `match_score` (0–100), skill lists, breakdown text, and `algorithm_version="matching-v0"`.
+- **Candidate Ranking:** Evaluates N candidate CVs against 1 Job using `generate_explanation=False` (zero LLM calls) under bounded semaphore concurrency, returning ranked candidates sorted descending by match score.
 
 ### 3. Career Assistant
-- **Input:** User inquiry + authorized context supplied by ASP.NET Core (candidate profile, CV, target Job, MatchResult).
-- **Function:** Conversational guidance on overcoming skill gaps, tailoring CVs, and career progression advice.
+- **Input:** User message + conversation history + minimized profile context.
+- **Security:** All user messages, history, and context are marked as `UNTRUSTED DATA` with explicit boundary delimiters. Sensitive PII (candidate ID, full name, email, phone) is stripped from LLM prompts.
 
 ---
 
-## 📐 Internal Architecture (Hexagonal / Clean Architecture)
+## 🔒 Security & Resilience Protections
 
-Dependencies flow strictly inward:
-
-```text
-                     API Layer (FastAPI routes, middleware, auth)
-                                      │
-                                      ▼
-                   Application Layer (Use-case orchestration)
-                                  /       \
-                                 ▼         ▼
-                            Domain       Ports (Abstract interfaces)
-                            (Pure)         ▲
-                                           │ implements
-                                 Infrastructure Layer (PyMuPDF, OpenAI, Mock)
-```
-
-- **Domain (`app/domain/`):** Pure Python standard library logic. Deterministic scoring, canonical skill normalization, experience matching, education matching. **Zero dependencies on FastAPI, HTTP, or external providers.**
-- **Contracts (`app/contracts/`):** Pure Pydantic v2 transport models defining the REST boundary with ASP.NET Core.
-- **Ports (`app/ports/`):** Abstract interfaces (`LlmPort`, `DocumentParserPort`).
-- **Application (`app/application/`):** Orchestrates use cases (`CvAnalyzerService`, `MatchingService`, `RankingService`, `CareerAssistantService`).
-- **Infrastructure (`app/infrastructure/`):** Adapters implementing ports (`PyMuPdfDocumentParser`, `OpenAiProvider`, `MockLlmProvider`).
-- **API (`app/api/`):** Routers, dependency injection, timing-safe authentication, correlation ID propagation, and sanitized exception handlers.
-- **Observability (`app/observability/`):** PII-safe, structured logging with distributed correlation tracking.
-
----
-
-## 📁 Directory Structure
-
-```text
-backend-ai/
-├── app/
-│   ├── main.py                     # Application entry point & lifespan
-│   ├── core/
-│   │   ├── config.py               # Pydantic Settings
-│   │   └── exceptions.py           # Domain & application errors
-│   ├── contracts/                  # Transport DTOs (.NET <-> FastAPI)
-│   │   ├── common.py
-│   │   ├── cv.py
-│   │   ├── job.py
-│   │   ├── cv_analysis.py
-│   │   ├── matching.py
-│   │   ├── career.py
-│   │   └── errors.py
-│   ├── domain/                     # Pure business logic (Zero external deps)
-│   │   ├── cv/
-│   │   │   ├── normalization.py    # Canonical skill resolution
-│   │   │   └── scoring.py          # Deterministic CV quality scoring
-│   │   └── matching/
-│   │       ├── skill_match.py      # Skill overlap computation
-│   │       ├── experience_match.py # Work history comparison
-│   │       ├── education_match.py  # Degree level ranking
-│   │       └── scoring.py          # Centralized scoring weights
-│   ├── ports/                      # Capability interfaces
-│   │   ├── document_parser.py
-│   │   └── llm.py
-│   ├── infrastructure/             # Technical implementations
-│   │   ├── documents/
-│   │   │   └── pdf_parser.py       # Thread-safe PyMuPDF parser
-│   │   └── llm/
-│   │       ├── factory.py          # Provider factory
-│   │       └── providers/
-│   │           ├── mock_provider.py    # Offline/test provider
-│   │           └── openai_provider.py  # Resilient OpenAI adapter
-│   ├── prompts/                    # Versioned prompt artifacts
-│   │   ├── cv_extraction_v1.py
-│   │   ├── cv_analysis_v1.py
-│   │   ├── match_explanation_v1.py
-│   │   └── career_v1.py
-│   ├── application/                # Use-case services
-│   │   ├── cv_analyzer.py
-│   │   ├── matching_service.py
-│   │   ├── ranking_service.py      # Bounded concurrency candidate ranking
-│   │   └── career_assistant.py
-│   ├── observability/
-│   │   └── logging.py              # PII-safe correlation logger
-│   └── api/
-│       ├── deps.py                 # Dependency injection
-│       ├── exception_handlers.py   # Sanitized error responses
-│       ├── middleware/
-│       │   ├── correlation_id.py   # X-Correlation-Id tracing
-│       │   └── internal_auth.py    # Timing-safe internal API key
-│       └── v1/
-│           ├── router.py           # Master v1 router
-│           ├── health.py           # Liveness (/health) & Readiness (/ready)
-│           ├── cv_analysis.py      # /cv/analyze, /cv/improve
-│           ├── matching.py         # /job/match, /candidates/rank
-│           └── career.py           # /career/chat
-├── tests/
-│   ├── unit/                       # Pure domain & utility tests
-│   ├── integration/                # FastAPI HTTP endpoint tests
-│   ├── contract/                   # .NET <-> Python schema contract tests
-│   └── architecture/               # AST-based hexagonal boundary tests
-├── Dockerfile                      # Production slim image with non-root user
-├── requirements.txt                # Runtime dependencies
-├── requirements-dev.txt            # Development & testing dependencies
-├── pyproject.toml                  # Ruff, MyPy, and Pytest configuration
-└── .env.example                    # Environment variable template
-```
-
----
-
-## 🔒 Security & Privacy Features
-
-1. **Internal Service Authentication:** Protected endpoints require header `X-Internal-API-Key` validated with constant-time comparison (`hmac.compare_digest`).
-2. **Distributed Tracing:** Every request accepts or generates a validated `X-Correlation-Id`, which is logged and returned in response headers.
-3. **PII Protection:** Strict logging rules prevent logging raw CV text, candidate phone numbers, personal emails, or provider secrets.
-4. **Document Defense:**
-   - Magic bytes validation (`%PDF-`).
-   - Maximum upload size enforcement (default 10 MB).
-   - Maximum page count enforcement (default 20 pages).
-   - Maximum extracted text ceiling.
-   - Non-blocking execution offloaded to background worker threads via `anyio.to_thread`.
-5. **Prompt Injection Hardening:** Prompts treat all CV and Job contents as **untrusted data**, delimited with explicit boundary markers and strict instructions prohibiting instruction overrides.
-6. **Error Sanitization:** Stack traces, internal file paths, and external provider error bodies are suppressed from HTTP responses and logged internally.
+1. **Authentication:** Internal pre-shared key (`X-Internal-API-Key`) verified with constant-time comparison (`hmac.compare_digest`). Enforced strictly in production.
+2. **Internal-Only Service:** Zero browser CORS middleware configured. Traffic flows exclusively through ASP.NET Core.
+3. **Upload Memory DoS Prevention:** Uploaded PDF files are read in bounded 64 KB chunks up to the 5 MB limit. Exceeding chunks immediately abort reading and raise `413 Payload Too Large`.
+4. **Incremental Text Extraction Safety:** PDF pages are parsed page-by-page. Extracted character count is evaluated after each page against `max_extracted_text_chars` (50,000 chars), raising controlled errors rather than silently truncating.
+5. **OpenAI Client Lifecycle & Resilience:** Single reusable `httpx.AsyncClient` per provider instance closed via `aclose()`. Exponential backoff retries for transient status codes (408, 429, 500, 502, 503, 504) honoring `Retry-After`. Non-transient 4xx errors fail immediately.
+6. **Prompt Injection Hardening:** Prompts treat all CV, Job, and history content as **untrusted data**, delimited with explicit boundary markers and strict instructions prohibiting prompt overrides.
+7. **Error Sanitization:** Stack traces and provider error bodies are suppressed from HTTP responses and logged internally with correlation IDs.
 
 ---
 
@@ -222,10 +136,7 @@ source .venv/bin/activate
 
 ### 2. Install Dependencies
 ```bash
-# Runtime dependencies:
 pip install -r requirements.txt
-
-# Development / Testing dependencies:
 pip install -r requirements-dev.txt
 ```
 
@@ -233,7 +144,7 @@ pip install -r requirements-dev.txt
 ```bash
 cp .env.example .env
 ```
-*(By default, `LLM_PROVIDER=mock` works immediately for local testing without external API keys).*
+*(Supported providers: `mock`, `openai`. By default, `LLM_PROVIDER=mock` works immediately for local development and test execution without external API keys).*
 
 ### 4. Run Server
 ```bash
@@ -255,14 +166,14 @@ To execute all automated quality checks:
 python -m compileall app tests
 
 # 2. Lint check
-ruff check app tests
+python -m ruff check app tests
 
 # 3. Format check
-ruff format --check app tests
+python -m ruff format --check app tests
 
 # 4. Static type check
-mypy app
+python -m mypy app
 
-# 5. Automated test suite (Unit, Integration, Contract, Architecture)
-pytest tests -v
+# 5. Automated test suite (Unit, Integration, FastAPI/Pydantic API contract validation, Architecture: 106 passed)
+python -m pytest tests -v
 ```

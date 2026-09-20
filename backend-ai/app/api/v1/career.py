@@ -29,4 +29,3 @@ async def career_chat(
     to guide candidates on overcoming skill gaps and CV improvements.
     """
     return await service.chat(req)
-

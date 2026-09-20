@@ -41,4 +41,3 @@ def test_correlation_id_in_response_header():
     response_auto = client.get("/health")
     assert "X-Correlation-Id" in response_auto.headers
     assert len(response_auto.headers["X-Correlation-Id"]) > 0
-

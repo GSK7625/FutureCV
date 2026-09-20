@@ -12,4 +12,3 @@ class ErrorResponse(BaseModel):
     message: str = Field(description="Human-readable error description")
     details: dict[str, Any] = Field(default_factory=dict, description="Additional contextual error attributes")
     correlation_id: str = Field(description="Correlation identifier for request tracing")
-

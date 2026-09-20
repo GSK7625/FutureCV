@@ -12,6 +12,7 @@ from app.contracts.matching import (
     MatchResult,
     RankedCandidateItem,
 )
+from app.domain.matching.scoring import MATCHING_ALGORITHM_VERSION
 from app.observability.logging import correlation_id_ctx, get_logger
 
 logger = get_logger(__name__)
@@ -29,13 +30,18 @@ class RankingService:
     ) -> tuple[str, MatchResult]:
         """Evaluate a single candidate against the job posting under concurrency semaphore."""
         async with self.semaphore:
-            result = await self.matching_service.match(cv=candidate.cv, job=req.job)
+            # Candidate Ranking disables LLM explanation to minimize cost and latency
+            result = await self.matching_service.match(
+                cv=candidate.cv,
+                job=req.job,
+                generate_explanation=False,
+            )
             return candidate.candidate_id, result
 
     async def rank_candidates(self, req: CandidateRankRequest) -> CandidateRankResponse:
         """
         Rank candidates for a given job posting:
-        1. Evaluates all candidates through the shared Matching Engine concurrently.
+        1. Evaluates all candidates through the shared deterministic Matching Engine concurrently.
         2. Sorts results descending by MatchScore.
         3. Assigns ordinal ranks.
         """
@@ -61,17 +67,17 @@ class RankingService:
         elapsed_ms = (time.perf_counter() - start_time) * 1000.0
 
         logger.info(
-            "Ranked %d candidates for job '%s' in %.2fms",
+            "Ranked %d candidates for job '%s' without LLM explanation in %.2fms",
             len(ranked_items),
             req.job.title,
             elapsed_ms,
         )
 
         meta = ResponseMeta(
-            algorithm_version="1.0.0",
-            prompt_version="v1",
-            provider=self.matching_service.llm.__class__.__name__,
-            model="default",
+            algorithm_version=MATCHING_ALGORITHM_VERSION,
+            prompt_version="deterministic-v0",
+            provider=self.matching_service.llm.provider_name,
+            model=self.matching_service.llm.model_name,
             processing_time_ms=round(elapsed_ms, 2),
             correlation_id=correlation_id,
         )
