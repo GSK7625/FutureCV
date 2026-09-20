@@ -24,6 +24,9 @@ public static class DatabaseSeeder
             // 2. Seed Master Reference Data (Categories, Levels, EmploymentTypes, Locations, Skills)
             await ReferenceDataSeeder.SeedAsync(serviceProvider);
 
+            // 3. Seed Realistic Demo Presentation Data (Companies, Recruiter, Candidates, Jobs, CV, Application, MatchResult)
+            await DemoDataSeeder.SeedAsync(serviceProvider);
+
             logger?.LogInformation("Database seeding pipeline completed successfully.");
         }
         catch (Exception ex)
