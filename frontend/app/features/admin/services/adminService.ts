@@ -12,6 +12,7 @@ import type {
   JobListResponse,
   AdminJobFilterRequest,
   ApproveJobRequest,
+  AdminDashboardStatsResponse,
 } from "../types";
 
 function buildQueryString(params: object): string {
@@ -92,6 +93,13 @@ export function adminService() {
       fetcher<boolean>(`/api/admin/jobs/${jobId}/approval`, {
         method: "PATCH",
         body: request,
+        auth: true,
+      }),
+
+    // Dashboard Statistics
+    getDashboardStats: () =>
+      fetcher<AdminDashboardStatsResponse>("/api/admin/dashboard", {
+        method: "GET",
         auth: true,
       }),
   };
