@@ -53,7 +53,7 @@ def test_v1_weights_sum_to_one():
 
 def test_compute_overall_match_score_v1_perfect_scores():
     """Verify v1 formula with 100 across all components yields 100."""
-    skill_res = SkillMatchResult(skill_score=100.0, matched_skills=["Python"], missing_skills=[])
+    skill_res = SkillMatchResult(skill_score=100.0, matched_required_skills=["Python"], missing_required_skills=[])
     exp_res = ExperienceMatchResult(score=100.0, candidate_years=5.0, required_years=3.0, comparison_text="Valid")
     edu_res = EducationMatchResult(score=100.0, comparison_text="Valid")
     proj_res = ProjectRelevanceResult(project_score=100.0)
@@ -81,7 +81,7 @@ def test_compute_overall_match_score_v1_weighted_calculation():
     Semantic: 70 * 0.20 = 14.0
     Total = 32 + 10 + 10 + 6 + 14 = 72.0 -> 72
     """
-    skill_res = SkillMatchResult(skill_score=80.0, matched_skills=[], missing_skills=[])
+    skill_res = SkillMatchResult(skill_score=80.0, matched_required_skills=[], missing_required_skills=[])
     exp_res = ExperienceMatchResult(score=50.0, candidate_years=2.0, required_years=4.0, comparison_text="Shortage")
     edu_res = EducationMatchResult(score=100.0, comparison_text="Valid")
     proj_res = ProjectRelevanceResult(project_score=60.0)

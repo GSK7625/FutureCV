@@ -10,7 +10,11 @@ from app.application.text_sanitization import sanitize_free_text
 from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.job import StructuredJob
-from app.contracts.matching import MATCH_RESULT_CONTRACT_VERSION, MatchResult
+from app.contracts.matching import (
+    MATCH_RESULT_CONTRACT_VERSION,
+    MatchExplanation,
+    MatchResult,
+)
 from app.core.exceptions import ProviderError
 from app.domain.matching.education_match import calculate_education_match
 from app.domain.matching.experience_match import (
@@ -33,19 +37,29 @@ from app.prompts.match_explanation_v1 import (
     FORBIDDEN_LOW_SCORE_PHRASES,
     MATCH_EXPLANATION_SYSTEM_PROMPT_V1,
     MATCH_EXPLANATION_USER_TEMPLATE_V1,
+    build_deterministic_structured_explanation,
+    format_explanation_as_text,
     get_score_band,
+    validate_explanation_tone,
+    validate_grounding,
 )
 
 logger = get_logger(__name__)
 
 
-def _validate_match_explanation(explanation: str, final_score: int) -> bool:
+def _validate_match_explanation(
+    explanation: str | MatchExplanation,
+    final_score: int,
+) -> bool:
     """
     Validate that LLM explanation does not contradict match score.
 
-    For scores < 40, rejects explanations containing unwarranted high-praise phrasing.
+    Supports both structured MatchExplanation models and legacy raw strings.
     """
-    if final_score < 40:
+    if isinstance(explanation, MatchExplanation):
+        return validate_explanation_tone(final_score, explanation)
+
+    if final_score < 60:
         lower_exp = explanation.lower()
         for phrase in FORBIDDEN_LOW_SCORE_PHRASES:
             if phrase in lower_exp:
@@ -68,40 +82,34 @@ def _build_deterministic_explanation(
     education_score: float = 0.0,
     project_score: float = 0.0,
     semantic_score: float = 0.0,
+    missing_preferred_skills: list[str] | None = None,
 ) -> str:
     """Construct a grounded, informative deterministic explanation with score band label."""
-    _, band_label = get_score_band(final_score)
-    parts: list[str] = []
-
-    if warning:
-        parts.append(f"[{warning}]")
-
-    parts.append(f"Điểm phù hợp: {final_score}/100.")
-
-    if is_v1:
-        parts.append(
-            f"(Kỹ năng: {skill_score:.0f}%, Kinh nghiệm: {experience_score:.0f}%, "
-            f"Học vấn: {education_score:.0f}%, Dự án: {project_score:.0f}%, "
-            f"Độ tương đồng ngữ nghĩa: {semantic_score:.0f}%)."
-        )
-
-    if total_req_count > 0:
-        parts.append(f"Ứng viên đáp ứng {matched_req_count}/{total_req_count} kỹ năng bắt buộc.")
-
-    if matched_skills:
-        parts.append(f"Kỹ năng đáp ứng: {', '.join(matched_skills)}.")
-    if missing_skills:
-        parts.append(f"Kỹ năng còn thiếu: {', '.join(missing_skills)}.")
-
-    if exp_cmp:
-        parts.append(exp_cmp)
-
-    if edu_cmp and "Vị trí không đặt yêu cầu bắt buộc" not in edu_cmp:
-        parts.append(edu_cmp)
-
-    parts.append(f"{band_label}.")
-
-    return " ".join(parts)
+    structured = build_deterministic_structured_explanation(
+        final_score=final_score,
+        matched_skills=matched_skills,
+        missing_required_skills=missing_skills,
+        missing_preferred_skills=missing_preferred_skills or [],
+        exp_cmp=exp_cmp,
+        edu_cmp=edu_cmp,
+    )
+    return format_explanation_as_text(
+        final_score=final_score,
+        explanation=structured,
+        warning=warning,
+        is_v1=is_v1,
+        skill_score=skill_score,
+        experience_score=experience_score,
+        education_score=education_score,
+        project_score=project_score,
+        semantic_score=semantic_score,
+        matched_skills=matched_skills,
+        missing_skills=missing_skills,
+        matched_req_count=matched_req_count,
+        total_req_count=total_req_count,
+        exp_cmp=exp_cmp,
+        edu_cmp=edu_cmp,
+    )
 
 
 class MatchingService:
@@ -328,13 +336,25 @@ class MatchingService:
 
         clean_job_title = sanitize_free_text(job.title)
         clean_matched_skills = sanitize_free_text(", ".join(skill_res.matched_skills)) or "Không có"
-        clean_missing_skills = sanitize_free_text(", ".join(skill_res.missing_skills)) or "Không có"
+        clean_missing_req = sanitize_free_text(", ".join(skill_res.missing_required_skills)) or "Không có"
+        clean_missing_pref = sanitize_free_text(", ".join(skill_res.missing_preferred_skills)) or "Không có"
         clean_exp_cmp = sanitize_free_text(exp_res.comparison_text)
         clean_edu_cmp = sanitize_free_text(edu_res.comparison_text)
+
+        all_matched = skill_res.matched_required_skills + skill_res.matched_preferred_skills
+        all_missing = skill_res.missing_required_skills + skill_res.missing_preferred_skills
+        clean_evidence = (
+            "CV skills: " + ", ".join(all_matched)
+            if all_matched
+            else "Chưa đủ bằng chứng trong CV để xác nhận."
+        )
 
         semantic_section = ""
         if (self.is_v1_active or self.semantic_mode == "advisory") and self.embedding_provider and semantic_score > 0:
             semantic_section = f"\n- Độ tương đồng ngữ nghĩa (bổ trợ): {semantic_score:.1f}/100"
+
+        explanation_details: MatchExplanation | None = None
+        explanation: str | None = None
 
         if generate_explanation:
             llm_invoked = True
@@ -347,62 +367,64 @@ class MatchingService:
                 education_score=education_score,
                 semantic_section=semantic_section,
                 matched_skills=clean_matched_skills,
-                missing_skills=clean_missing_skills,
+                missing_required_skills=clean_missing_req,
+                missing_preferred_skills=clean_missing_pref,
                 experience_comparison=clean_exp_cmp,
                 education_comparison=clean_edu_cmp,
+                evidence=clean_evidence,
             )
 
             try:
-                raw_explanation = await self.llm.generate_text(
+                raw_structured = await self.llm.generate_structured(
                     prompt=prompt,
+                    response_model=MatchExplanation,
                     system_prompt=MATCH_EXPLANATION_SYSTEM_PROMPT_V1,
                     temperature=0.0,
                 )
 
-                if not _validate_match_explanation(raw_explanation, final_score):
+                if isinstance(raw_structured, MatchExplanation):
+                    explanation_obj = raw_structured
+                elif isinstance(raw_structured, dict):
+                    explanation_obj = MatchExplanation.model_validate(raw_structured)
+                elif isinstance(raw_structured, str):
+                    import json
+
+                    explanation_obj = MatchExplanation.model_validate(json.loads(raw_structured))
+                else:
+                    explanation_obj = MatchExplanation.model_validate(raw_structured)
+
+                tone_ok = validate_explanation_tone(final_score, explanation_obj)
+                grounding_ok = validate_grounding(
+                    explanation=explanation_obj,
+                    matched_skills=all_matched,
+                    missing_skills=all_missing,
+                    missing_required_skills=skill_res.missing_required_skills,
+                )
+
+                if not tone_ok or not grounding_ok:
                     logger.warning(
-                        "LLM explanation contradiction detected for score %d: explanation contains "
-                        "forbidden praise phrase. Rejecting LLM explanation and falling back to "
-                        "deterministic explanation.",
+                        "LLM explanation post-validation failed for score %d (tone_ok=%s, grounding_ok=%s). "
+                        "Falling back to deterministic structured explanation.",
                         final_score,
+                        tone_ok,
+                        grounding_ok,
                     )
-                    explanation = _build_deterministic_explanation(
+                    explanation_obj = build_deterministic_structured_explanation(
                         final_score=final_score,
-                        matched_skills=skill_res.matched_skills,
-                        missing_skills=skill_res.missing_skills,
-                        total_req_count=skill_res.total_required_count,
-                        matched_req_count=skill_res.matched_required_count,
+                        matched_skills=all_matched,
+                        missing_required_skills=skill_res.missing_required_skills,
+                        missing_preferred_skills=skill_res.missing_preferred_skills,
                         exp_cmp=clean_exp_cmp,
                         edu_cmp=clean_edu_cmp,
-                        warning=warning,
-                        is_v1=self.is_v1_active,
-                        skill_score=skill_score,
-                        experience_score=experience_score,
-                        education_score=education_score,
-                        project_score=project_score,
-                        semantic_score=semantic_score,
                     )
                     explanation_mode = "deterministic-fallback"
                 else:
-                    if warning:
-                        raw_explanation = f"[{warning}] {raw_explanation}"
-                    explanation = raw_explanation
                     explanation_mode = "llm"
 
-            except Exception as exc:
-                logger.warning(
-                    "LLM explanation failed with %s (%s). Falling back to deterministic explanation.",
-                    exc.__class__.__name__,
-                    exc,
-                )
-                explanation = _build_deterministic_explanation(
+                explanation_details = explanation_obj
+                explanation = format_explanation_as_text(
                     final_score=final_score,
-                    matched_skills=skill_res.matched_skills,
-                    missing_skills=skill_res.missing_skills,
-                    total_req_count=skill_res.total_required_count,
-                    matched_req_count=skill_res.matched_required_count,
-                    exp_cmp=clean_exp_cmp,
-                    edu_cmp=clean_edu_cmp,
+                    explanation=explanation_obj,
                     warning=warning,
                     is_v1=self.is_v1_active,
                     skill_score=skill_score,
@@ -410,18 +432,61 @@ class MatchingService:
                     education_score=education_score,
                     project_score=project_score,
                     semantic_score=semantic_score,
+                    matched_skills=skill_res.matched_skills,
+                    missing_skills=skill_res.missing_skills,
+                    matched_req_count=skill_res.matched_required_count,
+                    total_req_count=skill_res.total_required_count,
+                    exp_cmp=clean_exp_cmp,
+                    edu_cmp=clean_edu_cmp,
+                )
+
+            except Exception as exc:
+                logger.warning(
+                    "LLM structured explanation failed with %s (%s). Falling back to deterministic explanation.",
+                    exc.__class__.__name__,
+                    exc,
+                )
+                explanation_obj = build_deterministic_structured_explanation(
+                    final_score=final_score,
+                    matched_skills=all_matched,
+                    missing_required_skills=skill_res.missing_required_skills,
+                    missing_preferred_skills=skill_res.missing_preferred_skills,
+                    exp_cmp=clean_exp_cmp,
+                    edu_cmp=clean_edu_cmp,
+                )
+                explanation_details = explanation_obj
+                explanation = format_explanation_as_text(
+                    final_score=final_score,
+                    explanation=explanation_obj,
+                    warning=warning,
+                    is_v1=self.is_v1_active,
+                    skill_score=skill_score,
+                    experience_score=experience_score,
+                    education_score=education_score,
+                    project_score=project_score,
+                    semantic_score=semantic_score,
+                    matched_skills=skill_res.matched_skills,
+                    missing_skills=skill_res.missing_skills,
+                    matched_req_count=skill_res.matched_required_count,
+                    total_req_count=skill_res.total_required_count,
+                    exp_cmp=clean_exp_cmp,
+                    edu_cmp=clean_edu_cmp,
                 )
                 explanation_mode = "deterministic-fallback"
         else:
             # Deterministic concise summary avoiding LLM inference cost and latency during bulk ranking
-            explanation = _build_deterministic_explanation(
+            explanation_obj = build_deterministic_structured_explanation(
                 final_score=final_score,
-                matched_skills=skill_res.matched_skills,
-                missing_skills=skill_res.missing_skills,
-                total_req_count=skill_res.total_required_count,
-                matched_req_count=skill_res.matched_required_count,
+                matched_skills=all_matched,
+                missing_required_skills=skill_res.missing_required_skills,
+                missing_preferred_skills=skill_res.missing_preferred_skills,
                 exp_cmp=clean_exp_cmp,
                 edu_cmp=clean_edu_cmp,
+            )
+            explanation_details = explanation_obj
+            explanation = format_explanation_as_text(
+                final_score=final_score,
+                explanation=explanation_obj,
                 warning=warning,
                 is_v1=self.is_v1_active,
                 skill_score=skill_score,
@@ -429,6 +494,12 @@ class MatchingService:
                 education_score=education_score,
                 project_score=project_score,
                 semantic_score=semantic_score,
+                matched_skills=skill_res.matched_skills,
+                missing_skills=skill_res.missing_skills,
+                matched_req_count=skill_res.matched_required_count,
+                total_req_count=skill_res.total_required_count,
+                exp_cmp=clean_exp_cmp,
+                edu_cmp=clean_edu_cmp,
             )
             explanation_mode = "deterministic"
 
@@ -482,6 +553,7 @@ class MatchingService:
             education_comparison=edu_res.comparison_text,
             project_domain_relevance=proj_res.relevance_explanation,
             match_explanation=explanation,
+            explanation_details=explanation_details,
             status=status,
             warning=warning,
             meta=meta,

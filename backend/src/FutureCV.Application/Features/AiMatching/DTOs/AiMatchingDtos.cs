@@ -186,6 +186,22 @@ public sealed record AiResponseMetaDto(
     [property: JsonPropertyName("processing_time_ms")] double ProcessingTimeMs = 0.0,
     [property: JsonPropertyName("correlation_id")] string CorrelationId = "-");
 
+public sealed record AiMatchStrengthDto(
+    [property: JsonPropertyName("item")] string Item,
+    [property: JsonPropertyName("statement")] string Statement,
+    [property: JsonPropertyName("evidence_source")] string EvidenceSource,
+    [property: JsonPropertyName("evidence_text")] string? EvidenceText = null);
+
+public sealed record AiMatchGapDto(
+    [property: JsonPropertyName("requirement")] string Requirement,
+    [property: JsonPropertyName("statement")] string Statement);
+
+public sealed record AiMatchExplanationDto(
+    [property: JsonPropertyName("summary")] string Summary,
+    [property: JsonPropertyName("strengths")] List<AiMatchStrengthDto>? Strengths = null,
+    [property: JsonPropertyName("gaps")] List<AiMatchGapDto>? Gaps = null,
+    [property: JsonPropertyName("recommendations")] List<string>? Recommendations = null);
+
 public sealed record AiMatchResultDto
 {
     [JsonPropertyName("match_score")]
@@ -209,6 +225,9 @@ public sealed record AiMatchResultDto
     [JsonPropertyName("match_explanation")]
     public string? MatchExplanation { get; init; }
 
+    [JsonPropertyName("explanation_details")]
+    public AiMatchExplanationDto? ExplanationDetails { get; init; }
+
     [JsonPropertyName("status")]
     public string? Status { get; init; }
 
@@ -229,6 +248,7 @@ public sealed record AiMatchResultDto
         string EducationComparison = "",
         string ProjectDomainRelevance = "",
         string? MatchExplanation = null,
+        AiMatchExplanationDto? ExplanationDetails = null,
         string? Status = null,
         string? Warning = null,
         AiResponseMetaDto? Meta = null)
@@ -240,6 +260,7 @@ public sealed record AiMatchResultDto
         this.EducationComparison = EducationComparison;
         this.ProjectDomainRelevance = ProjectDomainRelevance;
         this.MatchExplanation = MatchExplanation;
+        this.ExplanationDetails = ExplanationDetails;
         this.Status = Status;
         this.Warning = Warning;
         this.Meta = Meta ?? new AiResponseMetaDto();

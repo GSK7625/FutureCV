@@ -344,6 +344,13 @@ public class AiMatchingSerializationTests
         Assert.NotNull(result.MatchExplanation);
         Assert.Contains("Ứng viên có nền tảng vững chắc", result.MatchExplanation);
 
+        Assert.NotNull(result.ExplanationDetails);
+        Assert.Equal(3, result.ExplanationDetails.Strengths?.Count);
+        Assert.Equal(1, result.ExplanationDetails.Gaps?.Count);
+        Assert.Equal("Python", result.ExplanationDetails.Strengths?[0].Item);
+        Assert.Equal("cv.skills", result.ExplanationDetails.Strengths?[0].EvidenceSource);
+        Assert.Equal("Docker", result.ExplanationDetails.Gaps?[0].Requirement);
+
         Assert.NotNull(result.Meta);
         Assert.Equal("match-result-v1", result.Meta.ContractVersion);
         Assert.Equal("matching-v0", result.Meta.AlgorithmVersion);
@@ -372,6 +379,9 @@ public class AiMatchingSerializationTests
         Assert.Equal(["Docker"], result.MissingSkills);
         Assert.NotNull(result.MatchExplanation);
         Assert.Contains("Điểm phù hợp:", result.MatchExplanation);
+
+        Assert.NotNull(result.ExplanationDetails);
+        Assert.Equal(3, result.ExplanationDetails.Strengths?.Count);
 
         Assert.NotNull(result.Meta);
         Assert.Equal("match-result-v1", result.Meta.ContractVersion);

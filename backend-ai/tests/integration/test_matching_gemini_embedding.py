@@ -1,5 +1,6 @@
 """Integration tests for Candidate-Job matching with Gemini Embedding Provider in Advisory/Shadow mode."""
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from google.genai import types
@@ -194,6 +195,16 @@ async def test_matching_with_gemini_embedding_explanation_receives_semantic_cont
         async def generate_text(self, prompt: str, system_prompt: str | None = None, temperature: float = 0.3) -> str:
             captured_prompts.append(prompt)
             return "Ứng viên phù hợp với vị trí Senior Backend Engineer."
+
+        async def generate_structured(
+            self,
+            prompt: str,
+            response_model: Any,
+            system_prompt: str | None = None,
+            temperature: float = 0.1,
+        ) -> Any:
+            captured_prompts.append(prompt)
+            return await super().generate_structured(prompt, response_model, system_prompt, temperature)
 
     service = MatchingService(
         llm=CapturingLlm(),

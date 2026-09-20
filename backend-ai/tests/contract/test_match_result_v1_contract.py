@@ -45,6 +45,9 @@ def test_match_result_v1_with_explanation_fixture():
     assert result.matched_skills == ["Python", "FastAPI", "PostgreSQL"]
     assert result.missing_skills == ["Docker"]
     assert len(result.match_explanation) > 0
+    assert result.explanation_details is not None
+    assert len(result.explanation_details.strengths) == 3
+    assert len(result.explanation_details.gaps) == 1
     assert result.meta.contract_version == "match-result-v1"
     assert result.meta.algorithm_variant == "matching-v0"
     assert result.meta.llm_invoked is True
@@ -62,6 +65,8 @@ def test_match_result_v1_no_explanation_fixture():
     assert result.matched_skills == ["Python", "FastAPI", "PostgreSQL"]
     assert result.missing_skills == ["Docker"]
     assert "Điểm phù hợp:" in result.match_explanation
+    assert result.explanation_details is not None
+    assert len(result.explanation_details.strengths) == 3
     assert result.meta.contract_version == "match-result-v1"
     assert result.meta.llm_invoked is False
     assert result.meta.explanation_mode == "deterministic"
@@ -142,6 +147,7 @@ def test_match_result_exact_json_field_names():
         "education_comparison",
         "project_domain_relevance",
         "match_explanation",
+        "explanation_details",
         "status",
         "warning",
         "meta",

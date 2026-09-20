@@ -1,3 +1,5 @@
+using FutureCV.Application.Features.AiMatching.DTOs;
+
 namespace FutureCV.Application.Features.JobApplication.DTOs;
 
 // -----------------------------------------------------------------------------
@@ -246,5 +248,6 @@ public sealed record JobMatchPreviewResponse(
     string? EducationComparison = null,
     string? ProjectDomainRelevance = null,
     bool IsAiPreview = false,
-    string? MatchSource = null);
+    string? MatchSource = null,
+    AiMatchExplanationDto? ExplanationDetails = null);
 

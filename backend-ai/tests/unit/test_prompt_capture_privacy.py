@@ -244,9 +244,10 @@ async def test_match_explanation_captures_zero_contact_pii() -> None:
     )
     assert result.match_score > 0
     assert result.meta.llm_invoked is True
-    assert len(spy_llm.captured_text_calls) == 1
+    captured_calls = spy_llm.captured_text_calls + spy_llm.captured_structured_calls
+    assert len(captured_calls) == 1
 
-    captured_prompt = spy_llm.captured_text_calls[0]["prompt"]
+    captured_prompt = captured_calls[0]["prompt"]
 
     # Assert NO contact PII or identity fields reached LLM
     for leaked_item in [
@@ -416,8 +417,9 @@ async def test_structured_contact_fields_never_leaked_into_non_extraction_llm_ca
 
     await service.match(cv=cv, job=job, generate_explanation=True)
 
-    assert len(spy_llm.captured_text_calls) == 1
-    prompt = spy_llm.captured_text_calls[0]["prompt"]
+    captured_calls = spy_llm.captured_text_calls + spy_llm.captured_structured_calls
+    assert len(captured_calls) == 1
+    prompt = captured_calls[0]["prompt"]
 
     assert "very.sensitive@candidate.org" not in prompt
     assert "+84 988 123 456" not in prompt

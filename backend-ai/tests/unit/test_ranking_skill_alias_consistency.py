@@ -71,6 +71,7 @@ async def test_candidate_ranking_alias_consistency():
         "education_comparison",
         "project_domain_relevance",
         "match_explanation",
+        "explanation_details",
         "status",
         "warning",
         "meta",
