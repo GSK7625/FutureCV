@@ -2,13 +2,12 @@ using FutureCV.Application.Common.Interfaces;
 using FutureCV.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace FutureCV.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;
 
@@ -22,12 +21,11 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(AuthResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RegisterCandidate([FromBody] RegisterCandidateRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.RegisterCandidateAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? StatusCode(result.StatusCode, result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result, created: true);
     }
 
     /// <summary>Register a new Employer account and automatically log in.</summary>
@@ -35,12 +33,11 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(AuthResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RegisterEmployer([FromBody] RegisterEmployerRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.RegisterEmployerAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? StatusCode(result.StatusCode, result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result, created: true);
     }
 
     /// <summary>
@@ -55,9 +52,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.LoginAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? Ok(result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result);
     }
 
     /// <summary>
@@ -72,9 +67,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.RefreshTokenAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? Ok(result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result);
     }
 
     /// <summary>
@@ -83,17 +76,15 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("logout")]
     [Authorize]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MessageResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
-        if (userId is null) return Unauthorized();
+        if (userId == Guid.Empty) return Unauthorized();
 
-        var result = await _authService.LogoutAsync(userId.Value, request.RefreshToken, cancellationToken);
-        return result.IsSuccess
-            ? NoContent()
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        var result = await _authService.LogoutAsync(userId, request.RefreshToken, cancellationToken);
+        return ToHttpResult(result);
     }
 
     /// <summary>
@@ -101,16 +92,14 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("logout-all")]
     [Authorize]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MessageResponse))]
     public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
-        if (userId is null) return Unauthorized();
+        if (userId == Guid.Empty) return Unauthorized();
 
-        var result = await _authService.LogoutAllAsync(userId.Value, cancellationToken);
-        return result.IsSuccess
-            ? NoContent()
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        var result = await _authService.LogoutAllAsync(userId, cancellationToken);
+        return ToHttpResult(result);
     }
 
     /// <summary>
@@ -124,9 +113,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.ForgotPasswordAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? Ok(result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result);
     }
 
     /// <summary>
@@ -140,9 +127,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.ResetPasswordAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? Ok(result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result);
     }
 
     /// <summary>
@@ -156,12 +141,10 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> DisableUser([FromRoute] Guid userId, CancellationToken cancellationToken)
     {
         var currentAdminId = GetCurrentUserId();
-        if (currentAdminId is null) return Unauthorized();
+        if (currentAdminId == Guid.Empty) return Unauthorized();
 
-        var result = await _authService.DisableUserAsync(userId, currentAdminId.Value, cancellationToken);
-        return result.IsSuccess
-            ? Ok(result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        var result = await _authService.DisableUserAsync(userId, currentAdminId, cancellationToken);
+        return ToHttpResult(result);
     }
 
     /// <summary>
@@ -175,9 +158,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> EnableUser([FromRoute] Guid userId, CancellationToken cancellationToken)
     {
         var result = await _authService.EnableUserAsync(userId, cancellationToken);
-        return result.IsSuccess
-            ? Ok(result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result);
     }
 
     /// <summary>Log in using Google ID Token.</summary>
@@ -192,9 +173,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.GoogleLoginAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? Ok(result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result);
     }
 
     /// <summary>Register a Candidate using Google ID Token.</summary>
@@ -208,9 +187,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GoogleRegisterCandidate([FromBody] GoogleLoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.GoogleRegisterCandidateAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? StatusCode(result.StatusCode, result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
+        return ToHttpResult(result, created: true);
     }
 
     /// <summary>Register an Employer using Google ID Token and additional profile data.</summary>
@@ -224,22 +201,6 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GoogleRegisterEmployer([FromBody] GoogleRegisterEmployerRequest request, CancellationToken cancellationToken)
     {
         var result = await _authService.GoogleRegisterEmployerAsync(request, cancellationToken);
-        return result.IsSuccess
-            ? StatusCode(result.StatusCode, result.Data)
-            : StatusCode(result.StatusCode, new { message = result.ErrorMessage });
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Extracts the authenticated user's ID from the JWT sub claim.
-    /// JwtBearer middleware maps "sub" → ClaimTypes.NameIdentifier automatically.
-    /// </summary>
-    private Guid? GetCurrentUserId()
-    {
-        var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(value, out var id) ? id : null;
+        return ToHttpResult(result, created: true);
     }
 }
-
-

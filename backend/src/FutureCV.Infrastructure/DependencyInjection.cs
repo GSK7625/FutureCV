@@ -1,4 +1,5 @@
 using FutureCV.Application.Common.Interfaces;
+using FutureCV.Application.Features.Admin.Interfaces;
 using FutureCV.Application.Features.Candidate.Interfaces;
 using FutureCV.Application.Features.Employer.Interfaces;
 using FutureCV.Infrastructure.Configurations;
@@ -55,7 +56,7 @@ public static class DependencyInjection
 
         // Register SmtpSettings & Email Service
         services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
-        services.AddTransient<IEmailService, FutureCV.Infrastructure.Services.EmailService>();
+        services.AddTransient<IEmailService, EmailService>();
 
         // Register Auth Service
         services.AddScoped<IAuthService, AuthService>();
@@ -71,7 +72,7 @@ public static class DependencyInjection
         // Register Profile & Admin services
         services.AddScoped<ICandidateService, CandidateService>();
         services.AddScoped<IEmployerService, EmployerService>();
-        services.AddScoped<FutureCV.Application.Features.Admin.Interfaces.IAdminService, AdminService>();
+        services.AddScoped<IAdminService, AdminService>();
 
         return services;
     }

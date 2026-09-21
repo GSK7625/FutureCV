@@ -8,17 +8,17 @@ namespace FutureCV.Application.Common.Interfaces;
 /// </summary>
 public interface IAuthService
 {
-    Task<AuthResult<AuthResponse>> RegisterCandidateAsync(RegisterCandidateRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<AuthResponse>> RegisterEmployerAsync(RegisterEmployerRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<AuthResponse>> GoogleLoginAsync(GoogleLoginRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<AuthResponse>> GoogleRegisterCandidateAsync(GoogleLoginRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<AuthResponse>> GoogleRegisterEmployerAsync(GoogleRegisterEmployerRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<MessageResponse>> LogoutAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default);
-    Task<AuthResult<MessageResponse>> LogoutAllAsync(Guid userId, CancellationToken cancellationToken = default);
-    Task<AuthResult<MessageResponse>> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<MessageResponse>> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResult<MessageResponse>> DisableUserAsync(Guid targetUserId, Guid currentAdminId, CancellationToken cancellationToken = default);
-    Task<AuthResult<MessageResponse>> EnableUserAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ServiceResult<AuthResponse>> RegisterCandidateAsync(RegisterCandidateRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<AuthResponse>> RegisterEmployerAsync(RegisterEmployerRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<AuthResponse>> GoogleLoginAsync(GoogleLoginRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<AuthResponse>> GoogleRegisterCandidateAsync(GoogleLoginRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<AuthResponse>> GoogleRegisterEmployerAsync(GoogleRegisterEmployerRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<MessageResponse>> LogoutAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default);
+    Task<ServiceResult<MessageResponse>> LogoutAllAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ServiceResult<MessageResponse>> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<MessageResponse>> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceResult<MessageResponse>> DisableUserAsync(Guid targetUserId, Guid currentAdminId, CancellationToken cancellationToken = default);
+    Task<ServiceResult<MessageResponse>> EnableUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }

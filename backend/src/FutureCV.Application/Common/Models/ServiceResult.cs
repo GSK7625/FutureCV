@@ -26,6 +26,9 @@ public enum ServiceErrorType
     /// <summary>404 — The requested resource does not exist.</summary>
     NotFound,
 
+    /// <summary>401 — Authentication failed or caller is unauthenticated.</summary>
+    Unauthorized,
+
     /// <summary>403 — The caller is not permitted to perform this action.</summary>
     Forbidden,
 
@@ -51,6 +54,9 @@ public static class ServiceResult
 
     public static ServiceResult<T> NotFound<T>(string errorMessage) =>
         Failure<T>(errorMessage, ServiceErrorType.NotFound);
+
+    public static ServiceResult<T> Unauthorized<T>(string errorMessage) =>
+        Failure<T>(errorMessage, ServiceErrorType.Unauthorized);
 
     public static ServiceResult<T> Forbidden<T>(string errorMessage) =>
         Failure<T>(errorMessage, ServiceErrorType.Forbidden);
