@@ -87,7 +87,16 @@ async function requestOnce<T>(
     throw new ApiError(await parseErrorMessage(response), response.status);
   }
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return (await response.json()) as T;
+  }
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
 }
 
 export async function fetcher<T>(path: string, options: FetchOptions = {}): Promise<T> {

@@ -25,7 +25,12 @@ export default [
   ...prefix("candidate", [
     layout("layouts/CandidateLayout.tsx", [
       index("routes/candidate/job-list.tsx"),
-      route("profile", "routes/candidate/profile.tsx"),
+      route("personal-info", "routes/candidate/personal-info.tsx"),
+      route("security", "routes/candidate/security.tsx"),
+      route("email-settings", "routes/candidate/email-settings.tsx"),
+      route("job-alerts", "routes/candidate/job-alerts.tsx"),
+      route("notifications", "routes/candidate/notifications.tsx"),
+      route("change-password", "routes/candidate/change-password.tsx"),
     ]),
   ]),
 

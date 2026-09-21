@@ -51,13 +51,11 @@ export const candidateProfileApi = {
   uploadAvatar: (file: File) => {
     const formData = new FormData();
     formData.append("avatar", file);
-    return fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/candidate/profile/avatar`, {
+    return fetcher<string>("/api/candidate/profile/avatar", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
       body: formData,
-    }).then((res) => res.json());
+      auth: true,
+    });
   },
 };
 
