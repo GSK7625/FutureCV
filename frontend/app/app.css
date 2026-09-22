@@ -89,6 +89,16 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+@utility container-page {
+  width: 100%;
+  max-width: var(--container-page);
+  margin-inline: auto;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
 html,
 body {
   @apply bg-background text-ink font-sans text-body antialiased;

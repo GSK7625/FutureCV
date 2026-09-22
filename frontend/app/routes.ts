@@ -4,6 +4,7 @@ export default [
   // ── Public Routes (Trang chủ & Việc làm & CV) ─────────────
   layout("layouts/PublicLayout.tsx", [
     index("routes/public/home.tsx"),
+    route("jobs", "routes/public/job-search.tsx"),
     route("jobs/:jobId", "routes/candidate/job-detail.tsx"),
     route("jobs/:jobId/apply", "routes/candidate/apply-form.tsx"),
     ...prefix("cv", [
@@ -22,7 +23,6 @@ export default [
   // ── Candidate Protected Routes ─────────────────────────────
   ...prefix("candidate", [
     layout("layouts/CandidateLayout.tsx", [
-      index("routes/candidate/job-list.tsx"),
       route("personal-info", "routes/candidate/personal-info.tsx"),
       route("security", "routes/candidate/security.tsx"),
       route("email-settings", "routes/candidate/email-settings.tsx"),

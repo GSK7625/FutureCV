@@ -4,7 +4,7 @@
  * @architecture Tuân thủ SRP (Tách riêng biệt dữ liệu mock ra khỏi tầng Service) & DIP (Làm nguồn fallback độc lập cho Service).
  */
 
-import type { Job, JobFilters, JobListResult } from "../types";
+import type { Job, JobFilters, JobListResult, JobMasterData } from "../types";
 
 
 export const DEMO_JOBS: Job[] = [
@@ -243,10 +243,10 @@ export const DEMO_JOBS: Job[] = [
     ],
   },
   {
-    id: "7",
-    title: "Nhân Viên Vận Hành Máy Dây Chuyền Sản Xuất",
+    id: "8",
+    title: "Nhân Viên Vận Hành Máy Dây ",
     company: "Tập Đoàn Bao Bì Crown VN",
-    location: "Hà Nội",
+    location: "Bắc Ninh",
     salaryMin: 9,
     salaryMax: 14,
     jobType: "Toàn thời gian",
@@ -280,7 +280,118 @@ export const DEMO_JOBS: Job[] = [
     ],
   },
   {
-    id: "8",
+    id: "9",
+    title: "Nhân Viên Vận Hành Máy",
+    company: "Tập Đoàn Cám",
+    location: "Hải Phòng",
+    salaryMin: 18,
+    salaryMax: 20,
+    jobType: "Toàn thời gian",
+    experience: "Không yêu cầu",
+    categories: ["Kỹ thuật"],
+    postedAt: new Date(Date.now() - 4 * 864e5).toISOString(),
+    hot: false,
+    verified: true,
+    level: "Công nhân / Nhân viên",
+    deadline: "15/10/2026",
+    quantity: "10 người",
+    gender: "Không yêu cầu",
+    workAddress: "Khu Công Nghiệp Thăng Long, Đông Anh, Hà Nội",
+    companyWebsite: "crownpackaging.vn",
+    companySize: "1,000+ nhân viên",
+    companyIndustry: "Sản xuất / Bao bì",
+    matchRate: 75,
+    description:
+      "Vận hành máy đóng gói và kiểm soát dây chuyền sản xuất tự động theo quy trình an toàn lao động.",
+    descriptionList: [
+      "Vận hành máy đóng gói và kiểm soát dây chuyền sản xuất tự động.",
+      "Kiểm tra chất lượng thành phẩm đầu ra trên dây chuyền.",
+    ],
+    requirements: [
+      "Tốt nghiệp THPT trở lên, sức khỏe tốt, chăm chỉ và trung thực.",
+      "Có thể làm việc theo ca luân phiên.",
+    ],
+    benefits: [
+      "Bao ăn giữa ca và phụ cấp chuyên cần hàng tháng.",
+      "Có xe đưa đón từ nội thành Hà Nội về nhà máy.",
+    ],
+  },
+  {
+    id: "10",
+    title: "Nhân Viên Vận Hành Máy Dây Chuyền Sản Xuất",
+    company: "Tập Đoàn Dệt May",
+    location: "Thái Bình",
+    salaryMin: 9,
+    salaryMax: 14,
+    jobType: "Toàn thời gian",
+    experience: "Không yêu cầu",
+    categories: ["Kỹ thuật"],
+    postedAt: new Date(Date.now() - 4 * 864e5).toISOString(),
+    hot: false,
+    verified: true,
+    level: "Công nhân / Nhân viên",
+    deadline: "15/10/2026",
+    quantity: "10 người",
+    gender: "Không yêu cầu",
+    workAddress: "Khu Công Nghiệp Thăng Long, Đông Anh, Hà Nội",
+    companyWebsite: "crownpackaging.vn",
+    companySize: "1,000+ nhân viên",
+    companyIndustry: "Sản xuất / Bao bì",
+    matchRate: 75,
+    description:
+      "Vận hành máy đóng gói và kiểm soát dây chuyền sản xuất tự động theo quy trình an toàn lao động.",
+    descriptionList: [
+      "Vận hành máy đóng gói và kiểm soát dây chuyền sản xuất tự động.",
+      "Kiểm tra chất lượng thành phẩm đầu ra trên dây chuyền.",
+    ],
+    requirements: [
+      "Tốt nghiệp THPT trở lên, sức khỏe tốt, chăm chỉ và trung thực.",
+      "Có thể làm việc theo ca luân phiên.",
+    ],
+    benefits: [
+      "Bao ăn giữa ca và phụ cấp chuyên cần hàng tháng.",
+      "Có xe đưa đón từ nội thành Hà Nội về nhà máy.",
+    ],
+  },
+  {
+    id: "11",
+    title: "Nhân Viên Vận Hành Máy Dây Chuyền Sản Xuất",
+    company: "Tập Đoàn Giấy",
+    location: "Hải Dương",
+    salaryMin: 9,
+    salaryMax: 14,
+    jobType: "Toàn thời gian",
+    experience: "Không yêu cầu",
+    categories: ["Kỹ thuật"],
+    postedAt: new Date(Date.now() - 4 * 864e5).toISOString(),
+    hot: false,
+    verified: true,
+    level: "Công nhân / Nhân viên",
+    deadline: "15/10/2026",
+    quantity: "10 người",
+    gender: "Không yêu cầu",
+    workAddress: "Khu Công Nghiệp Thăng Long, Đông Anh, Hà Nội",
+    companyWebsite: "crownpackaging.vn",
+    companySize: "1,000+ nhân viên",
+    companyIndustry: "Sản xuất / Bao bì",
+    matchRate: 75,
+    description:
+      "Vận hành máy đóng gói và kiểm soát dây chuyền sản xuất tự động theo quy trình an toàn lao động.",
+    descriptionList: [
+      "Vận hành máy đóng gói và kiểm soát dây chuyền sản xuất tự động.",
+      "Kiểm tra chất lượng thành phẩm đầu ra trên dây chuyền.",
+    ],
+    requirements: [
+      "Tốt nghiệp THPT trở lên, sức khỏe tốt, chăm chỉ và trung thực.",
+      "Có thể làm việc theo ca luân phiên.",
+    ],
+    benefits: [
+      "Bao ăn giữa ca và phụ cấp chuyên cần hàng tháng.",
+      "Có xe đưa đón từ nội thành Hà Nội về nhà máy.",
+    ],
+  },
+  {
+    id: "12",
     title: "Chỉ Huy Phó Công Trình (Cơ Điện MEP)",
     company: "Công ty Cổ phần VISACONS",
     location: "TP. HCM",
@@ -329,13 +440,17 @@ export function filterDemoJobs(filters: JobFilters): JobListResult {
       job.title.toLowerCase().includes(keyword) ||
       job.company.toLowerCase().includes(keyword);
     const matchCategory =
-      !filters.category?.length ||
-      job.categories.some((c) =>
-        filters.category!.some((f) => c.toLowerCase().includes(f.toLowerCase()))
-      );
+      !filters.categoryId ||
+      job.categoryId === filters.categoryId ||
+      job.categories.some((c) => c.toLowerCase().includes(filters.categoryId!.toLowerCase()));
     const matchLocation =
-      !filters.location?.length || filters.location.includes(job.location);
-    const matchType = !filters.jobType?.length || filters.jobType.includes(job.jobType);
+      !filters.locationId ||
+      job.locationId === filters.locationId ||
+      job.location.toLowerCase().includes(filters.locationId.toLowerCase());
+    const matchType =
+      !filters.employmentTypeId ||
+      job.employmentTypeId === filters.employmentTypeId ||
+      job.jobType.toLowerCase().includes(filters.employmentTypeId.toLowerCase());
     return matchKeyword && matchCategory && matchLocation && matchType;
   });
 
@@ -345,5 +460,60 @@ export function filterDemoJobs(filters: JobFilters): JobListResult {
     total: filtered.length,
     page,
     pageSize,
+    totalPages: Math.ceil(filtered.length / pageSize) || 1,
+    hasPreviousPage: page > 1,
+    hasNextPage: start + pageSize < filtered.length,
+    isDemoFallback: true,
   };
 }
+
+export const DEMO_MASTER_DATA: JobMasterData = {
+  isDemoFallback: true,
+  categories: [
+    { id: "it", name: "IT / Phần mềm" },
+    { id: "kd", name: "Kinh doanh / Bán hàng" },
+    { id: "mkt", name: "Marketing / PR" },
+    { id: "tc", name: "Tài chính / Kế toán" },
+    { id: "hr", name: "Nhân sự (HR)" },
+    { id: "tk", name: "Thiết kế / Nghệ thuật" },
+  ],
+  levels: [
+    { id: "intern", name: "Thực tập sinh" },
+    { id: "fresher", name: "Fresher" },
+    { id: "junior", name: "Junior" },
+    { id: "middle", name: "Middle" },
+    { id: "senior", name: "Senior" },
+    { id: "lead", name: "Trưởng nhóm / Lead" },
+  ],
+  employmentTypes: [
+    { id: "fulltime", name: "Toàn thời gian" },
+    { id: "parttime", name: "Bán thời gian" },
+    { id: "internship", name: "Thực tập" },
+    { id: "contract", name: "Hợp đồng / Freelance" },
+    { id: "remote", name: "Làm việc từ xa" },
+  ],
+  locations: [
+    { id: "hn", name: "Hà Nội" },
+    { id: "hcm", name: "TP. HCM" },
+    { id: "dn", name: "Đà Nẵng" },
+    { id: "remote", name: "Từ xa" },
+  ],
+};
+
+// ---- Đồng bộ id giữa DEMO_JOBS và DEMO_MASTER_DATA ----
+// Bộ lọc (chip trang chủ / sidebar) hoạt động theo id của master options;
+// mock jobs chỉ mang text -> tự gán id tương ứng một lần khi module load,
+// khỏi phải maintain id thủ công từng entry khi thêm/sửa job mock.
+const normText = (s: string | undefined) => (s ?? "").toLowerCase().trim();
+const matchDemoOption = (opts: { id: string; name: string }[], text: string | undefined) =>
+  opts.find(
+    (o) => normText(text).includes(normText(o.name)) || normText(o.name).includes(normText(text)),
+  )?.id;
+
+for (const job of DEMO_JOBS) {
+  job.categoryId ??= matchDemoOption(DEMO_MASTER_DATA.categories, job.categories[0]);
+  job.locationId ??= matchDemoOption(DEMO_MASTER_DATA.locations, job.location);
+  job.employmentTypeId ??= matchDemoOption(DEMO_MASTER_DATA.employmentTypes, job.jobType);
+  job.isDemoFallback = true;
+}
+

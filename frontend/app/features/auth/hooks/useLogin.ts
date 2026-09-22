@@ -41,7 +41,7 @@ export function useLogin() {
       queryClient.removeQueries({ type: "all" });
       const role = applySession(result, variables.email);
       showToast("Đăng nhập thành công", "success");
-      const targetUrl = role === "candidate" ? "/candidate" : role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/";
+      const targetUrl = role === "candidate" ? "/" : role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/";
       navigate(targetUrl, { replace: true });
     },
   });
