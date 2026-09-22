@@ -89,4 +89,3 @@ def test_excessive_extracted_text_raises_controlled_error_without_silent_truncat
     assert exc_info.value.error_code == "INVALID_DOCUMENT"
     assert exc_info.value.details["reason"] == "text_limit_exceeded"
     assert exc_info.value.details["max_chars"] == 100
-

@@ -10,10 +10,13 @@ from app.application.cv_analyzer import CvAnalyzerService
 from app.application.matching_service import MatchingService
 from app.application.ranking_service import RankingService
 from app.core.config import Settings, get_settings
+from app.domain.matching.scoring import MATCHING_V1_ALGORITHM_VERSION
 from app.infrastructure.documents.pdf_parser import PyMuPdfDocumentParser
+from app.infrastructure.embeddings.factory import get_embedding_provider
 from app.infrastructure.llm.factory import get_llm_provider
 from app.observability.logging import correlation_id_ctx
 from app.ports.document_parser import DocumentParserPort
+from app.ports.embeddings import EmbeddingPort
 from app.ports.llm import LlmPort
 
 
@@ -41,6 +44,21 @@ async def get_llm(settings: Settings = Depends(get_settings_dep)) -> AsyncIterat
         await provider.aclose()
 
 
+async def get_embedding_provider_dep(
+    settings: Settings = Depends(get_settings_dep),
+) -> AsyncIterator[EmbeddingPort | None]:
+    """Provide configured EmbeddingPort implementation with lifecycle cleanup when enabled."""
+    if settings.matching_algorithm == MATCHING_V1_ALGORITHM_VERSION:
+        provider = get_embedding_provider(settings=settings)
+        try:
+            yield provider
+        finally:
+            await provider.aclose()
+    else:
+        # For matching-v0: do not construct any embedding provider or network client
+        yield None
+
+
 def get_cv_analyzer_service(
     parser: DocumentParserPort = Depends(get_document_parser),
     llm: LlmPort = Depends(get_llm),
@@ -50,10 +68,16 @@ def get_cv_analyzer_service(
 
 
 def get_matching_service(
+    settings: Settings = Depends(get_settings_dep),
     llm: LlmPort = Depends(get_llm),
+    embedding_provider: EmbeddingPort | None = Depends(get_embedding_provider_dep),
 ) -> MatchingService:
     """Provide Matching service instance."""
-    return MatchingService(llm=llm)
+    return MatchingService(
+        llm=llm,
+        embedding_provider=embedding_provider,
+        matching_algorithm=settings.matching_algorithm,
+    )
 
 
 def get_ranking_service(
@@ -75,6 +99,7 @@ __all__ = [
     "get_correlation_id",
     "get_cv_analyzer_service",
     "get_document_parser",
+    "get_embedding_provider_dep",
     "get_llm",
     "get_matching_service",
     "get_ranking_service",

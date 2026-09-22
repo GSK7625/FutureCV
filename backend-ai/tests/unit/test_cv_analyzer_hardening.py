@@ -5,8 +5,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 import pytest
 
-from app.application.cv_analyzer import CvAnalyzerService, CvQualitativeFeedback
-from app.contracts.cv import StructuredCv
+from app.application.cv_analyzer import CvAnalyzerService
 from app.core.config import Settings
 from app.core.exceptions import DocumentParsingError
 from app.infrastructure.llm.providers.mock_provider import MockLlmProvider
@@ -116,4 +115,3 @@ async def test_cv_analyzer_rejects_oversized_raw_text():
 
     assert exc_info.value.error_code == "INVALID_DOCUMENT"
     assert exc_info.value.details["reason"] == "text_limit_exceeded"
-

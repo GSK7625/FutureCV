@@ -1,7 +1,7 @@
 """Unit tests for hardened input contracts and Pydantic validation boundaries."""
 
-import pytest
 from pydantic import ValidationError
+import pytest
 
 from app.contracts.career import CareerAssistantRequest, ChatMessage
 from app.contracts.cv import StructuredCv, WorkExperienceItem
@@ -152,4 +152,3 @@ def test_career_assistant_request_excessive_history_rejected():
     history = [ChatMessage(role="user", content=f"Message {i}") for i in range(21)]
     with pytest.raises(ValidationError):
         CareerAssistantRequest(message="Valid question", history=history)
-

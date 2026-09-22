@@ -2,16 +2,28 @@
 
 import time
 
+from app.application.semantic_representation import (
+    build_cv_semantic_text,
+    build_job_semantic_text,
+)
 from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.job import StructuredJob
 from app.contracts.matching import MatchResult
+from app.core.exceptions import ProviderError
 from app.domain.matching.education_match import calculate_education_match
 from app.domain.matching.experience_match import calculate_experience_match
 from app.domain.matching.project_match import evaluate_project_relevance
-from app.domain.matching.scoring import MATCHING_ALGORITHM_VERSION, compute_overall_match_score
+from app.domain.matching.scoring import (
+    MATCHING_ALGORITHM_VERSION,
+    MATCHING_V1_ALGORITHM_VERSION,
+    compute_overall_match_score,
+    compute_overall_match_score_v1,
+)
+from app.domain.matching.similarity import cosine_similarity, similarity_to_semantic_score
 from app.domain.matching.skill_match import calculate_skill_match
 from app.observability.logging import correlation_id_ctx, get_logger
+from app.ports.embeddings import EmbeddingPort
 from app.ports.llm import LlmPort
 from app.prompts.match_explanation_v1 import (
     MATCH_EXPLANATION_SYSTEM_PROMPT_V1,
@@ -24,20 +36,51 @@ logger = get_logger(__name__)
 class MatchingService:
     """Core matching engine evaluating candidate CV compatibility with a Job Posting."""
 
-    def __init__(self, llm: LlmPort) -> None:
+    def __init__(
+        self,
+        llm: LlmPort,
+        embedding_provider: EmbeddingPort | None = None,
+        matching_algorithm: str = MATCHING_ALGORITHM_VERSION,
+    ) -> None:
         self.llm = llm
+        self.embedding_provider = embedding_provider
+        self.matching_algorithm = matching_algorithm
+
+    @property
+    def is_v1_active(self) -> bool:
+        """Return True if matching-v1-experimental algorithm is active."""
+        return self.matching_algorithm == MATCHING_V1_ALGORITHM_VERSION
+
+    @property
+    def algorithm_variant(self) -> str:
+        """Return the active matching algorithm variant identifier."""
+        return self.matching_algorithm
 
     async def match(
         self,
         cv: StructuredCv,
         job: StructuredJob,
         generate_explanation: bool = True,
+        precomputed_job_embedding: list[float] | None = None,
+        precomputed_cv_embedding: list[float] | None = None,
     ) -> MatchResult:
         """
-        Evaluate candidate CV against a Job Posting using deterministic multi-criteria scoring.
+        Evaluate candidate CV against a Job Posting using multi-criteria scoring.
 
-        When generate_explanation is True: calls LLM for detailed natural language explanation.
-        When generate_explanation is False: constructs a concise deterministic explanation without LLM calls.
+        When algorithm is 'matching-v0':
+        - Uses Skill (50%), Experience (30%), Education (20%).
+        - Project relevance is informational only.
+        - ZERO embedding calls or vector operations are executed.
+
+        When algorithm is 'matching-v1-experimental':
+        - Uses Skill (40%), Experience (20%), Education (10%), Project (10%), Semantic (20%).
+        - Generates/uses text embeddings and computes pure domain cosine similarity.
+        - Controlled failure if embedding provider fails (no silent fallback).
+
+        When generate_explanation is True:
+        - Calls LLM for detailed natural language explanation (llm_invoked=True).
+        When generate_explanation is False:
+        - Generates deterministic summary without calling LLM (llm_invoked=False).
         """
         start_time = time.perf_counter()
         correlation_id = correlation_id_ctx.get()
@@ -52,7 +95,7 @@ class MatchingService:
                 if p_tech not in all_candidate_skills:
                     all_candidate_skills.append(p_tech)
 
-        # 2. Skill matching (matching-v0)
+        # 2. Skill matching
         skill_res = calculate_skill_match(
             candidate_skills=all_candidate_skills,
             required_skills=job.required_skills,
@@ -73,28 +116,84 @@ class MatchingService:
             required_education=job.education_requirement,
         )
 
-        # 5. Aggregate overall match score (matching-v0 baseline)
-        overall = compute_overall_match_score(
-            skill_res=skill_res,
-            exp_res=exp_res,
-            edu_res=edu_res,
-        )
-
-        # 6. Informational project relevance evaluation
+        # 5. Project relevance evaluation
         proj_res = evaluate_project_relevance(
             projects=cv.projects,
             required_skills=job.required_skills,
             preferred_skills=job.preferred_skills,
         )
 
-        # 7. Explanation generation (LLM if requested; deterministic fallback for candidate ranking)
+        # 6. Overall match score calculation
+        if self.matching_algorithm == MATCHING_ALGORITHM_VERSION:
+            # Baseline v0 scoring (zero embedding calls)
+            overall_v0 = compute_overall_match_score(
+                skill_res=skill_res,
+                exp_res=exp_res,
+                edu_res=edu_res,
+            )
+            final_score = overall_v0.final_score
+            skill_score = overall_v0.skill_score
+            experience_score = overall_v0.experience_score
+            education_score = overall_v0.education_score
+            project_score = proj_res.project_score
+            semantic_score = 0.0
+
+        elif self.matching_algorithm == MATCHING_V1_ALGORITHM_VERSION:
+            if self.embedding_provider is None:
+                raise ProviderError(
+                    "Embedding provider is required for matching-v1-experimental",
+                    provider="unconfigured",
+                )
+
+            # Resolve embeddings: reuse precomputed if available (e.g. from ranking batch)
+            cv_vector = precomputed_cv_embedding
+            job_vector = precomputed_job_embedding
+
+            if cv_vector is None or job_vector is None:
+                cv_text = build_cv_semantic_text(cv)
+                job_text = build_job_semantic_text(job)
+
+                if cv_vector is None and job_vector is not None:
+                    vectors = await self.embedding_provider.embed_texts([cv_text])
+                    cv_vector = vectors[0]
+                elif cv_vector is not None and job_vector is None:
+                    vectors = await self.embedding_provider.embed_texts([job_text])
+                    job_vector = vectors[0]
+                else:
+                    # Single-match: embed both texts in a single batch call
+                    vectors = await self.embedding_provider.embed_texts([cv_text, job_text])
+                    cv_vector = vectors[0]
+                    job_vector = vectors[1]
+
+            sim = cosine_similarity(cv_vector, job_vector)
+            semantic_score = similarity_to_semantic_score(sim)
+
+            overall_v1 = compute_overall_match_score_v1(
+                skill_res=skill_res,
+                exp_res=exp_res,
+                edu_res=edu_res,
+                proj_res=proj_res,
+                semantic_score=semantic_score,
+            )
+            final_score = overall_v1.final_score
+            skill_score = overall_v1.skill_score
+            experience_score = overall_v1.experience_score
+            education_score = overall_v1.education_score
+            project_score = overall_v1.project_score
+
+        else:
+            raise ValueError(f"Unsupported matching algorithm variant '{self.matching_algorithm}'")
+
+        # 7. Explanation generation (LLM if requested; deterministic summary for bulk ranking)
+        llm_invoked = False
         if generate_explanation:
+            llm_invoked = True
             prompt = MATCH_EXPLANATION_USER_TEMPLATE_V1.format(
                 job_title=job.title,
-                match_score=overall.final_score,
-                skill_score=overall.skill_score,
-                experience_score=overall.experience_score,
-                education_score=overall.education_score,
+                match_score=final_score,
+                skill_score=skill_score,
+                experience_score=experience_score,
+                education_score=education_score,
                 matched_skills=", ".join(skill_res.matched_skills) or "Không có",
                 missing_skills=", ".join(skill_res.missing_skills) or "Không có",
                 experience_comparison=exp_res.comparison_text,
@@ -107,38 +206,59 @@ class MatchingService:
                 temperature=0.3,
             )
         else:
-            # Deterministic concise summary avoiding LLM inference cost during bulk ranking
-            explanation = (
-                f"Điểm phù hợp: {overall.final_score}/100 "
-                f"(Kỹ năng: {overall.skill_score:.0f}%, "
-                f"Kinh nghiệm: {overall.experience_score:.0f}%, "
-                f"Học vấn: {overall.education_score:.0f}%). "
-                f"Khớp {len(skill_res.matched_skills)} kỹ năng, "
-                f"thiếu {len(skill_res.missing_skills)} kỹ năng yêu cầu."
-            )
+            # Deterministic concise summary avoiding LLM inference cost and latency during bulk ranking
+            if self.is_v1_active:
+                explanation = (
+                    f"Điểm phù hợp: {final_score}/100 "
+                    f"(Kỹ năng: {skill_score:.0f}%, "
+                    f"Kinh nghiệm: {experience_score:.0f}%, "
+                    f"Học vấn: {education_score:.0f}%, "
+                    f"Dự án: {project_score:.0f}%, "
+                    f"Độ tương đồng ngữ nghĩa: {semantic_score:.0f}%). "
+                    f"Khớp {len(skill_res.matched_skills)} kỹ năng, "
+                    f"thiếu {len(skill_res.missing_skills)} kỹ năng yêu cầu."
+                )
+            else:
+                explanation = (
+                    f"Điểm phù hợp: {final_score}/100 "
+                    f"(Kỹ năng: {skill_score:.0f}%, "
+                    f"Kinh nghiệm: {experience_score:.0f}%, "
+                    f"Học vấn: {education_score:.0f}%). "
+                    f"Khớp {len(skill_res.matched_skills)} kỹ năng, "
+                    f"thiếu {len(skill_res.missing_skills)} kỹ năng yêu cầu."
+                )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000.0
 
         logger.info(
-            "Completed Job Matching (score=%d, matched=%d, missing=%d, llm=%s, elapsed=%.2fms)",
-            overall.final_score,
+            "Completed Job Matching (variant=%s, score=%d, matched=%d, missing=%d, llm=%s, elapsed=%.2fms)",
+            self.matching_algorithm,
+            final_score,
             len(skill_res.matched_skills),
             len(skill_res.missing_skills),
-            generate_explanation,
+            llm_invoked,
             elapsed_ms,
         )
 
+        emb_prov_name = self.embedding_provider.provider_name if self.is_v1_active and self.embedding_provider else None
+        emb_model_name = self.embedding_provider.model_name if self.is_v1_active and self.embedding_provider else None
+
         meta = ResponseMeta(
-            algorithm_version=MATCHING_ALGORITHM_VERSION,
-            prompt_version="v1" if generate_explanation else "deterministic-v0",
+            algorithm_version=self.matching_algorithm,
+            algorithm_variant=self.matching_algorithm,
+            schema_version="1.0.0",
+            prompt_version="v1" if generate_explanation else "deterministic",
             provider=self.llm.provider_name,
             model=self.llm.model_name,
+            embedding_provider=emb_prov_name,
+            embedding_model=emb_model_name,
+            llm_invoked=llm_invoked,
             processing_time_ms=round(elapsed_ms, 2),
             correlation_id=correlation_id,
         )
 
         return MatchResult(
-            match_score=overall.final_score,
+            match_score=final_score,
             matched_skills=skill_res.matched_skills,
             missing_skills=skill_res.missing_skills,
             experience_comparison=exp_res.comparison_text,
