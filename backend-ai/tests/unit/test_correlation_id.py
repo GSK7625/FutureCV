@@ -34,4 +34,3 @@ def test_sanitize_correlation_id_too_long():
     cid = sanitize_correlation_id(too_long)
     assert cid != too_long
     assert uuid.UUID(cid)
-

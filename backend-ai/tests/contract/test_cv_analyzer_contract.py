@@ -92,4 +92,3 @@ def test_cv_analysis_response_contract_fields():
     assert isinstance(dumped["improvement_suggestions"], list)
     assert "meta" in dumped
     assert dumped["meta"]["correlation_id"] == "test-cid"
-

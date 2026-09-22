@@ -1,5 +1,7 @@
 """OpenAI LLM provider adapter using httpx async client."""
 
+import asyncio
+from collections.abc import Callable, Coroutine
 import json
 from typing import Any, TypeVar
 
@@ -15,17 +17,46 @@ logger = get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+# Set of transient HTTP status codes that warrant bounded retries
+TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+
+# Permanent client error status codes that must fail immediately without retrying
+PERMANENT_ERROR_CODES = {400, 401, 403, 404}
+
 
 class OpenAiProvider(LlmPort):
-    """OpenAI API provider adapter with resilient timeouts and retries."""
+    """OpenAI API provider adapter with reusable async client, resilient timeouts, and bounded retries."""
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        http_client: httpx.AsyncClient | None = None,
+        sleep_func: Callable[[float], Coroutine[Any, Any, None]] = asyncio.sleep,
+    ) -> None:
         self.settings = settings or get_settings()
         self.api_key = self.settings.openai_api_key
         self.model = self.settings.llm_model or "gpt-4o-mini"
         self.timeout = float(self.settings.llm_timeout_seconds)
         self.max_retries = self.settings.llm_max_retries
         self.base_url = "https://api.openai.com/v1/chat/completions"
+        self._client = http_client or httpx.AsyncClient(timeout=self.timeout)
+        self._owns_client = http_client is None
+        self._sleep = sleep_func
+
+    @property
+    def provider_name(self) -> str:
+        """Return provider identifier."""
+        return "openai"
+
+    @property
+    def model_name(self) -> str:
+        """Return configured model identifier."""
+        return self.model
+
+    async def aclose(self) -> None:
+        """Close the underlying AsyncClient if owned by this provider instance."""
+        if self._owns_client and not self._client.is_closed:
+            await self._client.aclose()
 
     def _ensure_api_key(self) -> str:
         """Validate presence of OpenAI API key."""
@@ -33,8 +64,21 @@ class OpenAiProvider(LlmPort):
             raise ProviderError("OpenAI API key is not configured in environment", provider="openai")
         return self.api_key
 
+    def _calculate_backoff(self, attempt: int, response: httpx.Response | None = None) -> float:
+        """Calculate exponential backoff or honor Retry-After header."""
+        max_delay = 10.0
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    return float(min(float(retry_after), max_delay))
+                except ValueError:
+                    pass
+        # Exponential backoff: 0.5 * 2^attempt
+        return float(min(0.5 * (2**attempt), max_delay))
+
     async def _post_chat_completion(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Execute chat completion request with bounded retries."""
+        """Execute chat completion request with bounded retries for transient errors."""
         api_key = self._ensure_api_key()
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -42,43 +86,81 @@ class OpenAiProvider(LlmPort):
         }
 
         last_error: Exception | None = None
+        last_status: int | None = None
+
         for attempt in range(self.max_retries + 1):
             try:
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
-                    response = await client.post(self.base_url, headers=headers, json=payload)
+                response = await self._client.post(self.base_url, headers=headers, json=payload)
+                last_status = response.status_code
 
-                    if response.status_code == 429:
-                        raise RateLimitExceededError("OpenAI rate limit reached")
-
-                    if response.status_code >= 400:
-                        logger.warning(
-                            "OpenAI request failed (status=%d, attempt=%d/%d)",
-                            response.status_code,
-                            attempt + 1,
-                            self.max_retries + 1,
-                        )
-                        raise ProviderError(
-                            f"OpenAI service returned error status {response.status_code}",
-                            provider="openai",
-                        )
-
+                if response.is_success:
                     return response.json()  # type: ignore[no-any-return]
 
+                # Immediate failure for permanent 4xx errors
+                if response.status_code in PERMANENT_ERROR_CODES:
+                    logger.error(
+                        "Permanent error from OpenAI (status=%d): %s",
+                        response.status_code,
+                        response.text[:200],
+                    )
+                    raise ProviderError(
+                        f"OpenAI service rejected request with permanent error status {response.status_code}",
+                        provider="openai",
+                    )
+
+                # Transient errors - retry if attempts remain
+                if response.status_code in TRANSIENT_STATUS_CODES:
+                    if attempt < self.max_retries:
+                        backoff = self._calculate_backoff(attempt, response)
+                        logger.warning(
+                            "Transient OpenAI error (status=%d, attempt=%d/%d). Retrying in %.2fs...",
+                            response.status_code,
+                            attempt + 1,
+                            self.max_retries,
+                            backoff,
+                        )
+                        await self._sleep(backoff)
+                        continue
+
+                    # Exhausted retries for transient error
+                    if response.status_code == 429:
+                        raise RateLimitExceededError("OpenAI rate limit reached after retries")
+
+                    raise ProviderError(
+                        f"OpenAI service returned transient error status {response.status_code} "
+                        f"after {self.max_retries + 1} attempts",
+                        provider="openai",
+                    )
+
+                # Any other unexpected non-transient status code
+                raise ProviderError(
+                    f"OpenAI service returned unexpected status {response.status_code}",
+                    provider="openai",
+                )
+
+            except (RateLimitExceededError, ProviderError):
+                raise
             except (httpx.RequestError, httpx.TimeoutException) as exc:
                 last_error = exc
-                logger.warning(
-                    "Network error connecting to OpenAI (attempt %d/%d): %s",
-                    attempt + 1,
-                    self.max_retries + 1,
-                    exc.__class__.__name__,
-                )
-                if attempt == self.max_retries:
-                    break
+                if attempt < self.max_retries:
+                    backoff = self._calculate_backoff(attempt)
+                    logger.warning(
+                        "Network/timeout error connecting to OpenAI (attempt %d/%d, error=%s). Retrying in %.2fs...",
+                        attempt + 1,
+                        self.max_retries,
+                        exc.__class__.__name__,
+                        backoff,
+                    )
+                    await self._sleep(backoff)
+                    continue
 
         raise ProviderError(
             f"Failed to communicate with OpenAI after {self.max_retries + 1} attempts",
             provider="openai",
-            details={"last_error_type": last_error.__class__.__name__ if last_error else "Unknown"},
+            details={
+                "last_error_type": last_error.__class__.__name__ if last_error else "Unknown",
+                "last_status": last_status,
+            },
         )
 
     async def generate_text(
@@ -113,11 +195,20 @@ class OpenAiProvider(LlmPort):
         system_prompt: str | None = None,
         temperature: float = 0.1,
     ) -> T:
-        """Generate structured JSON and validate using Pydantic."""
+        """
+        Generate structured JSON and validate using Pydantic.
+
+        NOTE & ARCHITECTURAL TODO:
+        We currently use OpenAI JSON Object mode ({"type": "json_object"}) combined with strict
+        Pydantic schema validation. JSON object mode guarantees syntactically valid JSON, but
+        does NOT provide formal schema compliance guarantees by itself. Pydantic validation
+        rematory at this application boundary.
+        Evaluation of OpenAI Structured Outputs (response_format with strict json_schema)
+        should be conducted in a dedicated provider integration and benchmarking pass.
+        """
         schema_json = json.dumps(response_model.model_json_schema())
         augmented_system = (
-            (system_prompt or "")
-            + f"\nYou MUST output strictly valid JSON matching this schema:\n{schema_json}"
+            (system_prompt or "") + f"\nYou MUST output strictly valid JSON matching this schema:\n{schema_json}"
         ).strip()
 
         messages = [

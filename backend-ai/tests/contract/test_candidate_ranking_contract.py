@@ -50,4 +50,3 @@ def test_candidate_ranking_contract_fields():
     assert dumped["total_evaluated"] == 1
     assert dumped["ranked_candidates"][0]["rank"] == 1
     assert dumped["ranked_candidates"][0]["candidate_id"] == "cand-01"
-

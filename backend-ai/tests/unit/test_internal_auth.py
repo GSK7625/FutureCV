@@ -44,9 +44,8 @@ def test_verify_internal_api_key_dev_unconfigured():
 
 def test_verify_internal_api_key_prod_unconfigured_fails_closed():
     """Unconfigured key in production mode rejects with 500 configuration error."""
-    test_settings = Settings(INTERNAL_API_KEY="", ENV="production")
+    test_settings = Settings.model_construct(internal_api_key="", env="production")
     with patch("app.api.middleware.internal_auth.get_settings", return_value=test_settings):
         with pytest.raises(HTTPException) as exc_info:
             verify_internal_api_key(x_internal_api_key=None)
         assert exc_info.value.status_code == 500
-

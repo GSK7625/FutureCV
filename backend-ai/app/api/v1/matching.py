@@ -50,4 +50,3 @@ async def rank_candidates(
     Reuses the single Matching Engine under bounded concurrency, sorted descending by match score.
     """
     return await service.rank_candidates(req)
-

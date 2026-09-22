@@ -12,4 +12,3 @@ class ResponseMeta(BaseModel):
     model: str = Field(default="default", description="Model identifier used")
     processing_time_ms: float = Field(default=0.0, description="Execution time in milliseconds")
     correlation_id: str = Field(default="-", description="Distributed request correlation ID")
-

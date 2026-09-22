@@ -84,5 +84,5 @@ ignore_missing_imports = true
 # ═══════════════════════════════════════════════════════════
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests/unit", "tests/integration", "tests/contract"]
+testpaths = ["tests"]
 addopts = "-v --tb=short"

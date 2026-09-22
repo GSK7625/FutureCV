@@ -72,4 +72,3 @@ def test_match_result_contract_fields():
     assert "education_comparison" in dumped
     assert "project_domain_relevance" in dumped
     assert "match_explanation" in dumped
-

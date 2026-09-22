@@ -2,15 +2,19 @@
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.api.deps import get_cv_analyzer_service, verify_internal_api_key
+from app.api.deps import get_cv_analyzer_service, get_settings_dep, verify_internal_api_key
 from app.application.cv_analyzer import CvAnalyzerService
 from app.contracts.cv_analysis import CvAnalysisContentRequest, CvAnalysisResponse
+from app.core.config import Settings
+from app.core.exceptions import DocumentSizeLimitExceededError
 
 router = APIRouter(
     prefix="/cv",
     tags=["CV Analyzer"],
     dependencies=[Depends(verify_internal_api_key)],
 )
+
+UPLOAD_CHUNK_SIZE = 64 * 1024  # 64 KB chunks for bounded stream processing
 
 
 @router.post(
@@ -22,13 +26,15 @@ router = APIRouter(
 async def analyze_cv_file(
     file: UploadFile = File(..., description="PDF format CV file"),
     service: CvAnalyzerService = Depends(get_cv_analyzer_service),
+    settings: Settings = Depends(get_settings_dep),
 ) -> CvAnalysisResponse:
     """
     CV Analyzer pipeline:
-    1. Read and validate PDF document.
-    2. Extract text with security and size constraints.
-    3. Extract structured CV entities using LLM.
-    4. Deterministically score completeness and generate improvement advice.
+    1. Validate document format and media type.
+    2. Stream upload in bounded 64KB chunks up to max limit (prevents memory DoS).
+    3. Extract text with page and character safety constraints.
+    4. Extract structured CV entities using LLM.
+    5. Deterministically score completeness and generate qualitative improvement advice.
     """
     is_pdf_content_type = file.content_type == "application/pdf"
     is_pdf_extension = bool(file.filename and file.filename.lower().endswith(".pdf"))
@@ -39,8 +45,19 @@ async def analyze_cv_file(
             detail="Only PDF documents are supported for CV analysis",
         )
 
-    file_bytes = await file.read()
-    return await service.analyze_pdf(file_bytes)
+    # Bounded chunked reading to prevent memory exhaustion DoS
+    buffer = bytearray()
+    max_bytes = settings.max_upload_size_bytes
+
+    while chunk := await file.read(UPLOAD_CHUNK_SIZE):
+        buffer.extend(chunk)
+        if len(buffer) > max_bytes:
+            raise DocumentSizeLimitExceededError(
+                max_size_bytes=max_bytes,
+                actual_size_bytes=len(buffer),
+            )
+
+    return await service.analyze_pdf(bytes(buffer))
 
 
 @router.post(

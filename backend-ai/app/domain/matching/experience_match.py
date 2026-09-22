@@ -63,4 +63,3 @@ def calculate_experience_match(
         candidate_years=candidate_years,
         required_years=req_years,
     )
-

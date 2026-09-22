@@ -83,4 +83,3 @@ def calculate_education_match(
         score=50.0,
         comparison_text=f"Bằng cấp của ứng viên thấp hơn mức yêu cầu của vị trí ({required_education}).",
     )
-

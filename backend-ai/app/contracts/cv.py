@@ -9,7 +9,12 @@ class WorkExperienceItem(BaseModel):
     job_title: str = Field(description="Job title or role")
     company: str = Field(default="", description="Company or organization name")
     duration: str = Field(default="", description="Period or duration of employment")
-    years_of_experience: float = Field(default=0.0, description="Estimated years of experience in this role")
+    years_of_experience: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=60.0,
+        description="Estimated years of experience in this role (0 to 60)",
+    )
     description: str = Field(default="", description="Key responsibilities and achievements")
 
 
@@ -43,4 +48,3 @@ class StructuredCv(BaseModel):
     certificates: list[str] = Field(default_factory=list, description="Certifications and licenses")
     projects: list[ProjectItem] = Field(default_factory=list, description="Key projects completed")
     technologies: list[str] = Field(default_factory=list, description="Technologies and frameworks")
-
