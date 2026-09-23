@@ -86,7 +86,7 @@ export function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border-subtle bg-surface shadow-sm">
-      <div className="container-page mx-auto flex h-[72px] items-center justify-between px-margin-mobile md:px-margin-desktop">
+      <div className="flex h-[72px] w-full items-center justify-between px-margin-mobile md:px-margin-desktop">
         {/* Logo & Navigation */}
         <div className="flex items-center gap-6 lg:gap-8">
           <Link to="/" className="flex items-center">
