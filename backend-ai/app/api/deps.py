@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncIterator, Generator
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from app.api.middleware.internal_auth import verify_internal_api_key
 from app.application.career_assistant import CareerAssistantService
@@ -35,13 +35,29 @@ def get_document_parser(settings: Settings = Depends(get_settings_dep)) -> Docum
     return PyMuPdfDocumentParser(settings=settings)
 
 
-async def get_llm(settings: Settings = Depends(get_settings_dep)) -> AsyncIterator[LlmPort]:
-    """Provide configured LLM implementation with lifecycle cleanup."""
-    provider = get_llm_provider(settings=settings)
-    try:
-        yield provider
-    finally:
-        await provider.aclose()
+async def get_llm(
+    request: Request = None,  # type: ignore[assignment]
+    settings: Settings = Depends(get_settings_dep),
+) -> AsyncIterator[LlmPort]:
+    """
+    Provide configured LLM implementation.
+
+    When running within a FastAPI request context, reuses the app-scoped long-lived
+    provider on app.state (enabling connection pooling and avoiding per-request TLS handshakes).
+    Falls back to an ephemeral provider with clean lifecycle shutdown when invoked directly
+    outside of application lifespan or when settings are dynamically overridden.
+    """
+    current_settings = settings if isinstance(settings, Settings) else get_settings()
+    app_provider: LlmPort | None = getattr(request.app.state, "llm_provider", None) if request else None
+
+    if app_provider is not None and app_provider.provider_name == current_settings.llm_provider:
+        yield app_provider
+    else:
+        provider = get_llm_provider(settings=current_settings)
+        try:
+            yield provider
+        finally:
+            await provider.aclose()
 
 
 async def get_embedding_provider_dep(
@@ -62,9 +78,10 @@ async def get_embedding_provider_dep(
 def get_cv_analyzer_service(
     parser: DocumentParserPort = Depends(get_document_parser),
     llm: LlmPort = Depends(get_llm),
+    settings: Settings = Depends(get_settings_dep),
 ) -> CvAnalyzerService:
     """Provide CV Analyzer service instance."""
-    return CvAnalyzerService(parser=parser, llm=llm)
+    return CvAnalyzerService(parser=parser, llm=llm, settings=settings)
 
 
 def get_matching_service(

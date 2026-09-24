@@ -16,6 +16,23 @@ class SkillMatchResult:
     total_required_count: int = 0
 
 
+def _deduplicate_canonical_skills(skills: list[str]) -> dict[str, str]:
+    """
+    Deduplicate skills by their canonical normalized form while preserving first-seen display casing.
+
+    Returns an ordered mapping of canonical_skill -> first_seen_display_string.
+    """
+    canonical_map: dict[str, str] = {}
+    for skill in skills:
+        cleaned = skill.strip()
+        if not cleaned:
+            continue
+        canonical = normalize_skill(cleaned)
+        if canonical not in canonical_map:
+            canonical_map[canonical] = cleaned
+    return canonical_map
+
+
 def calculate_skill_match(
     candidate_skills: list[str],
     required_skills: list[str],
@@ -30,40 +47,39 @@ def calculate_skill_match(
     - CASE C (preferred only): (matched_pref / total_pref * 100)
     - CASE D (no required & no preferred skills): 100.0 (neutral criterion)
     """
-    preferred = preferred_skills or []
-    norm_candidate_skills = {normalize_skill(s): s for s in candidate_skills if s.strip()}
+    # 1. Canonical deduplication for required and preferred skills
+    req_map = _deduplicate_canonical_skills(required_skills)
+    raw_pref_map = _deduplicate_canonical_skills(preferred_skills or [])
 
+    # Disjoint: any preferred skill that canonically overlaps with required is removed
+    pref_map = {k: v for k, v in raw_pref_map.items() if k not in req_map}
+
+    # 2. Canonical deduplication for candidate skills
+    cand_canonical_set = {normalize_skill(s) for s in candidate_skills if s.strip()}
+
+    # 3. Match evaluation
     matched_skills: list[str] = []
     missing_skills: list[str] = []
 
     matched_req_count = 0
-    for req in required_skills:
-        req_clean = req.strip()
-        if not req_clean:
-            continue
-        norm_req = normalize_skill(req_clean)
-        if norm_req in norm_candidate_skills:
+    for canon, display in req_map.items():
+        if canon in cand_canonical_set:
             matched_req_count += 1
-            matched_skills.append(req_clean)
+            matched_skills.append(display)
         else:
-            missing_skills.append(req_clean)
+            missing_skills.append(display)
 
-    total_req = len([r for r in required_skills if r.strip()])
+    total_req = len(req_map)
 
     matched_pref_count = 0
-    for pref in preferred:
-        pref_clean = pref.strip()
-        if not pref_clean:
-            continue
-        norm_pref = normalize_skill(pref_clean)
-        if norm_pref in norm_candidate_skills:
+    for canon, display in pref_map.items():
+        if canon in cand_canonical_set:
             matched_pref_count += 1
-            if pref_clean not in matched_skills:
-                matched_skills.append(f"{pref_clean} (Preferred)")
+            matched_skills.append(f"{display} (Preferred)")
 
-    total_pref = len([p for p in preferred if p.strip()])
+    total_pref = len(pref_map)
 
-    # Compute score based on explicit four cases
+    # 4. Compute score based on explicit four cases
     if total_req > 0 and total_pref > 0:
         # CASE A: required (80%) + preferred (20%)
         total_skill_score = (matched_req_count / total_req * 80.0) + (matched_pref_count / total_pref * 20.0)
