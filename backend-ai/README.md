@@ -61,17 +61,19 @@ FutureCV follows a **Modular Monolith** architecture where ASP.NET Core serves a
 | Component / Subsystem | Status | Description |
 | :--- | :--- | :--- |
 | **Architecture baseline** | **READY** | Clean Hexagonal architecture with strict AST dependency gates. |
-| **Python quality gates** | **PASSED** | 100% compileall, ruff, mypy strict, and pytest pass (106 tests). |
+| **Python quality gates** | **PASSED** | 100% compileall, ruff, mypy strict, and pytest pass (146 tests). |
 | **Docker verification** | **NOT VERIFIED** | Local Docker daemon unavailable during automated checks. |
 | **Security hardening** | **READY** | Browser CORS disabled, internal API key validation, sanitized error outputs. |
 | **Input validation** | **READY** | Strict Pydantic v2 contracts (ranges, uniqueness, length limits). |
 | **PDF protection** | **READY** | 5 MB upload limit, 64KB bounded streaming, incremental char checks. |
 | **CV Analyzer baseline** | **IMPLEMENTED** | Entity extraction, structural scoring, PII redaction, qualitative merge. |
-| **Matching Engine** | **matching-v0 BASELINE** | 50/30/20 heuristic weights (engineering baseline, uncalibrated). |
-| **Candidate Ranking** | **IMPLEMENTED** | Concurrently evaluates candidates; sorts descending with zero LLM explanation calls. |
-| **Project relevance** | **INFORMATIONAL BASELINE** | Deterministic canonical technology intersection; informational baseline in `matching-v0`. |
+| **Matching Engine (v0)** | **DEFAULT BASELINE** | 50/30/20 heuristic weights (engineering baseline, uncalibrated, 0 embedding calls). |
+| **Matching Engine (v1)** | **EXPERIMENTAL** | 40/20/10/10/20 hybrid with pure domain cosine similarity (uncalibrated experimental weights). |
+| **Candidate Ranking** | **OPTIMIZED** | Concurrently evaluates candidates; Job embedded exactly once; bounded CV batching; zero LLM calls. |
+| **Project relevance** | **IMPLEMENTED** | Deterministic canonical technology intersection; informational in v0, 10% in v1. |
+| **Semantic Similarity** | **IMPLEMENTED (v1)** | Pure domain cosine similarity without external Vector DB; clamped 0-100 score mapping. |
+| **Evaluation Suite** | **READY** | 25 structured sanity test cases, comparative metrics CLI (`python -m evaluation.matching.evaluate`). |
 | **Career Assistant** | **FOUNDATION IMPLEMENTED** | PII-minimized context, strict user/assistant roles, untrusted delimiters. |
-| **Semantic Similarity** | **NOT IMPLEMENTED** | Not implemented in `matching-v0`. |
 | **Job Ranking** | **NOT IMPLEMENTED** | Not implemented in current scope. |
 | **AI calibration** | **NOT IMPLEMENTED** | Empirical tuning against labeled recruitment datasets pending. |
 | **.NET runtime integration** | **NOT IMPLEMENTED** | Python API contracts are defined, but cross-language runtime compatibility has not yet been verified because the .NET AI client/DTO integration is not implemented. |
@@ -91,16 +93,25 @@ FutureCV follows a **Modular Monolith** architecture where ASP.NET Core serves a
   - `weaknesses`: Structural gaps & specific weaknesses.
   - `improvement_suggestions`: Actionable recommendations.
 
-### 2. Matching Engine (`matching-v0`)
+### 2. Matching Engine (`matching-v0` and `matching-v1-experimental`)
 - **Input:** `StructuredCv` + `StructuredJob`.
-- **Computation:** Multi-criteria deterministic comparison:
-  - Skills match: Case A (80% req + 20% pref), Case B (100% req), Case C (100% pref), Case D (100% neutral).
-  - Experience comparison: years required vs. candidate experience.
-  - Education comparison: qualification level matching.
-  - Informational Project Relevance: normalized technology overlap.
-  - Optional LLM synthesized explanation (`generate_explanation=True`).
-- **Output:** `MatchResult` with `match_score` (0–100), skill lists, breakdown text, and `algorithm_version="matching-v0"`.
-- **Candidate Ranking:** Evaluates N candidate CVs against 1 Job using `generate_explanation=False` (zero LLM calls) under bounded semaphore concurrency, returning ranked candidates sorted descending by match score.
+- **Algorithms:**
+  - **`matching-v0` (Default Baseline):**
+    - Skill match: 50%
+    - Experience comparison: 30%
+    - Education comparison: 20%
+    - Project relevance: Informational only (0%)
+    - Embedding calls: **Zero**
+  - **`matching-v1-experimental` (Experimental Hypothesis):**
+    - Skill match: 40%
+    - Experience comparison: 20%
+    - Education comparison: 10%
+    - Project relevance: 10% (Deterministic technology match ratio)
+    - Semantic similarity: 20% (Pure Python domain cosine similarity)
+    - Total: 100% (**UNCALIBRATED EXPERIMENTAL WEIGHTS**)
+- **Provenance Metadata:** `ResponseMeta` exposes `algorithm_version="1.0.0"`, `algorithm_variant` ("matching-v0" | "matching-v1-experimental"), explanation LLM (`provider`/`model`), embedding provenance (`embedding_provider`/`embedding_model`), and `llm_invoked` boolean.
+- **Candidate Ranking:** Evaluates N candidate CVs against 1 Job under bounded concurrency with `generate_explanation=False` (guaranteeing **zero LLM calls**). In v1, the target Job semantic text is embedded **exactly once**, and candidate CVs are embedded in bounded batches.
+
 
 ### 3. Career Assistant
 - **Input:** User message + conversation history + minimized profile context.

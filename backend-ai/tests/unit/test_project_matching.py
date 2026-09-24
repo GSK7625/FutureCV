@@ -78,4 +78,3 @@ def test_project_relevance_job_without_skills():
 def test_matching_algorithm_version_is_matching_v0():
     """Verify constant MATCHING_ALGORITHM_VERSION equals 'matching-v0'."""
     assert MATCHING_ALGORITHM_VERSION == "matching-v0"
-

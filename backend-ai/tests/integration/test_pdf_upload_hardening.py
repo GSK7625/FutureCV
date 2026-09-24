@@ -56,4 +56,3 @@ def test_cv_analyze_file_upload_oversized_rejected_before_full_processing():
         assert data["error_code"] == "FILE_TOO_LARGE"
     finally:
         app.dependency_overrides.pop(get_settings_dep, None)
-

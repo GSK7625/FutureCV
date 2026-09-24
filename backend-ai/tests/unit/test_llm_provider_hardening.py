@@ -1,8 +1,5 @@
 """Unit tests for OpenAI and Mock LLM providers resilience, retries, and lifecycle."""
 
-from typing import Any
-from unittest.mock import AsyncMock
-
 import httpx
 import pytest
 
@@ -171,4 +168,3 @@ async def test_openai_network_error_retried_and_recovers():
     assert result == "Successful response"
     assert attempt_count == 2
     assert len(sleep_calls) == 1
-
