@@ -77,6 +77,76 @@ class OpenAiProvider(LlmPort):
         # Exponential backoff: 0.5 * 2^attempt
         return float(min(0.5 * (2**attempt), max_delay))
 
+    def _parse_response_json(self, response: httpx.Response) -> dict[str, Any]:
+        """
+        Safely decode and validate root JSON object from an HTTP success response.
+        Raises ProviderError if response body is invalid JSON or not a JSON object.
+        """
+        try:
+            data = response.json()
+        except (ValueError, TypeError) as exc:
+            logger.error(
+                "OpenAI returned non-JSON HTTP %d response (error_type=%s)",
+                response.status_code,
+                exc.__class__.__name__,
+            )
+            raise ProviderError(
+                "Invalid JSON in OpenAI response body",
+                provider="openai",
+            ) from exc
+
+        if not isinstance(data, dict):
+            logger.error(
+                "OpenAI returned invalid top-level JSON type: expected dict, got %s",
+                type(data).__name__,
+            )
+            raise ProviderError(
+                "Malformed OpenAI response: root payload must be a JSON object",
+                provider="openai",
+            )
+        return data
+
+    def _extract_text_content(self, data: dict[str, Any]) -> str:
+        """
+        Safely validate and extract text string from OpenAI chat completion payload.
+        Expected structure: choices[0].message.content (str)
+        """
+        choices = data.get("choices")
+        if not isinstance(choices, list) or len(choices) == 0:
+            raise ProviderError(
+                "Malformed OpenAI response: missing or empty 'choices' list",
+                provider="openai",
+            )
+
+        first_choice = choices[0]
+        if not isinstance(first_choice, dict):
+            raise ProviderError(
+                "Malformed OpenAI response: 'choices[0]' must be an object",
+                provider="openai",
+            )
+
+        message = first_choice.get("message")
+        if not isinstance(message, dict):
+            raise ProviderError(
+                "Malformed OpenAI response: missing or invalid 'message' object in choice",
+                provider="openai",
+            )
+
+        content = message.get("content")
+        if content is None:
+            raise ProviderError(
+                "Malformed OpenAI response: 'content' field is None",
+                provider="openai",
+            )
+
+        if not isinstance(content, str):
+            raise ProviderError(
+                f"Malformed OpenAI response: expected string content, got {type(content).__name__}",
+                provider="openai",
+            )
+
+        return content
+
     async def _post_chat_completion(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Execute chat completion request with bounded retries for transient errors."""
         api_key = self._ensure_api_key()
@@ -94,14 +164,13 @@ class OpenAiProvider(LlmPort):
                 last_status = response.status_code
 
                 if response.is_success:
-                    return response.json()  # type: ignore[no-any-return]
+                    return self._parse_response_json(response)
 
                 # Immediate failure for permanent 4xx errors
                 if response.status_code in PERMANENT_ERROR_CODES:
                     logger.error(
-                        "Permanent error from OpenAI (status=%d): %s",
+                        "Permanent error from OpenAI (status=%d)",
                         response.status_code,
-                        response.text[:200],
                     )
                     raise ProviderError(
                         f"OpenAI service rejected request with permanent error status {response.status_code}",
@@ -182,11 +251,8 @@ class OpenAiProvider(LlmPort):
         }
 
         data = await self._post_chat_completion(payload)
-        try:
-            content: str = data["choices"][0]["message"]["content"]
-            return content.strip()
-        except (KeyError, IndexError) as exc:
-            raise ProviderError("Malformed response structure from OpenAI", provider="openai") from exc
+        content = self._extract_text_content(data)
+        return content.strip()
 
     async def generate_structured(
         self,
@@ -202,7 +268,7 @@ class OpenAiProvider(LlmPort):
         We currently use OpenAI JSON Object mode ({"type": "json_object"}) combined with strict
         Pydantic schema validation. JSON object mode guarantees syntactically valid JSON, but
         does NOT provide formal schema compliance guarantees by itself. Pydantic validation
-        rematory at this application boundary.
+        remains mandatory at this application boundary.
         Evaluation of OpenAI Structured Outputs (response_format with strict json_schema)
         should be conducted in a dedicated provider integration and benchmarking pass.
         """
@@ -224,14 +290,35 @@ class OpenAiProvider(LlmPort):
         }
 
         data = await self._post_chat_completion(payload)
+        content = self._extract_text_content(data)
+
         try:
-            content: str = data["choices"][0]["message"]["content"]
             parsed_json = json.loads(content)
+        except (ValueError, TypeError) as exc:
+            logger.warning("Failed to decode OpenAI structured output JSON: %s", exc.__class__.__name__)
+            raise ProviderError(
+                "OpenAI response content is not valid JSON",
+                provider="openai",
+            ) from exc
+
+        if not isinstance(parsed_json, dict):
+            logger.warning(
+                "OpenAI structured output is not a JSON object: %s",
+                type(parsed_json).__name__,
+            )
+            raise ProviderError(
+                "OpenAI structured output must be a JSON object",
+                provider="openai",
+            )
+
+        try:
             return response_model.model_validate(parsed_json)
-        except (KeyError, IndexError) as exc:
-            raise ProviderError("Malformed choice structure from OpenAI", provider="openai") from exc
-        except (json.JSONDecodeError, ValidationError) as exc:
-            logger.warning("Failed to validate OpenAI output against schema: %s", exc)
+        except ValidationError as exc:
+            logger.warning(
+                "Failed to validate OpenAI output against schema %s: %d validation error(s)",
+                response_model.__name__,
+                len(exc.errors()),
+            )
             raise ProviderError(
                 "AI model generated output that does not match required contract",
                 provider="openai",

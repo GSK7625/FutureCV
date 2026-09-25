@@ -33,7 +33,7 @@ class ChatMessage(BaseModel):
 class CareerAssistantContext(BaseModel):
     """Context provided by ASP.NET Core for the Career Assistant conversation."""
 
-    candidate_id: str | None = Field(default=None, description="Candidate ID")
+    candidate_id: str | None = Field(default=None, max_length=256, description="Candidate ID")
     cv: StructuredCv | None = Field(default=None, description="Current candidate structured CV")
     job: StructuredJob | None = Field(default=None, description="Job currently being viewed or targeted")
     match_result: MatchResult | None = Field(default=None, description="Pre-computed match result if available")
