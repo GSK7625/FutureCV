@@ -30,7 +30,7 @@ def _redact_phone_match(match: re.Match[str]) -> str:
     return raw
 
 
-def sanitize_semantic_text(text: str) -> str:
+def sanitize_semantic_text(text: str | None) -> str:
     """
     Deterministically redact obvious email addresses and phone numbers from free text.
 
@@ -54,62 +54,90 @@ def build_cv_semantic_text(cv: StructuredCv) -> str:
     - cv.phone is NEVER included.
     - Any candidate identifiers are NEVER included.
 
-    INCLUDED SECTIONS:
-    - Career summary (sanitized for free-text emails/phones)
-    - Technical skills and technologies
+    INCLUDED SECTIONS (All free-text strings pass through sanitize_semantic_text):
+    - Career summary (sanitized)
+    - Technical skills and technologies (sanitized)
     - Work experience (roles, companies, duration, sanitized descriptions)
-    - Education background (degrees, institutions, fields of study)
-    - Projects (names, sanitized descriptions, technologies)
-    - Certificates
+    - Education background (degrees, institutions, fields of study - sanitized)
+    - Projects (names, sanitized descriptions, technologies - sanitized)
+    - Certificates (sanitized)
     """
     parts: list[str] = []
 
     # 1. Career summary
-    if cv.career_summary and cv.career_summary.strip():
-        parts.append(f"Tóm tắt sự nghiệp: {sanitize_semantic_text(cv.career_summary)}")
+    clean_summary = sanitize_semantic_text(cv.career_summary)
+    if clean_summary:
+        parts.append(f"Tóm tắt sự nghiệp: {clean_summary}")
 
     # 2. Skills and technologies
-    all_skills = list(dict.fromkeys(s.strip() for s in (cv.skills + cv.technologies) if s.strip()))
-    if all_skills:
-        parts.append(f"Kỹ năng chuyên môn: {', '.join(all_skills)}")
+    raw_skills = cv.skills + cv.technologies
+    sanitized_skills = list(dict.fromkeys(
+        sanitize_semantic_text(s) for s in raw_skills if s and s.strip()
+    ))
+    sanitized_skills = [s for s in sanitized_skills if s]
+    if sanitized_skills:
+        parts.append(f"Kỹ năng chuyên môn: {', '.join(sanitized_skills)}")
 
     # 3. Work experience
     if cv.work_experience:
         exp_lines: list[str] = []
         for exp in cv.work_experience:
-            line_parts = [exp.job_title.strip()]
-            if exp.company.strip():
-                line_parts.append(f"tại {exp.company.strip()}")
+            clean_title = sanitize_semantic_text(exp.job_title)
+            line_parts = [clean_title] if clean_title else []
+            clean_company = sanitize_semantic_text(exp.company)
+            if clean_company:
+                line_parts.append(f"tại {clean_company}")
             if exp.years_of_experience > 0:
                 line_parts.append(f"({exp.years_of_experience:.1f} năm)")
-            if exp.description.strip():
-                line_parts.append(f"- {sanitize_semantic_text(exp.description)}")
-            exp_lines.append(" ".join(line_parts))
-        parts.append("Kinh nghiệm làm việc:\n" + "\n".join(exp_lines))
+            clean_desc = sanitize_semantic_text(exp.description)
+            if clean_desc:
+                line_parts.append(f"- {clean_desc}")
+            if line_parts:
+                exp_lines.append(" ".join(line_parts))
+        if exp_lines:
+            parts.append("Kinh nghiệm làm việc:\n" + "\n".join(exp_lines))
 
     # 4. Education
     if cv.education:
         edu_lines: list[str] = []
         for edu in cv.education:
-            edu_parts = [edu.degree.strip()]
-            if edu.field_of_study.strip():
-                edu_parts.append(f"ngành {edu.field_of_study.strip()}")
-            if edu.institution.strip():
-                edu_parts.append(f"tại {edu.institution.strip()}")
-            edu_lines.append(" ".join(edu_parts))
-        parts.append("Học vấn: " + "; ".join(edu_lines))
+            edu_parts = []
+            clean_degree = sanitize_semantic_text(edu.degree)
+            if clean_degree:
+                edu_parts.append(clean_degree)
+            clean_field = sanitize_semantic_text(edu.field_of_study)
+            if clean_field:
+                edu_parts.append(f"ngành {clean_field}")
+            clean_inst = sanitize_semantic_text(edu.institution)
+            if clean_inst:
+                edu_parts.append(f"tại {clean_inst}")
+            if edu_parts:
+                edu_lines.append(" ".join(edu_parts))
+        if edu_lines:
+            parts.append("Học vấn: " + "; ".join(edu_lines))
 
     # 5. Projects
     if cv.projects:
         proj_lines: list[str] = []
         for proj in cv.projects:
-            p_desc = f"- {sanitize_semantic_text(proj.description)}" if proj.description.strip() else ""
-            p_tech = f"[Công nghệ: {', '.join(proj.technologies)}]" if proj.technologies else ""
-            proj_lines.append(f"{proj.name.strip()} {p_tech} {p_desc}".strip())
-        parts.append("Dự án thực tế:\n" + "\n".join(proj_lines))
+            clean_name = sanitize_semantic_text(proj.name)
+            clean_desc = (
+                f"- {sanitize_semantic_text(proj.description)}"
+                if proj.description and proj.description.strip()
+                else ""
+            )
+            clean_techs = [sanitize_semantic_text(t) for t in proj.technologies if t and t.strip()]
+            clean_techs = [t for t in clean_techs if t]
+            p_tech = f"[Công nghệ: {', '.join(clean_techs)}]" if clean_techs else ""
+            line_str = f"{clean_name} {p_tech} {clean_desc}".strip()
+            if line_str:
+                proj_lines.append(line_str)
+        if proj_lines:
+            parts.append("Dự án thực tế:\n" + "\n".join(proj_lines))
 
     # 6. Certificates
-    clean_certs = [c.strip() for c in cv.certificates if c.strip()]
+    clean_certs = [sanitize_semantic_text(c) for c in cv.certificates if c and c.strip()]
+    clean_certs = [c for c in clean_certs if c]
     if clean_certs:
         parts.append(f"Chứng chỉ: {', '.join(clean_certs)}")
 
@@ -118,24 +146,37 @@ def build_cv_semantic_text(cv: StructuredCv) -> str:
 
 def build_job_semantic_text(job: StructuredJob) -> str:
     """Construct a sanitized semantic text representation of a Job Posting."""
-    parts: list[str] = [f"Vị trí tuyển dụng: {job.title.strip()}"]
+    parts: list[str] = []
 
-    if job.description.strip():
-        parts.append(f"Mô tả công việc:\n{sanitize_semantic_text(job.description)}")
+    clean_title = sanitize_semantic_text(job.title)
+    if clean_title:
+        parts.append(f"Vị trí tuyển dụng: {clean_title}")
+
+    clean_desc = sanitize_semantic_text(job.description)
+    if clean_desc:
+        parts.append(f"Mô tả công việc:\n{clean_desc}")
 
     if job.required_skills:
-        parts.append(f"Kỹ năng bắt buộc: {', '.join(s.strip() for s in job.required_skills if s.strip())}")
+        clean_req = [sanitize_semantic_text(s) for s in job.required_skills if s and s.strip()]
+        clean_req = [s for s in clean_req if s]
+        if clean_req:
+            parts.append(f"Kỹ năng bắt buộc: {', '.join(clean_req)}")
 
     if job.preferred_skills:
-        parts.append(f"Kỹ năng ưu tiên: {', '.join(s.strip() for s in job.preferred_skills if s.strip())}")
+        clean_pref = [sanitize_semantic_text(s) for s in job.preferred_skills if s and s.strip()]
+        clean_pref = [s for s in clean_pref if s]
+        if clean_pref:
+            parts.append(f"Kỹ năng ưu tiên: {', '.join(clean_pref)}")
 
     if job.minimum_experience_years is not None and job.minimum_experience_years > 0:
         parts.append(f"Yêu cầu kinh nghiệm tối thiểu: {job.minimum_experience_years:.1f} năm")
 
-    if job.education_requirement and job.education_requirement.strip():
-        parts.append(f"Yêu cầu học vấn: {job.education_requirement.strip()}")
+    clean_edu = sanitize_semantic_text(job.education_requirement)
+    if clean_edu:
+        parts.append(f"Yêu cầu học vấn: {clean_edu}")
 
-    if job.employment_type and job.employment_type.strip():
-        parts.append(f"Hình thức làm việc: {job.employment_type.strip()}")
+    clean_emp = sanitize_semantic_text(job.employment_type)
+    if clean_emp:
+        parts.append(f"Hình thức làm việc: {clean_emp}")
 
     return "\n\n".join(parts)

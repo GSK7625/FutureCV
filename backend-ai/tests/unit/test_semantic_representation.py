@@ -101,3 +101,102 @@ def test_build_job_semantic_text_structure_and_sanitization():
     assert "0944556677" not in text
     assert "[EMAIL_REDACTED]" in text
     assert "[PHONE_REDACTED]" in text
+
+
+def test_comprehensive_pii_sanitization_across_all_field_categories():
+    """
+    CRITICAL PROOF (FIX F): Email/phone values in EVERY major included semantic field
+    are deterministically redacted, and dedicated identity fields are omitted entirely.
+    """
+    from app.contracts.cv import EducationItem
+
+    cv = StructuredCv(
+        candidate_id="cand-secret-uuid-9999",
+        full_name="Secret Candidate Name",
+        email="identity.leak@secret.com",
+        phone="+84 999 888 777",
+        career_summary="Summary text contact career@test.com or 0901111222",
+        skills=["Python skill@test.com"],
+        technologies=["FastAPI tech@test.com"],
+        certificates=["AWS cert@test.com"],
+        work_experience=[
+            WorkExperienceItem(
+                job_title="Lead title@test.com",
+                company="Company company@test.com 0902222333",
+                description="Work description desc@test.com 0903333444",
+                years_of_experience=3.0,
+            )
+        ],
+        education=[
+            EducationItem(
+                degree="Degree degree@test.com",
+                field_of_study="Computer Science cs@test.com",
+                institution="Tech University univ@test.com 0904444555",
+            )
+        ],
+        projects=[
+            ProjectItem(
+                name="Project name proj@test.com",
+                description="Project description pdesc@test.com 0905555666",
+                technologies=["React ptech@test.com"],
+            )
+        ],
+    )
+
+    cv_text = build_cv_semantic_text(cv)
+
+    # Verify dedicated identity fields are strictly omitted
+    assert "cand-secret-uuid-9999" not in cv_text
+    assert "Secret Candidate Name" not in cv_text
+    assert "identity.leak@secret.com" not in cv_text
+    assert "+84 999 888 777" not in cv_text
+
+    # Verify all raw emails in all CV fields are redacted
+    for email in [
+        "career@test.com",
+        "skill@test.com",
+        "tech@test.com",
+        "cert@test.com",
+        "title@test.com",
+        "company@test.com",
+        "desc@test.com",
+        "degree@test.com",
+        "cs@test.com",
+        "univ@test.com",
+        "proj@test.com",
+        "pdesc@test.com",
+        "ptech@test.com",
+    ]:
+        assert email not in cv_text
+
+    # Verify all raw phones in all CV fields are redacted
+    for phone in ["0901111222", "0902222333", "0903333444", "0904444555", "0905555666"]:
+        assert phone not in cv_text
+
+    # Test Job Posting
+    job = StructuredJob(
+        title="Lead Backend title@job.com",
+        description="JD description desc@job.com or call 0906666777",
+        required_skills=["Python req@job.com"],
+        preferred_skills=["Docker pref@job.com"],
+        education_requirement="Master edu@job.com",
+        employment_type="Full-time emp@job.com 0907777888",
+    )
+
+    job_text = build_job_semantic_text(job)
+
+    # Verify all raw emails in all Job fields are redacted
+    for email in [
+        "title@job.com",
+        "desc@job.com",
+        "req@job.com",
+        "pref@job.com",
+        "edu@job.com",
+        "emp@job.com",
+    ]:
+        assert email not in job_text
+
+    # Verify all raw phones in all Job fields are redacted
+    for phone in ["0906666777", "0907777888"]:
+        assert phone not in job_text
+

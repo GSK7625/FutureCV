@@ -74,6 +74,143 @@ class OpenAiEmbeddingProvider(EmbeddingPort):
         # Exponential backoff: 0.5 * 2^attempt
         return float(min(0.5 * (2**attempt), max_delay))
 
+    def _parse_response_json(self, response: httpx.Response) -> dict[str, Any]:
+        """
+        Safely decode and validate root JSON object from an HTTP success response.
+        Raises ProviderError if response body is invalid JSON or not a JSON object.
+        """
+        try:
+            data = response.json()
+        except (ValueError, TypeError) as exc:
+            logger.error(
+                "OpenAI Embeddings returned non-JSON HTTP %d response (error_type=%s)",
+                response.status_code,
+                exc.__class__.__name__,
+            )
+            raise ProviderError(
+                "Invalid JSON in OpenAI Embeddings response body",
+                provider="openai",
+            ) from exc
+
+        if not isinstance(data, dict):
+            logger.error(
+                "OpenAI Embeddings returned invalid top-level JSON type: expected dict, got %s",
+                type(data).__name__,
+            )
+            raise ProviderError(
+                "Malformed OpenAI embeddings response: root payload must be a JSON object",
+                provider="openai",
+            )
+        return data
+
+    def _extract_embedding_vectors(self, data: dict[str, Any], expected_count: int) -> list[list[float]]:
+        """
+        Safely validate and extract embedding vectors from OpenAI API payload.
+
+        Validates:
+        - Root 'data' field is a list with exact expected item count.
+        - Each item is an object containing integer 'index' and list 'embedding'.
+        - Index sequence integrity: sorted indices must strictly equal [0, 1, ..., expected_count-1].
+          Rejects duplicate, missing, negative, gapped, or out-of-range indices.
+        - Dimension consistency: every vector has identical non-zero dimensionality.
+        - All elements are finite numbers (rejects non-numeric, NaN, +/-Inf).
+        """
+        raw_data = data.get("data")
+        if not isinstance(raw_data, list):
+            raise ProviderError(
+                "Malformed response structure from OpenAI Embeddings API: missing or non-list 'data' field",
+                provider="openai",
+            )
+
+        if len(raw_data) != expected_count:
+            raise ProviderError(
+                f"Malformed response structure from OpenAI Embeddings API: "
+                f"returned {len(raw_data)} embeddings for {expected_count} input texts",
+                provider="openai",
+            )
+
+        # Validate item types and index attributes before sorting
+        for pos, item in enumerate(raw_data):
+            if not isinstance(item, dict):
+                raise ProviderError(
+                    f"Malformed response structure from OpenAI Embeddings API: item at position {pos} is not an object",
+                    provider="openai",
+                )
+            if "index" not in item:
+                raise ProviderError(
+                    f"Malformed response structure from OpenAI Embeddings API: "
+                    f"missing 'index' field in item at position {pos}",
+                    provider="openai",
+                )
+            idx_val = item["index"]
+            if isinstance(idx_val, bool) or not isinstance(idx_val, int):
+                raise ProviderError(
+                    f"Malformed response structure from OpenAI Embeddings API: "
+                    f"non-integer 'index' ({idx_val!r}) in item",
+                    provider="openai",
+                )
+            if "embedding" not in item:
+                raise ProviderError(
+                    f"Malformed response structure from OpenAI Embeddings API: "
+                    f"missing 'embedding' field in item {idx_val}",
+                    provider="openai",
+                )
+
+        # Sort items by index to guarantee exact input ordering
+        sorted_items = sorted(raw_data, key=lambda item: int(item["index"]))
+
+        # Strict index integrity check (FIX D)
+        actual_indices = [item["index"] for item in sorted_items]
+        expected_indices = list(range(expected_count))
+        if actual_indices != expected_indices:
+            raise ProviderError(
+                f"Malformed response structure from OpenAI Embeddings API: "
+                f"invalid index sequence (got {actual_indices}, expected {expected_indices})",
+                provider="openai",
+            )
+
+        # Dimension and finite numeric validation (FIX C, E)
+        vectors: list[list[float]] = []
+        expected_dimension: int | None = None
+
+        for item in sorted_items:
+            vec = item.get("embedding")
+            if not isinstance(vec, list) or len(vec) == 0:
+                raise ProviderError(
+                    "Malformed response structure from OpenAI Embeddings API: empty or non-list 'embedding' vector",
+                    provider="openai",
+                )
+
+            if expected_dimension is None:
+                expected_dimension = len(vec)
+                if expected_dimension == 0:
+                    raise ProviderError(
+                        "Malformed response structure from OpenAI Embeddings API: zero-dimension embedding vector",
+                        provider="openai",
+                    )
+            elif len(vec) != expected_dimension:
+                raise ProviderError(
+                    f"Malformed response structure from OpenAI Embeddings API: "
+                    f"inconsistent vector dimension (expected {expected_dimension}, got {len(vec)})",
+                    provider="openai",
+                )
+
+            float_vec: list[float] = []
+            for val in vec:
+                if isinstance(val, bool) or not isinstance(val, (int, float)):
+                    raise ProviderError(
+                        "Malformed response structure from OpenAI Embeddings API: vector contains non-numeric value",
+                        provider="openai",
+                    )
+                f_val = float(val)
+                if math.isnan(f_val) or math.isinf(f_val):
+                    raise ProviderError("OpenAI embedding vector contains NaN or Inf values", provider="openai")
+                float_vec.append(f_val)
+
+            vectors.append(float_vec)
+
+        return vectors
+
     async def _post_embeddings(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Execute embeddings request with bounded retries for transient errors."""
         api_key = self._ensure_api_key()
@@ -91,14 +228,13 @@ class OpenAiEmbeddingProvider(EmbeddingPort):
                 last_status = response.status_code
 
                 if response.is_success:
-                    return response.json()  # type: ignore[no-any-return]
+                    return self._parse_response_json(response)
 
                 # Immediate failure for permanent 4xx errors
                 if response.status_code in PERMANENT_ERROR_CODES:
                     logger.error(
-                        "Permanent error from OpenAI Embeddings (status=%d): %s",
+                        "Permanent error from OpenAI Embeddings (status=%d)",
                         response.status_code,
-                        response.text[:200],
                     )
                     raise ProviderError(
                         f"OpenAI service rejected embedding request with status {response.status_code}",
@@ -175,34 +311,4 @@ class OpenAiEmbeddingProvider(EmbeddingPort):
         logger.info("Requesting embeddings from OpenAI (count=%d, model=%s)", len(texts), self.model)
 
         data = await self._post_embeddings(payload)
-
-        try:
-            raw_data = data["data"]
-            if not isinstance(raw_data, list) or len(raw_data) != len(texts):
-                raise ProviderError(
-                    f"OpenAI returned {len(raw_data) if isinstance(raw_data, list) else 0} embeddings "
-                    f"for {len(texts)} input texts",
-                    provider="openai",
-                )
-
-            # Sort by index to guarantee ordering matches input texts
-            sorted_items = sorted(raw_data, key=lambda item: int(item["index"]))
-
-            vectors: list[list[float]] = []
-            for item in sorted_items:
-                vec = item["embedding"]
-                if not isinstance(vec, list) or not vec:
-                    raise ProviderError("OpenAI returned an empty or malformed embedding vector", provider="openai")
-                # Validate all elements are finite floats
-                float_vec = [float(x) for x in vec]
-                if any(math.isnan(x) or math.isinf(x) for x in float_vec):
-                    raise ProviderError("OpenAI embedding vector contains NaN or Inf values", provider="openai")
-                vectors.append(float_vec)
-
-            return vectors
-
-        except (KeyError, ValueError, TypeError) as exc:
-            raise ProviderError(
-                "Malformed response structure from OpenAI Embeddings API",
-                provider="openai",
-            ) from exc
+        return self._extract_embedding_vectors(data, expected_count=len(texts))

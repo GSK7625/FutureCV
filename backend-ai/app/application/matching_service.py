@@ -10,7 +10,7 @@ from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.job import StructuredJob
 from app.contracts.matching import MatchResult
-from app.core.exceptions import ProviderError
+from app.core.exceptions import ProviderError, RateLimitExceededError
 from app.domain.matching.education_match import calculate_education_match
 from app.domain.matching.experience_match import (
     calculate_experience_match,
@@ -187,8 +187,10 @@ class MatchingService:
         else:
             raise ValueError(f"Unsupported matching algorithm variant '{self.matching_algorithm}'")
 
-        # 7. Explanation generation (LLM if requested; deterministic summary for bulk ranking)
+        # 7. Explanation generation (LLM if requested with deterministic fallback on ProviderError;
+        # deterministic summary for bulk ranking)
         llm_invoked = False
+        explanation_mode: str = "deterministic"
         if generate_explanation:
             llm_invoked = True
             prompt = MATCH_EXPLANATION_USER_TEMPLATE_V1.format(
@@ -203,11 +205,40 @@ class MatchingService:
                 education_comparison=edu_res.comparison_text,
             )
 
-            explanation = await self.llm.generate_text(
-                prompt=prompt,
-                system_prompt=MATCH_EXPLANATION_SYSTEM_PROMPT_V1,
-                temperature=0.3,
-            )
+            try:
+                explanation = await self.llm.generate_text(
+                    prompt=prompt,
+                    system_prompt=MATCH_EXPLANATION_SYSTEM_PROMPT_V1,
+                    temperature=0.3,
+                )
+                explanation_mode = "llm"
+            except (ProviderError, RateLimitExceededError) as exc:
+                logger.warning(
+                    "LLM explanation failed with %s (%s). Falling back to deterministic explanation.",
+                    exc.__class__.__name__,
+                    exc,
+                )
+                if self.is_v1_active:
+                    explanation = (
+                        f"Điểm phù hợp: {final_score}/100 "
+                        f"(Kỹ năng: {skill_score:.0f}%, "
+                        f"Kinh nghiệm: {experience_score:.0f}%, "
+                        f"Học vấn: {education_score:.0f}%, "
+                        f"Dự án: {project_score:.0f}%, "
+                        f"Độ tương đồng ngữ nghĩa: {semantic_score:.0f}%). "
+                        f"Khớp {len(skill_res.matched_skills)} kỹ năng, "
+                        f"thiếu {len(skill_res.missing_skills)} kỹ năng yêu cầu."
+                    )
+                else:
+                    explanation = (
+                        f"Điểm phù hợp: {final_score}/100 "
+                        f"(Kỹ năng: {skill_score:.0f}%, "
+                        f"Kinh nghiệm: {experience_score:.0f}%, "
+                        f"Học vấn: {education_score:.0f}%). "
+                        f"Khớp {len(skill_res.matched_skills)} kỹ năng, "
+                        f"thiếu {len(skill_res.missing_skills)} kỹ năng yêu cầu."
+                    )
+                explanation_mode = "deterministic-fallback"
         else:
             # Deterministic concise summary avoiding LLM inference cost and latency during bulk ranking
             if self.is_v1_active:
@@ -230,16 +261,18 @@ class MatchingService:
                     f"Khớp {len(skill_res.matched_skills)} kỹ năng, "
                     f"thiếu {len(skill_res.missing_skills)} kỹ năng yêu cầu."
                 )
+            explanation_mode = "deterministic"
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000.0
 
         logger.info(
-            "Completed Job Matching (variant=%s, score=%d, matched=%d, missing=%d, llm=%s, elapsed=%.2fms)",
+            "Completed Job Matching (variant=%s, score=%d, matched=%d, missing=%d, llm=%s, mode=%s, elapsed=%.2fms)",
             self.matching_algorithm,
             final_score,
             len(skill_res.matched_skills),
             len(skill_res.missing_skills),
             llm_invoked,
+            explanation_mode,
             elapsed_ms,
         )
 
@@ -256,6 +289,7 @@ class MatchingService:
             embedding_provider=emb_prov_name,
             embedding_model=emb_model_name,
             llm_invoked=llm_invoked,
+            explanation_mode=explanation_mode,  # type: ignore[arg-type]
             processing_time_ms=round(elapsed_ms, 2),
             correlation_id=correlation_id,
         )

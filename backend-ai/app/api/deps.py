@@ -13,7 +13,7 @@ from app.core.config import Settings, get_settings
 from app.domain.matching.scoring import MATCHING_V1_ALGORITHM_VERSION
 from app.infrastructure.documents.pdf_parser import PyMuPdfDocumentParser
 from app.infrastructure.embeddings.factory import get_embedding_provider
-from app.infrastructure.llm.factory import get_llm_provider
+from app.infrastructure.llm.factory import get_llm_provider, get_llm_settings_fingerprint
 from app.observability.logging import correlation_id_ctx
 from app.ports.document_parser import DocumentParserPort
 from app.ports.embeddings import EmbeddingPort
@@ -43,14 +43,19 @@ async def get_llm(
     Provide configured LLM implementation.
 
     When running within a FastAPI request context, reuses the app-scoped long-lived
-    provider on app.state (enabling connection pooling and avoiding per-request TLS handshakes).
+    provider on app.state (enabling connection pooling and avoiding per-request TLS handshakes)
+    ONLY IF the effective LLM configuration fingerprint matches the app-scoped provider.
     Falls back to an ephemeral provider with clean lifecycle shutdown when invoked directly
     outside of application lifespan or when settings are dynamically overridden.
     """
     current_settings = settings if isinstance(settings, Settings) else get_settings()
-    app_provider: LlmPort | None = getattr(request.app.state, "llm_provider", None) if request else None
+    app = getattr(request, "app", None) if request else None
+    app_state = getattr(app, "state", None) if app else None
+    app_provider: LlmPort | None = getattr(app_state, "llm_provider", None) if app_state else None
+    app_fingerprint = getattr(app_state, "llm_provider_fingerprint", None) if app_state else None
+    current_fingerprint = get_llm_settings_fingerprint(current_settings)
 
-    if app_provider is not None and app_provider.provider_name == current_settings.llm_provider:
+    if app_provider is not None and app_fingerprint == current_fingerprint:
         yield app_provider
     else:
         provider = get_llm_provider(settings=current_settings)

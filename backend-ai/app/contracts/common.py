@@ -1,6 +1,8 @@
-"""Common contract metadata and shared DTO structures."""
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+ExplanationMode = Literal["llm", "deterministic", "deterministic-fallback"]
 
 
 class ResponseMeta(BaseModel):
@@ -21,7 +23,10 @@ class ResponseMeta(BaseModel):
     prompt_version: str = Field(default="v1", description="Prompt template version")
     provider: str = Field(
         default="mock",
-        description="Configured AI/LLM provider (e.g. 'mock', 'openai'). See llm_invoked to check if LLM was actually called.",
+        description=(
+            "Configured AI/LLM provider (e.g. 'mock', 'openai'). "
+            "See llm_invoked to check if LLM was actually called."
+        ),
     )
     model: str = Field(
         default="default",
@@ -37,7 +42,17 @@ class ResponseMeta(BaseModel):
     )
     llm_invoked: bool | None = Field(
         default=None,
-        description="Indicates whether an LLM was actively invoked for this response. None indicates undeclared by service.",
+        description=(
+            "Indicates whether an LLM was actively invoked for this response. "
+            "None indicates undeclared by service."
+        ),
+    )
+    explanation_mode: ExplanationMode | None = Field(
+        default=None,
+        description=(
+            "Provenance of match explanation: 'llm', 'deterministic', or 'deterministic-fallback'. "
+            "None indicates undeclared by service."
+        ),
     )
     processing_time_ms: float = Field(default=0.0, description="Execution time in milliseconds")
     correlation_id: str = Field(default="-", description="Distributed request correlation ID")
