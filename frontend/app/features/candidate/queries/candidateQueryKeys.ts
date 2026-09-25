@@ -5,6 +5,10 @@ export const candidateQueryKeys = {
     detail: (id: string) => ["candidate", "jobs", "detail", id] as const,
     masterData: ["candidate", "jobs", "master-data"] as const,
   },
+  savedJobs: {
+    all: ["candidate", "saved-jobs"] as const,
+    list: (page: number) => ["candidate", "saved-jobs", "list", page] as const,
+  },
   applications: {
     all: ["candidate", "applications"] as const,
   },

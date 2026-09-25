@@ -178,3 +178,51 @@ export interface ApplicationDto {
   coverLetter?: string;
   cvFileName?: string;
 }
+
+// -----------------------------------------------------------------------------
+// Saved Jobs (P3-UC04) — map SavedJobResponse từ /api/candidate/saved-jobs
+// -----------------------------------------------------------------------------
+
+export interface ApiSavedJob {
+  jobId: string;
+  title: string;
+  companyId: string;
+  companyName: string;
+  companyLogoUrl?: string | null;
+  locationName?: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string;
+  deadline?: string | null;
+  isActive: boolean;
+  isExpired: boolean;
+  savedAt: string;
+}
+
+/**
+ * Model hiển thị cho hàng "Việc làm đã lưu".
+ * salaryMin/salaryMax đã quy đổi sang TRIỆU ( khớp Job để dùng lại formatSalary).
+ */
+export interface SavedJob {
+  jobId: string;
+  title: string;
+  company: string;
+  companyLogo?: string;
+  location: string;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  deadline?: string;
+  isActive: boolean;
+  isExpired: boolean;
+  savedAt: string;
+}
+
+export interface SavedJobsResult {
+  items: SavedJob[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
