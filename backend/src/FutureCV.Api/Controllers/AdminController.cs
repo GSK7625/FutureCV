@@ -2,6 +2,8 @@ using FutureCV.Application.Common.Models;
 using FutureCV.Application.Features.Admin.DTOs;
 using FutureCV.Application.Features.Admin.Interfaces;
 using FutureCV.Application.Features.Employer.DTOs;
+using FutureCV.Application.Features.Job.DTOs;
+using FutureCV.Application.Features.Job.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +14,12 @@ namespace FutureCV.Api.Controllers;
 public class AdminController : ApiControllerBase
 {
     private readonly IAdminService _adminService;
+    private readonly IJobService _jobService;
 
-    public AdminController(IAdminService adminService)
+    public AdminController(IAdminService adminService, IJobService jobService)
     {
         _adminService = adminService;
+        _jobService = jobService;
     }
 
     // -------------------------------------------------------------------------
@@ -94,6 +98,29 @@ public class AdminController : ApiControllerBase
         [FromQuery] AuditLogQueryFilter filter, CancellationToken cancellationToken)
     {
         var result = await _adminService.GetAuditLogsAsync(filter, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Job Moderation
+    // -------------------------------------------------------------------------
+
+    [HttpGet("jobs")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<JobListResponse>))]
+    public async Task<IActionResult> GetJobs(
+        [FromQuery] AdminJobFilterRequest filter, CancellationToken cancellationToken)
+    {
+        var result = await _jobService.GetAdminJobsAsync(filter, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPatch("jobs/{id:guid}/approval")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ModerateJob(
+        Guid id, [FromBody] ApproveJobRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _jobService.ModerateJobAsync(GetCurrentUserId(), id, request, cancellationToken);
         return ToHttpResult(result);
     }
 }

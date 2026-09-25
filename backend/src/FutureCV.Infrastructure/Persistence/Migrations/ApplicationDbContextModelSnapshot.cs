@@ -472,6 +472,31 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.ToTable("Employers");
                 });
 
+            modelBuilder.Entity("FutureCV.Domain.Entities.EmploymentType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("EmploymentTypes", (string)null);
+                });
+
             modelBuilder.Entity("FutureCV.Domain.Entities.Experience", b =>
                 {
                     b.Property<Guid>("Id")
@@ -516,6 +541,240 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.HasIndex("CandidateId");
 
                     b.ToTable("Experiences", (string)null);
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.Job", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Draft");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedByAdminId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Benefits")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("Deadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("EmploymentTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ExperienceYearsMax")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ExperienceYearsMin")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsExpired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid?>("LevelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PositionsCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<Guid>("PostedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Requirements")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SalaryCurrency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("VND");
+
+                    b.Property<int?>("SalaryMax")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SalaryMin")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ViewCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByAdminId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("EmploymentTypeId");
+
+                    b.HasIndex("LevelId");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("PostedById");
+
+                    b.HasIndex("ApprovalStatus", "IsActive");
+
+                    b.ToTable("Jobs", (string)null);
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("Name", "ParentId")
+                        .IsUnique();
+
+                    b.ToTable("JobCategories", (string)null);
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobLevel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("JobLevels", (string)null);
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobSkill", b =>
+                {
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.HasKey("JobId", "SkillId");
+
+                    b.HasIndex("SkillId");
+
+                    b.ToTable("JobSkills", (string)null);
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.Location", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("Name", "ParentId")
+                        .IsUnique();
+
+                    b.ToTable("Locations", (string)null);
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.Project", b =>
@@ -951,6 +1210,95 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("Candidate");
                 });
 
+            modelBuilder.Entity("FutureCV.Domain.Entities.Job", b =>
+                {
+                    b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedByAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FutureCV.Domain.Entities.JobCategory", "Category")
+                        .WithMany("Jobs")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FutureCV.Domain.Entities.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FutureCV.Domain.Entities.EmploymentType", "EmploymentType")
+                        .WithMany("Jobs")
+                        .HasForeignKey("EmploymentTypeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FutureCV.Domain.Entities.JobLevel", "Level")
+                        .WithMany("Jobs")
+                        .HasForeignKey("LevelId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FutureCV.Domain.Entities.Location", "Location")
+                        .WithMany("Jobs")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FutureCV.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("PostedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("EmploymentType");
+
+                    b.Navigation("Level");
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobCategory", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.JobCategory", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobSkill", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.Job", "Job")
+                        .WithMany("JobSkills")
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FutureCV.Domain.Entities.Skill", "Skill")
+                        .WithMany()
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Job");
+
+                    b.Navigation("Skill");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.Location", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.Location", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("FutureCV.Domain.Entities.Project", b =>
                 {
                     b.HasOne("FutureCV.Domain.Entities.Candidate", "Candidate")
@@ -1047,6 +1395,35 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("FutureCV.Domain.Entities.CandidateCv", b =>
                 {
                     b.Navigation("CvParser");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.EmploymentType", b =>
+                {
+                    b.Navigation("Jobs");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.Job", b =>
+                {
+                    b.Navigation("JobSkills");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobCategory", b =>
+                {
+                    b.Navigation("Children");
+
+                    b.Navigation("Jobs");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.JobLevel", b =>
+                {
+                    b.Navigation("Jobs");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.Location", b =>
+                {
+                    b.Navigation("Children");
+
+                    b.Navigation("Jobs");
                 });
 #pragma warning restore 612, 618
         }

@@ -23,6 +23,13 @@ public interface IApplicationDbContext
     DbSet<Project> Projects { get; }
     DbSet<AuditLog> AuditLogs { get; }
 
+    DbSet<Location> Locations { get; }
+    DbSet<JobCategory> JobCategories { get; }
+    DbSet<JobLevel> JobLevels { get; }
+    DbSet<EmploymentType> EmploymentTypes { get; }
+    DbSet<Job> Jobs { get; }
+    DbSet<JobSkill> JobSkills { get; }
+
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
