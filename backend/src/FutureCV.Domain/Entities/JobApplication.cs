@@ -1,4 +1,5 @@
 using FutureCV.Domain.Common;
+using FutureCV.Domain.Enums;
 
 namespace FutureCV.Domain.Entities;
 
@@ -8,7 +9,7 @@ public class JobApplication : BaseEntity
     public Guid JobId { get; set; }
     public Guid CvId { get; set; }
     public string? CoverLetter { get; set; }
-    public string Status { get; set; } = "Applied";
+    public ApplicationStatus Status { get; set; } = ApplicationStatus.Applied;
     public DateTime AppliedAt { get; set; } = DateTime.UtcNow;
 
     // Recruiter internal evaluation (P4-UC05)

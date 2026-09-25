@@ -16,6 +16,8 @@ export default [
   // ── Auth Routes (Đăng nhập, Đăng ký, Quên mật khẩu) ─────
   layout("layouts/AuthLayout.tsx", [
     route("login", "routes/auth/login.tsx"),
+    route("login-employer", "routes/auth/login-employer.tsx"),
+    route("login-admin", "routes/auth/login-admin.tsx"),
     route("register", "routes/auth/register.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
   ]),

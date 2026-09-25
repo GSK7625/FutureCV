@@ -114,12 +114,20 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-5 text-center text-label-sm text-ink-variant">
-        Bạn chưa có tài khoản?{" "}
-        <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
-          Đăng ký ngay
-        </Link>
-      </p>
+      <div className="mt-5 space-y-3 text-center text-label-sm">
+        <p className="text-ink-variant">
+          Bạn chưa có tài khoản?{" "}
+          <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
+            Đăng ký ngay
+          </Link>
+        </p>
+        <p className="text-ink-muted">
+          Bạn là nhà tuyển dụng?{" "}
+          <Link to="/login-employer" className="font-semibold text-navy hover:underline">
+            Đăng nhập nhà tuyển dụng
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
