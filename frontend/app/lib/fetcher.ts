@@ -1,5 +1,6 @@
 import { useAuthStore } from "~/stores/useAuthStore";
 import { prepareRequestBody } from "./requestBody";
+import { readApiError, readApiResponse } from "./apiResponse";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -22,20 +23,7 @@ export interface FetchOptions extends Omit<RequestInit, "body"> {
   auth?: boolean;
   /** Mặc định 15s. Truyền Infinity để tắt. */
   timeoutMs?: number;
-}
-
-async function parseErrorMessage(response: Response): Promise<string> {
-  try {
-    const data = await response.json();
-    if (data?.message) return data.message;
-    if (data?.errors) {
-      const first = Object.values(data.errors).flat()[0];
-      if (typeof first === "string") return first;
-    }
-  } catch {
-    // Body không phải JSON -> dùng message mặc định
-  }
-  return `Yêu cầu thất bại (${response.status})`;
+  responseType?: "json" | "blob";
 }
 
 async function requestOnce<T>(
@@ -43,7 +31,7 @@ async function requestOnce<T>(
   options: FetchOptions,
   externalSignal?: AbortSignal,
 ): Promise<T> {
-  const { body, auth = false, headers, timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...rest } = options;
+  const { body, auth = false, headers, timeoutMs = DEFAULT_TIMEOUT_MS, responseType = "json", signal, ...rest } = options;
   const preparedBody = prepareRequestBody(body);
 
   const targetSignal: AbortSignal | undefined = externalSignal ?? (signal ?? undefined);
@@ -69,6 +57,7 @@ async function requestOnce<T>(
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
+      credentials: "include",
       ...rest,
       signal: compositeSignal,
       headers: requestHeaders,
@@ -84,10 +73,9 @@ async function requestOnce<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(await parseErrorMessage(response), response.status);
+    throw new ApiError(await readApiError(response), response.status);
   }
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  return (await readApiResponse(response, responseType)) as T;
 }
 
 export async function fetcher<T>(path: string, options: FetchOptions = {}): Promise<T> {

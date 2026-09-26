@@ -6,7 +6,7 @@ import { requireAuth } from "./requireAuth";
 export function requireRole(roles: Role[]): { user: NonNullable<ReturnType<typeof useAuthStore.getState>["user"]> } | never {
   const { user } = requireAuth();
   if (!roles.includes(user.role)) {
-    throw redirect("/");
+    throw redirect(user.role === "employer" ? "/hr" : "/");
   }
   return { user };
 }
