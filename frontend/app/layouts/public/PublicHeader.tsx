@@ -20,6 +20,9 @@ import { useAuthStore } from "~/stores/useAuthStore";
 import { JobMegaMenu } from "./JobMegaMenu";
 import { CvMegaMenu } from "./CvMegaMenu";
 import { MobileNavDrawer } from "./MobileNavDrawer";
+import { CandidateProfileMenu } from "~/features/candidate/components/CandidateProfileMenu";
+import { authService } from "~/features/auth/services/authService";
+import { queryClient } from "~/lib/queryClient";
 
 export function PublicHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,9 +36,18 @@ export function PublicHeader() {
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
     setMobileOpen(false);
+    const { refreshToken } = useAuthStore.getState();
+    if (refreshToken) {
+      try {
+        await authService().logout(refreshToken);
+      } catch {
+        // Revoke best-effort
+      }
+    }
+    logout();
+    queryClient.removeQueries({ type: "all" });
     navigate("/");
   };
 
@@ -153,16 +165,20 @@ export function PublicHeader() {
               >
                 <IconBell size={22} stroke={1.6} />
               </button>
-              <div className="flex items-center gap-3">
-                <Avatar name={user.fullName || user.email || "U"} size="md" />
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="text-label text-ink-variant transition-colors hover:text-navy"
-                >
-                  Đăng xuất
-                </button>
-              </div>
+              {user.role === "candidate" ? (
+                <CandidateProfileMenu variant="light" />
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Avatar name={user.fullName || user.email || "U"} size="md" />
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="text-label text-ink-variant transition-colors hover:text-navy"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
               <div className="h-8 w-px bg-border-subtle" aria-hidden />
               {user.role === "employer" ? (
                 <Link
