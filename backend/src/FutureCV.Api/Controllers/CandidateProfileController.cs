@@ -141,6 +141,63 @@ public class CandidateProfileController : ApiControllerBase
     }
 
     // -------------------------------------------------------------------------
+    // Structured CV Data & AI Analysis (P2-UC04, P2-UC05, P2-UC06)
+    // -------------------------------------------------------------------------
+
+    [HttpGet("cvs/{id:guid}/structured-data")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CvStructuredDataResponse))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStructuredCvData(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _candidateService.GetStructuredCvDataAsync(GetCurrentUserId(), id, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPut("cvs/{id:guid}/structured-data")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CvStructuredDataResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateStructuredCvData(
+        Guid id, [FromBody] UpdateStructuredCvDataRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _candidateService.UpdateStructuredCvDataAsync(GetCurrentUserId(), id, request, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("cvs/{id:guid}/structured-data/revert")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CvStructuredDataResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RevertStructuredCvData(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _candidateService.RevertStructuredCvDataAsync(GetCurrentUserId(), id, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpGet("cvs/{id:guid}/analysis")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CvAnalysisResponse))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCvAnalysis(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _candidateService.GetCvAnalysisAsync(GetCurrentUserId(), id, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("cvs/{id:guid}/analyze")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CvAnalysisResponse))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AnalyzeCv(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _candidateService.AnalyzeCvAsync(GetCurrentUserId(), id, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    // -------------------------------------------------------------------------
     // Education
     // -------------------------------------------------------------------------
 

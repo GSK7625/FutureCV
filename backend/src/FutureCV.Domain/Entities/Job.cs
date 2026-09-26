@@ -1,4 +1,5 @@
 using FutureCV.Domain.Common;
+using FutureCV.Domain.Enums;
 
 namespace FutureCV.Domain.Entities;
 
@@ -21,12 +22,16 @@ public class Job : BaseEntity
     public int? ExperienceYearsMax { get; set; }
     public DateTime? Deadline { get; set; }
     public int PositionsCount { get; set; } = 1;
-    public string ApprovalStatus { get; set; } = "Draft";
+    public JobApprovalStatus ApprovalStatus { get; set; } = JobApprovalStatus.Draft;
     public Guid? ApprovedByAdminId { get; set; }
     public DateTimeOffset? ApprovedAt { get; set; }
     public string? RejectionReason { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsExpired { get; set; } = false;
+    public bool IsBanned { get; set; } = false;
+    public DateTimeOffset? BannedAt { get; set; }
+    public Guid? BannedByAdminId { get; set; }
+    public string? BannedReason { get; set; }
     public int ViewCount { get; set; } = 0;
     public bool IsDeleted { get; set; } = false;
 
@@ -39,4 +44,5 @@ public class Job : BaseEntity
     public ICollection<JobSkill> JobSkills { get; set; } = [];
     public ICollection<SavedJob> SavedJobs { get; set; } = [];
     public ICollection<JobApplication> Applications { get; set; } = [];
+    public ICollection<JobReport> Reports { get; set; } = [];
 }
