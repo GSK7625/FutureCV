@@ -252,6 +252,9 @@ export interface PipelineCandidate {
   matchScore: number | null;
   appliedAt: string;
   cvFileUrl: string | null;
+  daysInStage?: number;
+  stageAlert?: "Normal" | "Warning" | "Critical";
+  lastStatusChangedAt?: string | null;
 }
 
 export interface PipelineStage {
@@ -265,4 +268,31 @@ export interface RecruitmentPipeline {
   jobTitle: string;
   totalCandidates: number;
   stages: PipelineStage[];
+}
+
+export interface PipelineAnalytics {
+  jobId: string;
+  jobTitle: string;
+  totalApplications: number;
+  activeApplications: number;
+  hiredCount: number;
+  rejectedCount: number;
+  withdrawnCount: number;
+  averageTimeToHireDays: number | null;
+  overallConversionRate: number;
+  stageConversionRates: {
+    fromStage: UpdatableApplicationStatus;
+    toStage: UpdatableApplicationStatus;
+    fromCount: number;
+    toCount: number;
+    conversionRate: number;
+  }[];
+  stageAverageDurations: {
+    stage: UpdatableApplicationStatus;
+    averageDays: number;
+    candidateCount: number;
+    overdueCount: number;
+  }[];
+  bottleneckStage: UpdatableApplicationStatus | null;
+  overdueCandidatesCount: number;
 }
