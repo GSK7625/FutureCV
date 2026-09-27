@@ -6,6 +6,22 @@ import re
 
 from app.contracts.cv import WorkExperienceItem
 
+ONGOING_TOKENS = frozenset({"present", "current", "ongoing", "hiện tại"})
+
+
+def is_ongoing_end_date(value: str | None) -> bool:
+    """
+    Check if end_date represents an ongoing employment indicator.
+
+    Explicitly recognizes None (contract standard) or explicit ongoing tokens.
+    Empty string or malformed non-date strings are NOT considered ongoing.
+    """
+    if value is None:
+        return True
+    cleaned = value.strip().lower()
+    return cleaned in ONGOING_TOKENS
+
+
 
 def _parse_iso_date(d_val: str | None, default_day: int = 1) -> date | None:
     """
@@ -15,7 +31,7 @@ def _parse_iso_date(d_val: str | None, default_day: int = 1) -> date | None:
     if not d_val:
         return None
     cleaned = d_val.strip()
-    if not cleaned or cleaned.lower() in ("present", "current", "ongoing", "hiện tại"):
+    if not cleaned or cleaned.lower() in ONGOING_TOKENS:
         return None
 
     m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", cleaned)
@@ -79,13 +95,20 @@ def calculate_total_experience_years(
     1. Empty experience returns 0.0.
     2. Exact duplicate entries (matching title, company, dates, and scalar years)
        are deduplicated to prevent accidental re-submission inflation.
-    3. When normalized calendar dates (start_date, end_date) are available:
-       - Overlapping and adjacent intervals are merged into a continuous timeline.
-       - Ongoing roles (missing/present end_date) resolve against reference_date (or date.today()).
-       - Invalid intervals (start >= end) are safely discarded.
-    4. Limitation Note: When calendar dates are absent (legacy/unextracted CVs),
-       temporal overlap cannot be mathematically determined from scalar years_of_experience
-       alone. In that case, deduplicated scalar years are summed as a backward-compatible fallback.
+    3. Calendar date classification:
+       - Truly ongoing role (end_date is None or explicit ongoing token): uses reference_date.
+       - Valid historical dates: parse date normally.
+       - Malformed end_date (not ongoing and not valid ISO date): rejected from timeline
+         calculation; falls back to scalar years_of_experience if available.
+       - Malformed start_date: interval cannot be trusted; falls back to scalar years.
+       - end_date <= start_date: interval is invalid; falls back to scalar years.
+    4. Conservative Mixed Dated + Undated Policy (FIX B):
+       - If at least one reliable dated timeline exists: merged dated timeline is the
+         authoritative elapsed-time baseline. Scalar-only/undated roles are ignored
+         because temporal overlap cannot be mathematically determined without dates,
+         preventing fabricated over-counting and score inflation.
+       - If NO reliable dated timeline exists: deduplicated scalar years are summed
+         as a backward-compatible fallback.
     """
     if not work_experiences:
         return 0.0
@@ -113,27 +136,44 @@ def calculate_total_experience_years(
 
     for exp in unique_items:
         s = _parse_iso_date(exp.start_date)
-        if s is not None:
-            e = _parse_iso_date(exp.end_date)
-            if e is None:
-                e = ref_date
-            if s < e:
-                date_intervals.append((s, e))
-            else:
+        if s is None:
+            # Malformed or missing start_date: cannot trust interval
+            if exp.years_of_experience > 0.0:
+                fallback_scalar_years += exp.years_of_experience
+            continue
+
+        # Check end date
+        end: date
+        if is_ongoing_end_date(exp.end_date):
+            end = ref_date
+        else:
+            parsed_end = _parse_iso_date(exp.end_date)
+            if parsed_end is None:
+                # Malformed end_date (not ongoing and not parseable ISO date)
+                # DO NOT interpret as ongoing! Reject interval, retain scalar fallback
                 if exp.years_of_experience > 0.0:
                     fallback_scalar_years += exp.years_of_experience
+                continue
+            end = parsed_end
+
+        if s < end:
+            date_intervals.append((s, end))
         else:
+            # Invalid interval (end <= start)
             if exp.years_of_experience > 0.0:
                 fallback_scalar_years += exp.years_of_experience
 
     if date_intervals:
         merged_intervals = _merge_date_intervals(date_intervals)
-        date_years = sum(_interval_duration_years(s, e) for s, e in merged_intervals)
-        total = date_years + fallback_scalar_years
+        date_years = sum(_interval_duration_years(cur_s, cur_e) for cur_s, cur_e in merged_intervals)
+        # Conservative policy: dated timeline is authoritative; undated roles excluded to avoid double-counting
+        total = date_years
     else:
+        # No dated timeline exists; use deduplicated scalar fallback
         total = fallback_scalar_years
 
     return round(max(0.0, total), 1)
+
 
 
 @dataclass(frozen=True)

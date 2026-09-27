@@ -126,8 +126,10 @@ class Settings(BaseSettings):
             and not self.openai_api_key
         ):
             raise ValueError(
-                "OPENAI_API_KEY must be configured when EMBEDDING_PROVIDER is 'openai' and matching-v1-experimental is active"
+                "OPENAI_API_KEY must be configured when EMBEDDING_PROVIDER is 'openai' "
+                "and matching-v1-experimental is active"
             )
+
 
         return self
 

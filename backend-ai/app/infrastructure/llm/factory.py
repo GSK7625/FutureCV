@@ -1,9 +1,29 @@
-"""Factory for creating LLM provider instances based on application settings."""
+import hashlib
+from typing import Any
 
 from app.core.config import Settings, get_settings
 from app.infrastructure.llm.providers.mock_provider import MockLlmProvider
 from app.infrastructure.llm.providers.openai_provider import OpenAiProvider
 from app.ports.llm import LlmPort
+
+
+def get_llm_settings_fingerprint(settings: Settings) -> tuple[Any, ...]:
+    """
+    Generate an immutable configuration fingerprint for LLM provider reuse.
+    Includes model, provider, timeout, retries, and a one-way truncated hash
+    of the API key to detect credential changes without logging/leaking secrets.
+    """
+    key_hash: str | None = None
+    if settings.openai_api_key:
+        key_hash = hashlib.sha256(settings.openai_api_key.encode()).hexdigest()[:16]
+
+    return (
+        settings.llm_provider,
+        settings.llm_model,
+        float(settings.llm_timeout_seconds),
+        int(settings.llm_max_retries),
+        key_hash,
+    )
 
 
 def get_llm_provider(settings: Settings | None = None) -> LlmPort:

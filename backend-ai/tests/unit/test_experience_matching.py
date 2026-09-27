@@ -218,3 +218,144 @@ def test_calculate_total_experience_scalar_sum_fallback_when_dates_absent():
     ]
     # Without temporal coordinates, 2.0 + 3.0 = 5.0 years
     assert calculate_total_experience_years(exps) == 5.0
+
+
+def test_calculate_total_experience_malformed_end_date_does_not_become_ongoing():
+    """
+    CRITICAL PROOF (FIX A): Malformed end_date MUST NOT be interpreted as ongoing employment.
+    If treated as ongoing from 2020-01 to 2026-01, it would yield 6.0 years.
+    Instead, it must reject the invalid interval and safely use the scalar fallback (1.0 year).
+    """
+    exps = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            start_date="2020-01",
+            end_date="invalid-garbage-date",
+            years_of_experience=1.0,
+        )
+    ]
+    ref_date = date(2026, 1, 1)
+    total = calculate_total_experience_years(exps, reference_date=ref_date)
+    assert total == 1.0
+    assert total != 6.0
+
+
+def test_calculate_total_experience_malformed_start_date_fallback():
+    """Malformed start_date invalidates the interval and falls back to scalar years."""
+    exps = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            start_date="not-a-valid-date",
+            end_date="2024-01",
+            years_of_experience=2.5,
+        )
+    ]
+    assert calculate_total_experience_years(exps) == 2.5
+
+
+def test_calculate_total_experience_explicit_ongoing_tokens():
+    """Explicit recognized ongoing tokens ('present', 'current', 'ongoing', 'hiện tại') use reference_date."""
+    ref_date = date(2024, 1, 1)
+    tokens = ["present", "current", "ongoing", "hiện tại", "  PRESENT  "]
+    for token in tokens:
+        exps = [
+            WorkExperienceItem(
+                job_title="Engineer",
+                start_date="2022-01",
+                end_date=token,
+                years_of_experience=2.0,
+            )
+        ]
+        assert calculate_total_experience_years(exps, reference_date=ref_date) == 2.0
+
+
+def test_calculate_total_experience_empty_string_end_date_not_ongoing():
+    """
+    CRITICAL PROOF (BLOCKER 2): Empty string end_date ('') indicates missing/unusable date info, NOT ongoing.
+    The interval is rejected, falling back to scalar years_of_experience (1.0).
+    It must NEVER expand to reference_date (which would yield 6.0 years from 2020-01 to 2026-01).
+    """
+    exps = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            start_date="2020-01",
+            end_date="",
+            years_of_experience=1.0,
+        )
+    ]
+    ref_date = date(2026, 1, 1)
+    total = calculate_total_experience_years(exps, reference_date=ref_date)
+    assert total == 1.0
+    assert total != 6.0
+
+
+def test_calculate_total_experience_none_end_date_is_ongoing():
+    """StructuredCv schema defines end_date=None as ongoing/current employment."""
+    exps = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            start_date="2022-01",
+            end_date=None,
+            years_of_experience=2.0,
+        )
+    ]
+    ref_date = date(2024, 1, 1)
+    # 2022-01 to 2024-01 = 2.0 years
+    assert calculate_total_experience_years(exps, reference_date=ref_date) == 2.0
+
+
+def test_calculate_total_experience_present_end_date_is_ongoing():
+    """Literal token 'present' resolves against reference_date as ongoing employment."""
+    exps = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            start_date="2022-01",
+            end_date="present",
+            years_of_experience=2.0,
+        )
+    ]
+    ref_date = date(2024, 1, 1)
+    assert calculate_total_experience_years(exps, reference_date=ref_date) == 2.0
+
+
+def test_calculate_total_experience_invalid_end_date_falls_back():
+    """Malformed non-date end_date is rejected and falls back to scalar years."""
+    exps = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            start_date="2020-01",
+            end_date="not-a-date",
+            years_of_experience=1.0,
+        )
+    ]
+    ref_date = date(2026, 1, 1)
+    total = calculate_total_experience_years(exps, reference_date=ref_date)
+    assert total == 1.0
+    assert total != 6.0
+
+
+
+def test_calculate_total_experience_mixed_dated_and_undated_conservative():
+    """
+    CRITICAL PROOF (FIX B): When a valid dated timeline exists, it is authoritative.
+    Undated roles are NOT blindly added to avoid double-counting overlapping unplaced roles.
+    """
+    exps = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            company="Company A",
+            start_date="2022-01",
+            end_date="2024-01",
+            years_of_experience=2.0,
+        ),
+        WorkExperienceItem(
+            job_title="Freelance Developer",
+            company="Freelance",
+            start_date=None,
+            end_date=None,
+            years_of_experience=1.5,
+        ),
+    ]
+    # Authoritative dated timeline = 2.0 years (NOT 3.5 years double-counted)
+    assert calculate_total_experience_years(exps) == 2.0
+

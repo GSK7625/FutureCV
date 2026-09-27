@@ -134,6 +134,7 @@ class RankingService:
             embedding_provider=emb_prov.provider_name if is_v1 and emb_prov else None,
             embedding_model=emb_prov.model_name if is_v1 and emb_prov else None,
             llm_invoked=False,
+            explanation_mode="deterministic",
             processing_time_ms=round(elapsed_ms, 2),
             correlation_id=correlation_id,
         )
