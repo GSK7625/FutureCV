@@ -4,6 +4,7 @@ export default [
   // ── Public Routes (Trang chủ & Việc làm & CV) ─────────────
   layout("layouts/PublicLayout.tsx", [
     index("routes/public/home.tsx"),
+    route("jobs", "routes/public/job-search.tsx"),
     route("jobs/:jobId", "routes/candidate/job-detail.tsx"),
     route("jobs/:jobId/apply", "routes/candidate/apply-form.tsx"),
     ...prefix("cv", [
@@ -15,6 +16,8 @@ export default [
   // ── Auth Routes (Đăng nhập, Đăng ký, Quên mật khẩu) ─────
   layout("layouts/AuthLayout.tsx", [
     route("login", "routes/auth/login.tsx"),
+    route("login-employer", "routes/auth/login-employer.tsx"),
+    route("login-admin", "routes/auth/login-admin.tsx"),
     route("register", "routes/auth/register.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
   ]),
@@ -22,8 +25,12 @@ export default [
   // ── Candidate Protected Routes ─────────────────────────────
   ...prefix("candidate", [
     layout("layouts/CandidateLayout.tsx", [
-      index("routes/candidate/job-list.tsx"),
-      route("profile", "routes/candidate/profile.tsx"),
+      route("personal-info", "routes/candidate/personal-info.tsx"),
+      route("security", "routes/candidate/security.tsx"),
+      route("email-settings", "routes/candidate/email-settings.tsx"),
+      route("job-alerts", "routes/candidate/job-alerts.tsx"),
+      route("notifications", "routes/candidate/notifications.tsx"),
+      route("change-password", "routes/candidate/change-password.tsx"),
     ]),
   ]),
 
