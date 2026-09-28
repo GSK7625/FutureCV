@@ -17,6 +17,7 @@ import { ExperienceForm } from "~/features/candidate/components/cv-builder/Exper
 import { EducationForm } from "~/features/candidate/components/cv-builder/EducationForm";
 import { SkillsForm } from "~/features/candidate/components/cv-builder/SkillsForm";
 import { CvPreviewPaper } from "~/features/candidate/components/cv-builder/CvPreviewPaper";
+import { generateCvPdf, sanitizePdfFilename } from "~/features/candidate/utils/cvPdfExport";
 
 export default function CvBuilderPage() {
   const { templateId = "standard-general" } = useParams();
@@ -54,9 +55,6 @@ export default function CvBuilderPage() {
     })),
   );
 
-  // ── Local Transient UI State ───────────────────────────────
-  const [isSaved, setIsSaved] = useState(false);
-
   const selectedTemplate = useMemo(() => {
     return CV_TEMPLATES.find((t) => t.id === templateId) ?? CV_TEMPLATES[0];
   }, [templateId]);
@@ -75,16 +73,119 @@ export default function CvBuilderPage() {
     [actions],
   );
 
-  const handleSaveCV = useCallback(() => {
-    setIsSaved(true);
-    showToast("Đã lưu bản nháp CV thành công vào hệ thống!", "success");
-    setTimeout(() => setIsSaved(false), 3000);
-  }, [showToast]);
+  const handleExportPDF = useCallback(async () => {
+    const paperEl = document.getElementById("cv-preview-paper");
+    if (!paperEl) {
+      window.print();
+      return;
+    }
 
-  const handleExportPDF = useCallback(() => {
-    showToast("Đang chuẩn bị file PDF chất lượng cao...", "info");
-    window.print();
-  }, [showToast]);
+    const filename = sanitizePdfFilename(cv.personalInfo.fullName || "UngVien");
+
+    // 1. Thử xuất PDF trực tiếp qua generateCvPdf (hỗ trợ oklch, chuẩn A4)
+    try {
+      showToast("Đang chuẩn bị xuất file PDF chuẩn A4...", "info");
+      const { pdf } = await generateCvPdf(paperEl, { filename });
+      pdf.save(filename);
+      showToast("Đã tải file PDF thành công!", "success");
+      return;
+    } catch (err) {
+      console.warn("Direct generateCvPdf error, using isolated print dialog:", err);
+    }
+
+    // 2. Fallback: Mở hộp thoại In qua Iframe cách ly (chỉ chứa duy nhất tờ CV chuẩn A4)
+    const oldIframe = document.getElementById("cv-builder-print-iframe");
+    if (oldIframe) {
+      oldIframe.remove();
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.id = "cv-builder-print-iframe";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    // Thu thập toàn bộ thẻ link stylesheet và style từ trang chính để đưa vào iframe
+    const styleTags = Array.from(
+      document.querySelectorAll('link[rel="stylesheet"], style')
+    )
+      .map((el) => el.outerHTML)
+      .join("\n");
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="vi">
+        <head>
+          <meta charset="utf-8" />
+          <title>${filename}</title>
+          ${styleTags}
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 8mm 0;
+            }
+            *, *::before, *::after {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .print-paper-wrapper {
+              width: 100%;
+              max-width: 680px;
+              margin: 0 auto;
+              padding: 8mm 10mm;
+              background: #ffffff;
+            }
+            #cv-preview-paper {
+              box-shadow: none !important;
+              border-left: none !important;
+              border-right: none !important;
+              border-bottom: none !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              padding: 0 !important;
+            }
+            .no-print, [data-no-print="true"] {
+              display: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-paper-wrapper">
+            ${paperEl.outerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        iframe.remove();
+      }, 2000);
+    }, 300);
+  }, [cv.personalInfo.fullName, showToast]);
 
   const handleResetData = useCallback(() => {
     if (confirm("Bạn có chắc muốn đặt lại toàn bộ nội dung theo mẫu gốc này không?")) {
@@ -94,23 +195,22 @@ export default function CvBuilderPage() {
   }, [actions, selectedTemplate.id, showToast]);
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] pb-24">
+    <div className="min-h-screen bg-[#f1f5f9] pb-24 print:bg-white print:p-0 print:m-0 print:pb-0">
       {/* ── Top Floating Action Bar ─────────────────────────── */}
       <CvToolbar
         selectedTemplate={selectedTemplate}
         activeColor={cv.activeColor}
-        isSaved={isSaved}
+        personalInfoFullName={cv.personalInfo.fullName}
         onColorChange={actions.setActiveColor}
         onResetData={handleResetData}
-        onSaveCV={handleSaveCV}
         onExportPDF={handleExportPDF}
       />
 
       {/* ── Main Workspace: Editor Form (Left) & Realtime Preview (Right) ── */}
-      <div className="mx-auto max-w-7xl px-4 pt-6">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+      <div className="mx-auto max-w-7xl px-4 pt-6 print:p-0 print:m-0 print:max-w-none print:w-full">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 print:block print:w-full print:p-0 print:m-0">
           {/* ── Left Column: Form Editor (5 cols) ─────────────── */}
-          <div className="flex flex-col gap-6 lg:col-span-5">
+          <div className="flex flex-col gap-6 lg:col-span-5 no-print print:hidden">
             <CvEditorTabs activeTab={cv.activeTab} onTabChange={actions.setActiveTab} />
 
             {cv.activeTab === "info" && (

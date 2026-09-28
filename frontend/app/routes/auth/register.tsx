@@ -76,15 +76,15 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!validate()) return;
     register.mutate(
-      { 
-        fullName: fullName.trim(), 
-        email: email.trim(), 
+      {
+        fullName: fullName.trim(),
+        email: email.trim(),
         phoneNumber: phoneNumber.trim(),
         gender: gender.trim(),
         companyName: companyName.trim(),
-        password, 
-        confirmPassword, 
-        accountType 
+        password,
+        confirmPassword,
+        accountType
       },
       { onError: (error) => showToast(error.message, "error") },
     );

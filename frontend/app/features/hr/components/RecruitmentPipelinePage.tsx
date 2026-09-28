@@ -4,8 +4,10 @@ import { Avatar, Button, Card, CardContent, EmptyState, Input, Skeleton } from "
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
 import { useDebounce } from "~/hooks/useDebounce";
 import { useEmployerJobs } from "../hooks/useEmployerJobs";
-import { useRecruiterApplications, useRecruitmentPipeline } from "../hooks/useRecruiterApplications";
-import type { ApplicationStatus, RecruiterApplicationFilters } from "../types";
+import { useExportPipeline, useRecruiterApplications, useRecruitmentPipeline } from "../hooks/useRecruiterApplications";
+import type { ApplicationStatus, PipelineCandidate, RecruiterApplicationFilters } from "../types";
+import { useUIStore } from "~/stores/useUIStore";
+import { PipelineAnalyticsPanel } from "./PipelineAnalyticsPanel";
 import { ApplicationDetailsModal } from "./ApplicationDetailsModal";
 import { ApplicationStatusBadge, applicationStatusLabels, updatableApplicationStatuses } from "./ApplicationStatusBadge";
 
@@ -19,6 +21,27 @@ export function RecruitmentPipelinePage() {
   const debouncedSearch = useDebounce(search, 300);
   const [filters, setFilters] = useState<RecruiterApplicationFilters>({ pageIndex: 1, pageSize: 10 });
   const [applicationId, setApplicationId] = useState<string | null>(null);
+  const exportPipeline = useExportPipeline();
+  const showToast = useUIStore((state) => state.showToast);
+
+  const downloadCsv = async () => {
+    if (!jobId || exportPipeline.isPending) return;
+    try {
+      const selectedJobId = jobId;
+      const blob = await exportPipeline.mutateAsync(selectedJobId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `pipeline_${selectedJobId}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast("Đã tải báo cáo pipeline CSV", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không thể xuất báo cáo", "error");
+    }
+  };
 
   useEffect(() => {
     if (!jobId && jobsQuery.data?.items[0]) setJobId(jobsQuery.data.items[0].id);
@@ -36,7 +59,9 @@ export function RecruitmentPipelinePage() {
       <QueryBoundary isLoading={jobsQuery.isLoading} error={jobsQuery.error} onRetry={() => jobsQuery.refetch()} skeleton={<Skeleton className="mt-6 h-20" />}>
         {jobs.length === 0 ? <EmptyState className="mt-6" icon={<IconUsers size={42} aria-hidden="true" />} title="Chưa có tin tuyển dụng" description="Tạo tin tuyển dụng trước khi quản lý ứng viên." /> : <>
           <div className="mt-6 rounded-default border border-border-subtle bg-surface p-4 shadow-surface"><label htmlFor="pipeline-job" className="mb-2 block text-label font-semibold text-ink">Tin tuyển dụng</label><select id="pipeline-job" value={jobId} onChange={(event) => { setJobId(event.target.value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} className="h-11 w-full rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold">{jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></div>
-          {view === "pipeline" ? <PipelineView query={pipelineQuery} onOpen={setApplicationId} /> : <ApplicationListView search={search} setSearch={setSearch} filters={filters} setFilters={setFilters} query={applicationsQuery} onOpen={setApplicationId} />}
+          <div className="mt-4 flex justify-end"><Button variant="secondary" disabled={!jobId || exportPipeline.isPending} onClick={() => void downloadCsv()}>{exportPipeline.isPending ? "Đang xuất..." : "Xuất CSV"}</Button></div>
+          {jobId && <PipelineAnalyticsPanel jobId={jobId} />}
+          {view === "pipeline" ? <PipelineView query={pipelineQuery} onOpen={setApplicationId} /> : <ApplicationListView search={search} setSearch={(value) => { setSearch(value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} filters={filters} setFilters={setFilters} query={applicationsQuery} onOpen={setApplicationId} />}
         </>}
       </QueryBoundary>
       <ApplicationDetailsModal applicationId={applicationId} onClose={() => setApplicationId(null)} />
@@ -50,8 +75,25 @@ function ViewButton({ active, onClick, icon, children }: { active: boolean; onCl
 
 function PipelineView({ query, onOpen }: { query: ReturnType<typeof useRecruitmentPipeline>; onOpen: (id: string) => void }) {
   return <QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-56" />)}</div>}>
-    {query.data && <><p className="mt-5 text-label text-ink-muted">{query.data.totalCandidates} ứng viên trong pipeline</p><div className="mt-3 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">{query.data.stages.map((stage) => <Card key={stage.stage}><CardContent className="p-4"><div className="flex items-center justify-between"><h2 className="font-semibold text-navy">{applicationStatusLabels[stage.stage]}</h2><span className="rounded-full bg-navy/10 px-2.5 py-1 text-label-sm font-semibold text-navy">{stage.count}</span></div><div className="mt-4 space-y-3">{stage.candidates.length ? stage.candidates.map((candidate) => <button key={candidate.applicationId} type="button" onClick={() => onOpen(candidate.applicationId)} className="flex min-h-16 w-full items-center gap-3 rounded-default border border-border-subtle bg-surface-low p-3 text-left hover:border-gold focus-visible:ring-2 focus-visible:ring-gold"><Avatar src={candidate.candidateAvatarUrl ?? undefined} name={candidate.candidateFullName} /><span className="min-w-0 flex-1"><span className="block truncate font-semibold text-ink">{candidate.candidateFullName}</span><span className="mt-1 block text-label text-ink-muted">{candidate.rating ? `${candidate.rating}/5 sao` : "Chưa đánh giá"} · Match {candidate.matchScore ?? "—"}%</span></span></button>) : <p className="rounded-default border border-dashed border-border-subtle p-4 text-center text-label text-ink-muted">Chưa có ứng viên</p>}</div></CardContent></Card>)}</div></>}
+    {query.data && <><p className="mt-5 text-label text-ink-muted">{query.data.totalCandidates} ứng viên trong pipeline</p><div className="mt-3 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">{query.data.stages.map((stage) => <Card key={stage.stage}><CardContent className="p-4"><div className="flex items-center justify-between"><h2 className="font-semibold text-navy">{applicationStatusLabels[stage.stage]}</h2><span className="rounded-full bg-navy/10 px-2.5 py-1 text-label-sm font-semibold text-navy">{stage.count}</span></div><div className="mt-4 space-y-3">{stage.candidates.length ? stage.candidates.map((candidate) => <PipelineCandidateCard key={candidate.applicationId} candidate={candidate} onOpen={onOpen} />) : <p className="rounded-default border border-dashed border-border-subtle p-4 text-center text-label text-ink-muted">Chưa có ứng viên</p>}</div></CardContent></Card>)}</div></>}
   </QueryBoundary>;
+}
+
+function PipelineCandidateCard({ candidate, onOpen }: { candidate: PipelineCandidate; onOpen: (id: string) => void }) {
+  const critical = candidate.stageAlert === "Critical";
+  const warning = candidate.stageAlert === "Warning";
+  return (
+    <button type="button" onClick={() => onOpen(candidate.applicationId)} className="flex min-h-16 w-full items-start gap-3 rounded-default border border-border-subtle bg-surface-low p-3 text-left hover:border-gold focus-visible:ring-2 focus-visible:ring-gold">
+      <Avatar src={candidate.candidateAvatarUrl ?? undefined} name={candidate.candidateFullName} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold text-ink">{candidate.candidateFullName}</span>
+        <span className="mt-1 block text-label text-ink-muted">{candidate.rating ? `${candidate.rating}/5 sao` : "Chưa đánh giá"} · Match {candidate.matchScore === null ? "—" : `${candidate.matchScore}%`}</span>
+        {candidate.daysInStage !== undefined && <span className="mt-2 block text-label-sm text-ink-variant">{candidate.daysInStage} ngày tại stage này</span>}
+        {(critical || warning) && <span className={critical ? "mt-2 inline-block rounded-tag bg-danger/10 px-2 py-1 text-label-sm font-semibold text-danger" : "mt-2 inline-block rounded-tag bg-warning/10 px-2 py-1 text-label-sm font-semibold text-warning"}>{critical ? "Cần xử lý gấp" : "Cần theo dõi"}</span>}
+        {candidate.lastStatusChangedAt && <span className="mt-1 block text-label-sm text-ink-muted">Cập nhật: {new Date(candidate.lastStatusChangedAt).toLocaleDateString("vi-VN")}</span>}
+      </span>
+    </button>
+  );
 }
 
 function ApplicationListView({ search, setSearch, filters, setFilters, query, onOpen }: { search: string; setSearch: (value: string) => void; filters: RecruiterApplicationFilters; setFilters: React.Dispatch<React.SetStateAction<RecruiterApplicationFilters>>; query: ReturnType<typeof useRecruiterApplications>; onOpen: (id: string) => void }) {

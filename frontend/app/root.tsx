@@ -2,15 +2,19 @@ import {
   isRouteErrorResponse,
   Links,
   Meta,
+  Navigate,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
 } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 import type { Route } from "./+types/root";
 import { queryClient } from "~/lib/queryClient";
 import { ToastViewport } from "~/components/ui";
+import { useAuthStore } from "~/stores/useAuthStore";
+import { getHrWorkspaceRedirect } from "~/guards/hrWorkspace";
 import "@fontsource-variable/hanken-grotesk";
 import "./app.css";
 
@@ -32,10 +36,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function HrWorkspaceBoundary({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((state) => state.user?.role);
+  const { pathname } = useLocation();
+  const redirectTo = getHrWorkspaceRedirect(role, pathname);
+  return redirectTo ? <Navigate to={redirectTo} replace /> : children;
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <HrWorkspaceBoundary>
+        <Outlet />
+      </HrWorkspaceBoundary>
       <ToastViewport />
     </QueryClientProvider>
   );
@@ -60,15 +73,17 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="container-page mx-auto px-margin-mobile md:px-margin-desktop py-24">
-      <h1 className="text-headline text-navy">{message}</h1>
-      <p className="mt-2 text-ink-variant">{details}</p>
-      {stack && (
-        <pre className="mt-6 w-full overflow-x-auto rounded-default bg-surface-low p-4 text-label-sm">
-          <code>{stack}</code>
-        </pre>
-      )}
-    </main>
+    <HrWorkspaceBoundary>
+      <main className="container-page mx-auto px-margin-mobile md:px-margin-desktop py-24">
+        <h1 className="text-headline text-navy">{message}</h1>
+        <p className="mt-2 text-ink-variant">{details}</p>
+        {stack && (
+          <pre className="mt-6 w-full overflow-x-auto rounded-default bg-surface-low p-4 text-label-sm">
+            <code>{stack}</code>
+          </pre>
+        )}
+      </main>
+    </HrWorkspaceBoundary>
   );
 }
 
