@@ -9,8 +9,16 @@ export const candidateQueryKeys = {
     all: ["candidate", "saved-jobs"] as const,
     list: (page: number) => ["candidate", "saved-jobs", "list", page] as const,
   },
+  cvs: {
+    all: ["candidate", "cvs"] as const,
+    detail: (id: string) => ["candidate", "cvs", "detail", id] as const,
+  },
   applications: {
     all: ["candidate", "applications"] as const,
+    list: (filters: unknown) => ["candidate", "applications", "list", filters] as const,
+    detail: (id: string) => ["candidate", "applications", "detail", id] as const,
   },
+  previewMatch: (jobId: string, cvId?: string | null) =>
+    ["candidate", "jobs", "preview-match", jobId, cvId ?? "latest"] as const,
   profile: ["candidate", "profile"] as const,
 };
