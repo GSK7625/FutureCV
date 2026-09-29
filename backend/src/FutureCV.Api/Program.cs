@@ -13,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 
 // Application layer (use-case services, validators registered via AddValidatorsFromAssembly)
 builder.Services.AddApplication();
@@ -85,13 +86,14 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// CORS (allow React Web & React Native during development)
+// CORS (allow React Web & React Native during development with credentials/cookies)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
 // ── Pipeline ──────────────────────────────────────────────────

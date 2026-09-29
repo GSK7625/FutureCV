@@ -52,6 +52,16 @@ public class ApplicationService : IApplicationService
         if (!job.IsActive || job.ApprovalStatus != "Approved" || (job.Deadline.HasValue && job.Deadline.Value < DateTime.UtcNow))
             return ServiceResult.Failure<ApplyJobResponse>("Job is closed, expired, or not approved for applications.");
 
+        // Check self-application (dual-role user cannot apply to own job or own company)
+        if (job.PostedById == userId)
+            return ServiceResult.Failure<ApplyJobResponse>("You cannot apply to your own job posting.");
+
+        var employerProfile = await _context.Employers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.UserId == userId, cancellationToken);
+        if (employerProfile is not null && employerProfile.CompanyId == job.CompanyId)
+            return ServiceResult.Failure<ApplyJobResponse>("You cannot apply to a job posted by your own company.");
+
         // 4. Check for duplicate active application (P3-UC05 E2)
         var alreadyApplied = await _context.Applications
             .AnyAsync(a => a.CandidateId == candidate.Id && a.JobId == jobId && !a.IsDeleted && a.Status != "Withdrawn", cancellationToken);
