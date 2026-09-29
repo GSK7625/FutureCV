@@ -6,10 +6,11 @@ from app.application.semantic_representation import (
     build_cv_semantic_text,
     build_job_semantic_text,
 )
+from app.application.text_sanitization import sanitize_free_text
 from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.job import StructuredJob
-from app.contracts.matching import MatchResult
+from app.contracts.matching import MATCH_RESULT_CONTRACT_VERSION, MatchResult
 from app.core.exceptions import ProviderError, RateLimitExceededError
 from app.domain.matching.education_match import calculate_education_match
 from app.domain.matching.experience_match import (
@@ -193,16 +194,22 @@ class MatchingService:
         explanation_mode: str = "deterministic"
         if generate_explanation:
             llm_invoked = True
+            clean_job_title = sanitize_free_text(job.title)
+            clean_matched_skills = sanitize_free_text(", ".join(skill_res.matched_skills)) or "Không có"
+            clean_missing_skills = sanitize_free_text(", ".join(skill_res.missing_skills)) or "Không có"
+            clean_exp_cmp = sanitize_free_text(exp_res.comparison_text)
+            clean_edu_cmp = sanitize_free_text(edu_res.comparison_text)
+
             prompt = MATCH_EXPLANATION_USER_TEMPLATE_V1.format(
-                job_title=job.title,
+                job_title=clean_job_title,
                 match_score=final_score,
                 skill_score=skill_score,
                 experience_score=experience_score,
                 education_score=education_score,
-                matched_skills=", ".join(skill_res.matched_skills) or "Không có",
-                missing_skills=", ".join(skill_res.missing_skills) or "Không có",
-                experience_comparison=exp_res.comparison_text,
-                education_comparison=edu_res.comparison_text,
+                matched_skills=clean_matched_skills,
+                missing_skills=clean_missing_skills,
+                experience_comparison=clean_exp_cmp,
+                education_comparison=clean_edu_cmp,
             )
 
             try:
@@ -280,6 +287,7 @@ class MatchingService:
         emb_model_name = self.embedding_provider.model_name if self.is_v1_active and self.embedding_provider else None
 
         meta = ResponseMeta(
+            contract_version=MATCH_RESULT_CONTRACT_VERSION,
             algorithm_version=self.matching_algorithm,
             algorithm_variant=self.matching_algorithm,
             schema_version="1.0.0",

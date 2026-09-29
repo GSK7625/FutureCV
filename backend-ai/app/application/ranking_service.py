@@ -10,6 +10,7 @@ from app.application.semantic_representation import (
 )
 from app.contracts.common import ResponseMeta
 from app.contracts.matching import (
+    MATCH_RESULT_CONTRACT_VERSION,
     CandidateItem,
     CandidateRankRequest,
     CandidateRankResponse,
@@ -125,6 +126,7 @@ class RankingService:
         emb_prov = self.matching_service.embedding_provider
 
         meta = ResponseMeta(
+            contract_version=MATCH_RESULT_CONTRACT_VERSION,
             algorithm_version=self.matching_service.algorithm_variant,
             algorithm_variant=self.matching_service.algorithm_variant,
             schema_version="1.0.0",

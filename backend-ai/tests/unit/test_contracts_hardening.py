@@ -415,4 +415,3 @@ def test_realistic_normal_cv_and_job_validate_successfully():
     assert match_req.job.title == "Senior Python Backend Engineer"
     assert len(match_req.cv.work_experience) == 2
     assert len(match_req.job.required_skills) == 3
-

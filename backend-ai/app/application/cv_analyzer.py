@@ -4,6 +4,7 @@ import time
 
 from pydantic import BaseModel, Field
 
+from app.application.text_sanitization import sanitize_free_text
 from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.cv_analysis import CvAnalysisResponse
@@ -66,7 +67,10 @@ class CvAnalyzerService:
                 },
             )
 
-        # 1. LLM Structured Extraction (raw CV text may contain PII to extract candidate profile)
+        # 1. LLM Structured Extraction (raw CV text contains candidate profile for entity extraction)
+        # NOTE (AI-MATCH-002 Exception): Structured CV extraction requires extracting contact fields
+        # (full_name, email, phone) as required by the StructuredCv contract. Thus, this extraction path
+        # remains an explicit justified exception where raw CV text is provided to the extraction LLM.
         extract_prompt = CV_EXTRACTION_USER_PROMPT_TEMPLATE_V1.format(raw_cv_text=raw_text)
         structured_cv = await self.llm.generate_structured(
             prompt=extract_prompt,
@@ -79,13 +83,19 @@ class CvAnalyzerService:
         structural_eval = evaluate_cv_quality(structured_cv.model_dump())
 
         # 3. Redact PII (full_name, email, phone) before second-stage qualitative LLM evaluation
+        clean_summary = sanitize_free_text(structured_cv.career_summary) if structured_cv.career_summary else "Chưa có"
+        raw_skills = ", ".join(structured_cv.skills) if structured_cv.skills else "Chưa có"
+        clean_skills = sanitize_free_text(raw_skills) if raw_skills != "Chưa có" else "Chưa có"
+        raw_certs = ", ".join(structured_cv.certificates) if structured_cv.certificates else "Không có"
+        clean_certs = sanitize_free_text(raw_certs) if raw_certs != "Không có" else "Không có"
+
         analysis_prompt = CV_ANALYSIS_USER_PROMPT_TEMPLATE_V1.format(
-            career_summary=structured_cv.career_summary or "Chưa có",
-            skills=", ".join(structured_cv.skills) or "Chưa có",
+            career_summary=clean_summary,
+            skills=clean_skills,
             work_experience=f"{len(structured_cv.work_experience)} vị trí",
             education=f"{len(structured_cv.education)} bằng cấp",
             projects=f"{len(structured_cv.projects)} dự án",
-            certificates=", ".join(structured_cv.certificates) or "Không có",
+            certificates=clean_certs,
             cv_score=structural_eval.cv_score,
         )
 

@@ -20,7 +20,6 @@ __all__ = [
 ]
 
 
-
 def build_cv_semantic_text(cv: StructuredCv) -> str:
     """
     Construct a sanitized, privacy-minimized semantic text representation of a candidate CV.
@@ -48,9 +47,7 @@ def build_cv_semantic_text(cv: StructuredCv) -> str:
 
     # 2. Skills and technologies
     raw_skills = cv.skills + cv.technologies
-    sanitized_skills = list(dict.fromkeys(
-        sanitize_semantic_text(s) for s in raw_skills if s and s.strip()
-    ))
+    sanitized_skills = list(dict.fromkeys(sanitize_semantic_text(s) for s in raw_skills if s and s.strip()))
     sanitized_skills = [s for s in sanitized_skills if s]
     if sanitized_skills:
         parts.append(f"Kỹ năng chuyên môn: {', '.join(sanitized_skills)}")
@@ -99,9 +96,7 @@ def build_cv_semantic_text(cv: StructuredCv) -> str:
         for proj in cv.projects:
             clean_name = sanitize_semantic_text(proj.name)
             clean_desc = (
-                f"- {sanitize_semantic_text(proj.description)}"
-                if proj.description and proj.description.strip()
-                else ""
+                f"- {sanitize_semantic_text(proj.description)}" if proj.description and proj.description.strip() else ""
             )
             clean_techs = [sanitize_semantic_text(t) for t in proj.technologies if t and t.strip()]
             clean_techs = [t for t in clean_techs if t]

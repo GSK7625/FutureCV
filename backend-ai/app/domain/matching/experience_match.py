@@ -22,7 +22,6 @@ def is_ongoing_end_date(value: str | None) -> bool:
     return cleaned in ONGOING_TOKENS
 
 
-
 def _parse_iso_date(d_val: str | None, default_day: int = 1) -> date | None:
     """
     Parse a date string in YYYY, YYYY-MM, or YYYY-MM-DD format.
@@ -173,7 +172,6 @@ def calculate_total_experience_years(
         total = fallback_scalar_years
 
     return round(max(0.0, total), 1)
-
 
 
 @dataclass(frozen=True)
