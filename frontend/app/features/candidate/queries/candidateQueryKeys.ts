@@ -12,6 +12,8 @@ export const candidateQueryKeys = {
   cvs: {
     all: ["candidate", "cvs"] as const,
     detail: (id: string) => ["candidate", "cvs", "detail", id] as const,
+    analysis: (id: string) => ["candidate", "cvs", "analysis", id] as const,
+    structured: (id: string) => ["candidate", "cvs", "structured", id] as const,
   },
   applications: {
     all: ["candidate", "applications"] as const,

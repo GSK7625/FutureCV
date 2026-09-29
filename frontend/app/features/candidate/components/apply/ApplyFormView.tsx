@@ -32,6 +32,7 @@ import { useAuthStore } from "~/stores/useAuthStore";
 import { useUIStore } from "~/stores/useUIStore";
 import { ApiError } from "~/lib/fetcher";
 import { Skeleton } from "~/components/ui";
+import { validateCvFile, cvTitleFromFile } from "~/utils";
 
 interface ApplyFormViewProps {
   jobId: string;
@@ -113,13 +114,9 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      showToast("Hệ thống chỉ chấp nhận file định dạng PDF.", "error");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      showToast("Dung lượng file tối đa là 5MB.", "error");
+    const validationError = validateCvFile(file);
+    if (validationError) {
+      showToast(validationError, "error");
       return;
     }
 
@@ -127,7 +124,7 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
     try {
       const newCv = await uploadCvMutation.mutateAsync({
         file,
-        title: file.name.replace(/\.pdf$/i, ""),
+        title: cvTitleFromFile(file.name),
       });
       setSelectedCvId(newCv.id);
     } catch {
