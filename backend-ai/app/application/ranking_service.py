@@ -17,6 +17,7 @@ from app.contracts.matching import (
     MatchResult,
     RankedCandidateItem,
 )
+from app.core.exceptions import ProviderError
 from app.observability.logging import correlation_id_ctx, get_logger
 
 logger = get_logger(__name__)
@@ -77,6 +78,11 @@ class RankingService:
             # Invariant: Job semantic representation is embedded EXACTLY ONCE
             job_text = build_job_semantic_text(req.job)
             job_vectors = await embedding_provider.embed_texts([job_text])
+            if len(job_vectors) != 1:
+                raise ProviderError(
+                    f"Embedding provider returned {len(job_vectors)} vectors for 1 requested job text",
+                    provider=embedding_provider.provider_name,
+                )
             job_embedding = job_vectors[0]
 
             # Embed Candidate CVs in bounded chunks to respect provider request limits
@@ -85,6 +91,12 @@ class RankingService:
             for i in range(0, len(cv_texts), CANDIDATE_EMBEDDING_BATCH_SIZE):
                 chunk = cv_texts[i : i + CANDIDATE_EMBEDDING_BATCH_SIZE]
                 chunk_vectors = await embedding_provider.embed_texts(chunk)
+                if len(chunk_vectors) != len(chunk):
+                    raise ProviderError(
+                        f"Embedding provider returned {len(chunk_vectors)} vectors for "
+                        f"{len(chunk)} requested candidate texts",
+                        provider=embedding_provider.provider_name,
+                    )
                 cv_embeddings.extend(chunk_vectors)
 
         # Evaluate all candidates concurrently under semaphore

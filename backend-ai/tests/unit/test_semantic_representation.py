@@ -199,3 +199,94 @@ def test_comprehensive_pii_sanitization_across_all_field_categories():
     # Verify all raw phones in all Job fields are redacted
     for phone in ["0906666777", "0907777888"]:
         assert phone not in job_text
+
+
+def test_cv_semantic_representation_name_and_contact_invariance():
+    """Rule: Altering candidate full_name, email, or phone produces 100% byte-identical semantic representation."""
+    base_kwargs = dict(
+        career_summary="Senior Backend Engineer specializing in distributed databases.",
+        skills=["Python", "FastAPI", "PostgreSQL"],
+        work_experience=[WorkExperienceItem(job_title="Backend Lead", company="Tech Corp", years_of_experience=4.0)],
+        projects=[ProjectItem(name="Cloud DB", technologies=["Python", "PostgreSQL"])],
+    )
+
+    cv_alice = StructuredCv(
+        full_name="Alice Smith",
+        email="alice@company.com",
+        phone="+1 555 123 4567",
+        candidate_id="cand-001",
+        **base_kwargs,
+    )
+    cv_bob = StructuredCv(
+        full_name="Bob Jones",
+        email="bob@startup.io",
+        phone="+84 901 234 567",
+        candidate_id="cand-002",
+        **base_kwargs,
+    )
+    cv_anon = StructuredCv(
+        full_name=None,
+        email=None,
+        phone=None,
+        candidate_id=None,
+        **base_kwargs,
+    )
+
+    text_alice = build_cv_semantic_text(cv_alice)
+    text_bob = build_cv_semantic_text(cv_bob)
+    text_anon = build_cv_semantic_text(cv_anon)
+
+    assert text_alice == text_bob
+    assert text_alice == text_anon
+
+
+def test_cv_semantic_representation_skill_sensitivity():
+    """Rule: Changing candidate technical skills alters the semantic representation."""
+    cv_python = StructuredCv(skills=["Python", "FastAPI"])
+    cv_java = StructuredCv(skills=["Java", "Spring Boot"])
+
+    assert build_cv_semantic_text(cv_python) != build_cv_semantic_text(cv_java)
+
+
+def test_cv_semantic_representation_experience_sensitivity():
+    """Rule: Changing candidate work experience alters the semantic representation."""
+    cv_lead = StructuredCv(
+        work_experience=[WorkExperienceItem(job_title="Lead Architect", company="Scale Co", years_of_experience=5.0)]
+    )
+    cv_junior = StructuredCv(
+        work_experience=[WorkExperienceItem(job_title="Junior Tester", company="QA Co", years_of_experience=1.0)]
+    )
+
+    assert build_cv_semantic_text(cv_lead) != build_cv_semantic_text(cv_junior)
+
+
+def test_cv_semantic_representation_project_sensitivity():
+    """Rule: Changing candidate project content alters the semantic representation."""
+    cv_proj_a = StructuredCv(
+        projects=[ProjectItem(name="Kubernetes Operator", technologies=["Go", "Docker", "Kubernetes"])]
+    )
+    cv_proj_b = StructuredCv(projects=[ProjectItem(name="WordPress Blog", technologies=["PHP", "MySQL"])])
+
+    assert build_cv_semantic_text(cv_proj_a) != build_cv_semantic_text(cv_proj_b)
+
+
+def test_job_semantic_representation_determinism_and_independence():
+    """Rule: Job representation is strictly deterministic and depends exclusively on Job fields."""
+    job = StructuredJob(
+        title="Site Reliability Engineer",
+        description="Maintain 99.99% uptime for cloud infrastructure.",
+        required_skills=["Linux", "Kubernetes", "Prometheus"],
+        preferred_skills=["Golang", "Terraform"],
+        minimum_experience_years=3.0,
+        education_requirement="Bachelor of Computer Science",
+        employment_type="Full-time",
+    )
+
+    rep1 = build_job_semantic_text(job)
+    rep2 = build_job_semantic_text(job)
+
+    assert rep1 == rep2
+    assert "Site Reliability Engineer" in rep1
+    assert "99.99% uptime" in rep1
+    assert "Linux, Kubernetes, Prometheus" in rep1
+    assert "3.0 năm" in rep1
