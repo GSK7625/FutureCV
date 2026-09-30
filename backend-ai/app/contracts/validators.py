@@ -5,13 +5,13 @@ import math
 import re
 from typing import Any
 
+from app.core.temporal import ONGOING_DATE_TOKENS
+
 # Central constant bounds
 MAX_EXPERIENCE_YEARS: float = 60.0
 MAX_SKILL_LENGTH: int = 200
 MAX_TITLE_LENGTH: int = 300
 MAX_DESCRIPTION_LENGTH: int = 20000
-
-ONGOING_DATE_TOKENS = frozenset({"present", "current", "ongoing", "hiện tại", "now"})
 
 
 def validate_non_empty_string(v: str, field_name: str, max_length: int = 300) -> str:

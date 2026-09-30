@@ -5,8 +5,7 @@ from datetime import date
 import re
 
 from app.contracts.cv import WorkExperienceItem
-
-ONGOING_TOKENS = frozenset({"present", "current", "ongoing", "hiện tại"})
+from app.core.temporal import ONGOING_DATE_TOKENS as ONGOING_TOKENS
 
 
 def is_ongoing_end_date(value: str | None) -> bool:
@@ -222,6 +221,7 @@ def calculate_experience_match(
     # Partial experience
     ratio = max(0.0, candidate_years / req_years)
     score = round(ratio * 100.0, 2)
+    bounded_score = max(0.0, min(100.0, score))
     shortage = round(req_years - candidate_years, 1)
     text = (
         f"Ứng viên có {candidate_years:.1f} năm kinh nghiệm, "
@@ -229,7 +229,7 @@ def calculate_experience_match(
     )
 
     return ExperienceMatchResult(
-        score=score,
+        score=bounded_score,
         comparison_text=text,
         candidate_years=candidate_years,
         required_years=req_years,

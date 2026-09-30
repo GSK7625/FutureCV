@@ -9,6 +9,7 @@ SKILL_ALIASES: dict[str, str] = {
     "react.js": "react",
     "react native": "react-native",
     "reactnative": "react-native",
+    "react-native": "react-native",
     "node": "node.js",
     "nodejs": "node.js",
     "node.js": "node.js",
@@ -20,6 +21,9 @@ SKILL_ALIASES: dict[str, str] = {
     "python": "python",
     "c#": "c#",
     "csharp": "c#",
+    "c sharp": "c#",
+    "c++": "c++",
+    "cpp": "c++",
     "dotnet": ".net",
     ".net": ".net",
     ".net core": ".net",
@@ -34,18 +38,30 @@ SKILL_ALIASES: dict[str, str] = {
     "postgresql": "postgresql",
     "mongo": "mongodb",
     "mongodb": "mongodb",
+    "vue.js": "vue.js",
+    "vuejs": "vue.js",
+    "next.js": "next.js",
+    "nextjs": "next.js",
     "aws": "aws",
+    "amazon web services": "aws",
     "azure": "azure",
     "gcp": "gcp",
     "google cloud": "gcp",
+    "google cloud platform": "gcp",
+    "ci/cd": "ci/cd",
+    "cicd": "ci/cd",
 }
 
 
 def normalize_skill(skill: str) -> str:
     """Normalize a single skill name to its canonical lower-case representation."""
     cleaned = skill.strip().lower()
-    # Remove surrounding punctuation except '#' and '.'
-    cleaned = re.sub(r"^[^\w#.]+|[^\w#.]+$", "", cleaned)
+    if not cleaned:
+        return ""
+    # Collapse multiple consecutive whitespace characters
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    # Remove surrounding punctuation except '#', '.', and '+'
+    cleaned = re.sub(r"^[^\w#.+]+|[^\w#.+]+$", "", cleaned)
     return SKILL_ALIASES.get(cleaned, cleaned)
 
 

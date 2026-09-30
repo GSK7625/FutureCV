@@ -12,8 +12,9 @@ class ProjectRelevanceResult:
     Evaluation of candidate projects against job technology requirements.
 
     NOTE ON STATISTICAL INDEPENDENCE:
-    Component scores are heuristic and are not statistically independent. Technologies
-    demonstrated in projects may also contribute to the overall candidate skill pool.
+    Observed feature correlation is preserved for compatibility. Candidate project
+    technologies may contribute to both SkillScore and ProjectScore in matching-v1.
+    The effect will be evaluated during calibration.
     """
 
     matched_technologies: list[str] = field(default_factory=list)
@@ -36,7 +37,7 @@ def evaluate_project_relevance(
     total_projects = len(projects)
     target_skills = [s.strip() for s in (required_skills + (preferred_skills or [])) if s.strip()]
 
-    # Case 1: Job does not specify target skills to evaluate against
+    # Case 1: Job does not specify target skills to evaluate against (N/A -> 100.0, no penalty)
     if not target_skills:
         return ProjectRelevanceResult(
             matched_technologies=[],
@@ -45,7 +46,7 @@ def evaluate_project_relevance(
             relevance_explanation=(
                 "Vị trí tuyển dụng không có yêu cầu kỹ năng cụ thể để đánh giá độ liên quan của dự án."
             ),
-            project_score=50.0,
+            project_score=100.0,
         )
 
     # Case 2: Candidate has no projects listed
@@ -58,8 +59,12 @@ def evaluate_project_relevance(
             project_score=0.0,
         )
 
-    # Build normalized lookup for target skills
-    norm_targets = {normalize_skill(s): s for s in target_skills}
+    # Build normalized lookup for target skills (first canonical occurrence wins display provenance)
+    norm_targets: dict[str, str] = {}
+    for s in target_skills:
+        canonical = normalize_skill(s)
+        if canonical not in norm_targets:
+            norm_targets[canonical] = s
 
     matched_tech_set: list[str] = []
     relevant_count = 0
