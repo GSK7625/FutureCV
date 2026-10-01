@@ -13,9 +13,9 @@ export interface NavItem {
 }
 
 export const JOB_MENU_ACTIONS: NavItem[] = [
-  { label: "Tìm việc làm", href: "/", iconName: "search" },
-  { label: "Việc làm đã lưu", href: "/", iconName: "bookmark" },
-  { label: "Việc làm đã ứng tuyển", href: "/", iconName: "file-text" },
+  { label: "Tìm việc làm", href: "/jobs", iconName: "search" },
+  { label: "Việc làm đã lưu", href: "/candidate/saved-jobs", iconName: "bookmark" },
+  { label: "Việc làm đã ứng tuyển", href: "/candidate/applications", iconName: "file-text" },
   { label: "Việc làm phù hợp", href: "/", iconName: "thumb-up" },
 ];
 

@@ -40,7 +40,7 @@ const SECTIONS = [
     icon: IconBriefcase,
     items: [
       { label: "Việc làm đã lưu", href: "/candidate/saved-jobs" },
-      { label: "Việc làm đã ứng tuyển", href: "/jobs" }, // TODO(FC-81): /candidate/applications
+      { label: "Việc làm đã ứng tuyển", href: "/candidate/applications" },
       { label: "Việc làm phù hợp với bạn", href: "/candidate/matching-jobs" },
       { label: "Cài đặt gợi ý việc làm", href: "/candidate/job-alerts" },
     ],

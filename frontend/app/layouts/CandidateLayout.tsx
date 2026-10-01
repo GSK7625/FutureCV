@@ -1,10 +1,13 @@
+import type { ClientLoaderFunctionArgs } from "react-router";
 import { Outlet } from "react-router";
 import { requireRole } from "~/guards/requireRole";
 import { PublicHeader } from "./public/PublicHeader";
 import { PublicFooter } from "./public/PublicFooter";
 
-export const clientLoader = () => {
-  const { user } = requireRole(["candidate"]);
+export const clientLoader = ({ request }: ClientLoaderFunctionArgs) => {
+  const url = new URL(request.url);
+  const returnTo = `${url.pathname}${url.search}`;
+  const { user } = requireRole(["candidate"], returnTo);
   return { user };
 };
 
