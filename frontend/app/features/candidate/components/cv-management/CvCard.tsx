@@ -217,19 +217,21 @@ export function CvCard({
 
         {/* Action Button Bar */}
         <div className="pt-3 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowAnalysis((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all active:scale-[0.98] ${
-              showAnalysis
-                ? "border-navy bg-navy/5 text-navy font-bold"
-                : "border-border-strong bg-surface-low text-ink-variant hover:border-navy/30 hover:text-navy hover:bg-surface"
-            }`}
-          >
-            <IconChartBar size={14} className={showAnalysis ? "text-navy" : "text-gold"} />
-            <span>Xem điểm đánh giá</span>
-            {showAnalysis ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAnalysis((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all active:scale-[0.98] ${
+                showAnalysis
+                  ? "border-navy bg-navy/5 text-navy font-bold"
+                  : "border-border-strong bg-surface-low text-ink-variant hover:border-navy/30 hover:text-navy hover:bg-surface"
+              }`}
+            >
+              <IconChartBar size={14} className={showAnalysis ? "text-navy" : "text-gold"} />
+              <span>Xem điểm đánh giá</span>
+              {showAnalysis ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+            </button>
+          </div>
 
           {/* Set as Primary Button */}
           {!cv.isPrimary && (
