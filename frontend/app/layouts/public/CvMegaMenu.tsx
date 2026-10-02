@@ -12,14 +12,12 @@ import {
   IconCompass,
   IconStar,
   IconWriting,
-  IconBriefcase,
   IconFileText,
   IconCloudUpload,
   IconFileDescription,
 } from "@tabler/icons-react";
 import {
   CV_STYLE_LINKS,
-  CV_ROLE_LINKS,
   CV_TOOL_LINKS,
 } from "./navConfig";
 
@@ -34,7 +32,6 @@ const CV_ICONS: Record<string, React.ReactNode> = {
   compass: <IconCompass size={18} className="text-gold" />,
   star: <IconStar size={18} className="text-gold" />,
   writing: <IconWriting size={18} className="text-gold" />,
-  briefcase: <IconBriefcase size={18} className="text-gold" />,
   "file-text": <IconFileText size={19} className="text-gold" />,
   "cloud-upload": <IconCloudUpload size={19} className="text-gold" />,
   "file-description": <IconFileDescription size={19} className="text-gold" />,
@@ -63,32 +60,6 @@ export function CvMegaMenu({ onClose, onMouseEnter, onMouseLeave }: CvMegaMenuPr
           </div>
           <ul className="flex flex-col gap-2.5">
             {CV_STYLE_LINKS.map((item) => (
-              <li key={item.label}>
-                <Link
-                  to={item.href}
-                  onClick={onClose}
-                  className="group flex items-center gap-2.5 font-medium text-ink hover:text-gold"
-                >
-                  {item.iconName && CV_ICONS[item.iconName]}
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          {/* Nhóm 2: Mẫu CV theo vị trí ứng tuyển */}
-          <div className="mb-3 mt-6">
-            <Link
-              to="/cv/templates"
-              onClick={onClose}
-              className="group inline-flex items-center gap-1 text-[13.5px] font-bold text-gold transition-colors hover:underline"
-            >
-              <span>Mẫu CV theo vị trí ứng tuyển</span>
-              <IconArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          </div>
-          <ul className="flex flex-col gap-2.5">
-            {CV_ROLE_LINKS.map((item) => (
               <li key={item.label}>
                 <Link
                   to={item.href}

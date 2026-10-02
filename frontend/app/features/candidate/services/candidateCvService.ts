@@ -1,16 +1,21 @@
 /**
  * @file candidateCvService.ts
- * @description Candidate CV Service: Giao tiếp API quản lý CV của ứng viên (P3-UC01, P3-UC05).
- * @architecture Gọi API thật qua fetcher (auth: true), hỗ trợ tải lên file multipart FormData.
+ * @description Candidate CV Service: Giao tiếp API quản lý CV của ứng viên (P3-UC01..P3-UC06).
+ * @architecture Gọi API thật qua fetcher (auth: true). KHÔNG MOCK.
+ * Đối soát: CandidateProfileController.cs, CandidateService.cs.
  */
 
 import { fetcher } from "~/lib/fetcher";
 import type { CvResponse } from "../types";
+import type {
+  CvAnalysisResponse,
+  UpdateCvTitleRequest,
+} from "../types/cv.types";
 
 export const candidateCvService = {
-  /**
-   * Lấy danh sách tất cả CV của ứng viên hiện tại.
-   */
+  // ── List & Detail ───────────────────────────────────────────────────────────
+
+  /** GET /api/candidate/cvs — Lấy toàn bộ danh sách CV */
   async list(signal?: AbortSignal): Promise<CvResponse[]> {
     return fetcher<CvResponse[]>("/api/candidate/cvs", {
       method: "GET",
@@ -19,9 +24,7 @@ export const candidateCvService = {
     });
   },
 
-  /**
-   * Lấy thông tin chi tiết một CV theo ID.
-   */
+  /** GET /api/candidate/cvs/{id} — Chi tiết một CV */
   async getById(id: string, signal?: AbortSignal): Promise<CvResponse> {
     return fetcher<CvResponse>(`/api/candidate/cvs/${id}`, {
       method: "GET",
@@ -30,13 +33,15 @@ export const candidateCvService = {
     });
   },
 
+  // ── Upload ──────────────────────────────────────────────────────────────────
+
   /**
-   * Tải lên một file CV mới (hỗ trợ PDF tối đa 5MB).
+   * POST /api/candidate/cvs — Tải lên CV mới (PDF ≤ 5MB).
+   * Lưu ý: field tên "cv" (không phải "file"), title qua query param.
    */
   async upload(file: File, title?: string): Promise<CvResponse> {
     const formData = new FormData();
-    formData.append("cv", file);
-    formData.append("file", file); // Fallback
+    formData.append("cv", file); // field đúng tên backend yêu cầu
 
     const url = title?.trim()
       ? `/api/candidate/cvs?title=${encodeURIComponent(title.trim())}`
@@ -49,12 +54,54 @@ export const candidateCvService = {
     });
   },
 
-  /**
-   * Chọn một CV làm CV chính (Primary) cho hồ sơ ứng viên.
-   */
+  // ── Mutations ───────────────────────────────────────────────────────────────
+
+  /** PATCH /api/candidate/cvs/{id}/title - Đổi tên CV */
+  async updateTitle(id: string, title: string): Promise<CvResponse> {
+    return fetcher<CvResponse>(`/api/candidate/cvs/${id}/title`, {
+      method: "PATCH",
+      auth: true,
+      body: { title } satisfies UpdateCvTitleRequest,
+    });
+  },
+
+  /** DELETE /api/candidate/cvs/{id} — Xóa CV (soft-delete, 204) */
+  async delete(id: string): Promise<void> {
+    return fetcher<void>(`/api/candidate/cvs/${id}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  },
+
+  /** PUT /api/candidate/cvs/{id}/select — Đặt làm CV chính */
   async selectPrimary(id: string): Promise<CvResponse> {
     return fetcher<CvResponse>(`/api/candidate/cvs/${id}/select`, {
       method: "PUT",
+      auth: true,
+    });
+  },
+
+  // ── Analysis ────────────────────────────────────────────────────────────────
+
+  /**
+   * GET /api/candidate/cvs/{id}/analysis — Lấy điểm đánh giá CV.
+   * BE tự chấm lần đầu nếu chưa có evaluation (rule-based, không cần polling).
+   */
+  async getAnalysis(id: string, signal?: AbortSignal): Promise<CvAnalysisResponse> {
+    return fetcher<CvAnalysisResponse>(`/api/candidate/cvs/${id}/analysis`, {
+      method: "GET",
+      auth: true,
+      signal,
+    });
+  },
+
+  /**
+   * POST /api/candidate/cvs/{id}/analyze — Chấm lại điểm CV (re-compute).
+   * Gọi khi người dùng bấm nút "Chấm lại" sau khi cập nhật thông tin.
+   */
+  async analyze(id: string): Promise<CvAnalysisResponse> {
+    return fetcher<CvAnalysisResponse>(`/api/candidate/cvs/${id}/analyze`, {
+      method: "POST",
       auth: true,
     });
   },
