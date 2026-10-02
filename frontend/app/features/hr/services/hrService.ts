@@ -16,6 +16,7 @@ import type {
   RecruiterApplicationFilters,
   RecruiterApplicationSummary,
   RecruitmentPipeline,
+  PipelineAnalytics,
   SkillOption,
   EvaluateApplicationRequest,
   UpdateApplicationStatusRequest,
@@ -171,6 +172,18 @@ export const hrService = {
       method: "GET",
       auth: true,
       signal,
+    });
+  },
+
+  getPipelineAnalytics(jobId: string, signal?: AbortSignal) {
+    return fetcher<PipelineAnalytics>(`/api/employer/jobs/${jobId}/pipeline/analytics`, {
+      method: "GET", auth: true, signal,
+    });
+  },
+
+  exportPipeline(jobId: string) {
+    return fetcher<Blob>(`/api/employer/jobs/${jobId}/pipeline/export`, {
+      method: "GET", auth: true, responseType: "blob", timeoutMs: 30_000,
     });
   },
 };
