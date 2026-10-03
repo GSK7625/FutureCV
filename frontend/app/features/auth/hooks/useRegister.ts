@@ -11,15 +11,15 @@ export function useRegister() {
   const showToast = useUIStore((s) => s.showToast);
 
   return useMutation({
-    mutationFn: (input: { 
-      email: string; 
-      password: string; 
-      confirmPassword: string; 
-      fullName: string; 
-      phoneNumber?: string; 
+    mutationFn: (input: {
+      email: string;
+      password: string;
+      confirmPassword: string;
+      fullName: string;
+      phoneNumber?: string;
       gender?: string;
       companyName?: string;
-      accountType?: string 
+      accountType?: string
     }) => {
       const service = authService();
       if (input.accountType === "employer") {

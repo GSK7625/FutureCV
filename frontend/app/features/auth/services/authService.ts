@@ -15,7 +15,7 @@ export function authService() {
     forgotPassword: (dto: ForgotPasswordDto) =>
       fetcher<MessageDto>("/api/auth/forgot-password", { method: "POST", body: dto }),
 
-    logout: (refreshToken: string) =>
-      fetcher<void>("/api/auth/logout", { method: "POST", body: { refreshToken }, auth: true }),
+    logout: (refreshToken: string | null) =>
+      fetcher<MessageDto>("/api/auth/logout", { method: "POST", body: { refreshToken }, auth: true }),
   };
 }

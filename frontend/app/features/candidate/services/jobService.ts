@@ -9,7 +9,9 @@ import type {
   ApiJobDetail,
   ApiJobListItem,
   ApiPaged,
-  ApplicationDto,
+  ApplyJobRequest,
+  ApplyJobResponse,
+  JobMatchPreviewResponse,
   Job,
   JobFilters,
   JobListResult,
@@ -25,7 +27,8 @@ export { DEMO_JOBS, DEMO_MASTER_DATA };
 export interface IJobService {
   list(filters: JobFilters, signal?: AbortSignal): Promise<JobListResult>;
   detail(id: string, signal?: AbortSignal): Promise<Job>;
-  apply(dto: ApplicationDto): Promise<{ id: string }>;
+  apply(jobId: string, req: ApplyJobRequest): Promise<ApplyJobResponse>;
+  previewMatch(jobId: string, cvId?: string, signal?: AbortSignal): Promise<JobMatchPreviewResponse>;
   similar(id: string, categoryId?: string, signal?: AbortSignal): Promise<Job[]>;
   getMasterData(signal?: AbortSignal): Promise<JobMasterData>;
 }
@@ -233,11 +236,19 @@ export function jobService(): IJobService {
       ),
 
     // ❌ KHÔNG fallback cho mutation ghi dữ liệu — thất bại phải báo lỗi thật.
-    apply: (dto) =>
-      fetcher<{ id: string }>("/api/applications", {
+    apply: (jobId, req) =>
+      fetcher<ApplyJobResponse>(`/api/candidate/jobs/${jobId}/apply`, {
         method: "POST",
-        body: dto,
+        body: req,
         auth: true,
+      }),
+
+    previewMatch: (jobId, cvId, signal) =>
+      fetcher<JobMatchPreviewResponse>(`/api/candidate/jobs/${jobId}/preview-match`, {
+        method: "POST",
+        body: { cvId: cvId || null },
+        auth: true,
+        signal,
       }),
 
     similar: async (id, categoryId, signal) =>
