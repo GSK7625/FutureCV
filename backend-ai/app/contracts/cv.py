@@ -1,8 +1,16 @@
 """Contracts representing structured CV data."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.contracts.validators import (
+    validate_date_order,
+    validate_experience_years,
+    validate_non_empty_string,
+    validate_optional_string,
+    validate_skill_list,
+)
 
 
 class WorkExperienceItem(BaseModel):
@@ -29,6 +37,21 @@ class WorkExperienceItem(BaseModel):
     )
     description: str = Field(default="", max_length=8000, description="Key responsibilities and achievements")
 
+    @field_validator("job_title")
+    @classmethod
+    def validate_job_title(cls, v: str) -> str:
+        return validate_non_empty_string(v, "job_title", 300)
+
+    @field_validator("years_of_experience", mode="before")
+    @classmethod
+    def validate_years_of_experience(cls, v: Any) -> float:
+        return validate_experience_years(v)
+
+    @model_validator(mode="after")
+    def validate_work_experience_dates(self) -> "WorkExperienceItem":
+        validate_date_order(self.start_date, self.end_date)
+        return self
+
 
 class EducationItem(BaseModel):
     """Education entry in structured CV."""
@@ -37,6 +60,16 @@ class EducationItem(BaseModel):
     institution: str = Field(default="", max_length=200, description="University or educational institution")
     field_of_study: str = Field(default="", max_length=200, description="Major or specialization")
     graduation_year: str | None = Field(default=None, max_length=50, description="Year of completion")
+
+    @field_validator("degree")
+    @classmethod
+    def validate_degree(cls, v: str) -> str:
+        return validate_non_empty_string(v, "degree", 200)
+
+    @field_validator("graduation_year")
+    @classmethod
+    def validate_graduation_year(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 50)
 
 
 class ProjectItem(BaseModel):
@@ -49,6 +82,16 @@ class ProjectItem(BaseModel):
         max_length=100,
         description="Technologies and tools used",
     )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        return validate_non_empty_string(v, "name", 300)
+
+    @field_validator("technologies")
+    @classmethod
+    def validate_technologies(cls, v: list[str]) -> list[str]:
+        return validate_skill_list(v)
 
 
 class StructuredCv(BaseModel):
@@ -88,3 +131,50 @@ class StructuredCv(BaseModel):
         max_length=100,
         description="Technologies and frameworks",
     )
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 200)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 200)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 50)
+
+    @field_validator("career_summary")
+    @classmethod
+    def validate_career_summary(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 4000)
+
+    @field_validator("skills")
+    @classmethod
+    def validate_skills(cls, v: list[str]) -> list[str]:
+        return validate_skill_list(v)
+
+    @field_validator("technologies")
+    @classmethod
+    def validate_technologies(cls, v: list[str]) -> list[str]:
+        return validate_skill_list(v)
+
+    @field_validator("certificates")
+    @classmethod
+    def validate_certificates(cls, v: list[str]) -> list[str]:
+        if not v:
+            return []
+        cleaned: list[str] = []
+        for idx, cert in enumerate(v):
+            if not isinstance(cert, str):
+                raise ValueError(f"Certificate at index {idx} must be a string")
+            stripped = cert.strip()
+            if not stripped:
+                raise ValueError(f"Certificate at index {idx} cannot be empty or whitespace-only")
+            if len(stripped) > 300:
+                raise ValueError(f"Certificate '{stripped[:20]}...' exceeds maximum allowed length of 300 characters")
+            cleaned.append(stripped)
+        return cleaned

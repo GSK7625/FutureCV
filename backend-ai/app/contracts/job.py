@@ -1,8 +1,15 @@
 """Contracts representing structured Job data."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.contracts.validators import (
+    validate_non_empty_string,
+    validate_optional_experience_years,
+    validate_optional_string,
+    validate_skill_list,
+)
 
 
 class StructuredJob(BaseModel):
@@ -38,3 +45,43 @@ class StructuredJob(BaseModel):
         max_length=100,
         description="Full-time, Part-time, Contract, etc.",
     )
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        return validate_non_empty_string(v, "title", 300)
+
+    @field_validator("required_skills")
+    @classmethod
+    def validate_required_skills(cls, v: list[str]) -> list[str]:
+        return validate_skill_list(v)
+
+    @field_validator("preferred_skills")
+    @classmethod
+    def validate_preferred_skills(cls, v: list[str]) -> list[str]:
+        return validate_skill_list(v)
+
+    @field_validator("minimum_experience_years", mode="before")
+    @classmethod
+    def validate_minimum_experience_years(cls, v: Any) -> float | None:
+        return validate_optional_experience_years(v)
+
+    @field_validator("education_requirement")
+    @classmethod
+    def validate_education_requirement(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 1000)
+
+    @field_validator("location")
+    @classmethod
+    def validate_location(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 300)
+
+    @field_validator("salary")
+    @classmethod
+    def validate_salary(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 200)
+
+    @field_validator("employment_type")
+    @classmethod
+    def validate_employment_type(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 100)

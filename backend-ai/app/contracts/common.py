@@ -16,6 +16,10 @@ class ResponseMeta(BaseModel):
         default=None,
         description="Variant of algorithm (e.g. matching-v0, matching-v1-experimental)",
     )
+    contract_version: str | None = Field(
+        default=None,
+        description="Optional response contract identifier when a feature defines a frozen contract",
+    )
     schema_version: str | None = Field(
         default="1.0.0",
         description="Semantic schema/contract version (e.g. 1.0.0)",
@@ -24,8 +28,7 @@ class ResponseMeta(BaseModel):
     provider: str = Field(
         default="mock",
         description=(
-            "Configured AI/LLM provider (e.g. 'mock', 'openai'). "
-            "See llm_invoked to check if LLM was actually called."
+            "Configured AI/LLM provider (e.g. 'mock', 'openai'). See llm_invoked to check if LLM was actually called."
         ),
     )
     model: str = Field(
@@ -43,8 +46,7 @@ class ResponseMeta(BaseModel):
     llm_invoked: bool | None = Field(
         default=None,
         description=(
-            "Indicates whether an LLM was actively invoked for this response. "
-            "None indicates undeclared by service."
+            "Indicates whether an LLM was actively invoked for this response. None indicates undeclared by service."
         ),
     )
     explanation_mode: ExplanationMode | None = Field(

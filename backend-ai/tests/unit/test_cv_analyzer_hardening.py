@@ -183,4 +183,3 @@ def test_cv_analyzer_dependency_override_pipeline_consistency():
         assert valid_response.status_code == 200
     finally:
         app.dependency_overrides.pop(get_settings_dep, None)
-

@@ -192,11 +192,13 @@ def test_calculate_total_experience_ongoing_role_with_injected_reference_date():
 def test_calculate_total_experience_invalid_dates_fallback():
     """Invalid interval (start > end) safely falls back to valid scalar years without crashing."""
     exps = [
-        WorkExperienceItem(
+        WorkExperienceItem.model_construct(
             job_title="Developer",
+            company="",
             start_date="2025-01",
             end_date="2022-01",  # Invalid: end before start
             years_of_experience=1.5,
+            duration="",
         )
     ]
     assert calculate_total_experience_years(exps) == 1.5
@@ -334,7 +336,6 @@ def test_calculate_total_experience_invalid_end_date_falls_back():
     assert total != 6.0
 
 
-
 def test_calculate_total_experience_mixed_dated_and_undated_conservative():
     """
     CRITICAL PROOF (FIX B): When a valid dated timeline exists, it is authoritative.
@@ -358,4 +359,3 @@ def test_calculate_total_experience_mixed_dated_and_undated_conservative():
     ]
     # Authoritative dated timeline = 2.0 years (NOT 3.5 years double-counted)
     assert calculate_total_experience_years(exps) == 2.0
-

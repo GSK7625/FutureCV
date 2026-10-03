@@ -60,6 +60,10 @@ class CareerAssistantService:
                     clean_pref = [s for s in clean_pref if s]
                     if clean_pref:
                         context_parts.append(f"Kỹ năng ưu tiên: {', '.join(clean_pref)}")
+                if job.description:
+                    clean_job_desc = sanitize_free_text(job.description)
+                    if clean_job_desc:
+                        context_parts.append(f"Mô tả công việc: {clean_job_desc}")
             if req.context.match_result:
                 mr = req.context.match_result
                 context_parts.append(f"Điểm phù hợp hiện tại: {mr.match_score}/100")
@@ -81,18 +85,25 @@ class CareerAssistantService:
                     clean_edu_cmp = sanitize_free_text(mr.education_comparison)
                     if clean_edu_cmp:
                         context_parts.append(f"Đánh giá học vấn: {clean_edu_cmp}")
-
+                if mr.project_domain_relevance:
+                    clean_proj_rel = sanitize_free_text(mr.project_domain_relevance)
+                    if clean_proj_rel:
+                        context_parts.append(f"Độ phù hợp dự án: {clean_proj_rel}")
+                if mr.match_explanation:
+                    clean_mr_exp = sanitize_free_text(mr.match_explanation)
+                    if clean_mr_exp:
+                        context_parts.append(f"Giải thích kết quả khớp: {clean_mr_exp}")
 
         context_str = "\n".join(context_parts) if context_parts else "Không có thông tin hồ sơ bổ sung."
 
-        # Format delimited conversation history (validated roles: user / assistant)
-        history_parts = [f"[{msg.role}]: {msg.content}" for msg in req.history[-10:]]
+        # Format delimited conversation history (sanitizing content for email and phone numbers)
+        history_parts = [f"[{msg.role}]: {sanitize_free_text(msg.content)}" for msg in req.history[-10:]]
         chat_history_str = "\n".join(history_parts) if history_parts else "Chưa có lượt trò chuyện trước đó."
 
         prompt = CAREER_ASSISTANT_USER_TEMPLATE_V1.format(
             context_str=context_str,
             chat_history_str=chat_history_str,
-            user_message=req.message,
+            user_message=sanitize_free_text(req.message),
         )
 
         reply = await self.llm.generate_text(

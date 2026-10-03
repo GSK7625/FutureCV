@@ -98,8 +98,6 @@ class RateLimitEmbeddingProvider(EmbeddingPort):
         raise RateLimitExceededError("Rate limit exceeded on OpenAI embeddings")
 
 
-
-
 @pytest.fixture
 def sample_cv() -> StructuredCv:
     return StructuredCv(
@@ -206,7 +204,6 @@ async def test_v0_llm_rate_limit_exceeded_falls_back_to_deterministic(
     assert result.meta.prompt_version == "v1"
     assert result.meta.llm_invoked is True
     assert result.meta.explanation_mode == "deterministic-fallback"
-
 
 
 @pytest.mark.asyncio
@@ -354,8 +351,6 @@ async def test_v1_embedding_rate_limit_fails_fast_without_fallback(
         await service.match(cv=sample_cv, job=sample_job, generate_explanation=True)
 
     assert "Rate limit exceeded on OpenAI embeddings" in str(exc_info.value)
-
-
 
 
 @pytest.mark.asyncio
