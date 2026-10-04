@@ -124,55 +124,85 @@ public class AdminService : IAdminService
     // Company Verification & Management
     // -------------------------------------------------------------------------
 
-    public async Task<ServiceResult<PagedResult<CompanyProfileResponse>>> GetCompaniesAsync(
+    public async Task<ServiceResult<PagedResult<AdminCompanyProfileResponse>>> GetCompaniesAsync(
         CompanyQueryFilter filter, CancellationToken cancellationToken = default)
     {
         var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
         var pageSize  = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
 
-        var query = _context.Companies.AsNoTracking().Where(c => !c.IsDeleted);
+        var query = from company in _context.Companies
+                    join employer in _context.Employers on company.Id equals employer.CompanyId
+                    where !company.IsDeleted && !employer.IsDeleted
+                    select new { company, employer };
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var search = filter.Search.Trim().ToLowerInvariant();
-            query = query.Where(c =>
-                c.Name.ToLower().Contains(search) ||
-                c.TaxCode.ToLower().Contains(search));
+            query = query.Where(x =>
+                x.company.Name.ToLower().Contains(search) ||
+                x.company.TaxCode.ToLower().Contains(search));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Status) &&
             Enum.TryParse<CompanyVerificationStatus>(filter.Status, true, out var statusEnum))
         {
-            query = query.Where(c => c.VerifiedStatus == statusEnum);
+            query = query.Where(x => x.company.VerifiedStatus == statusEnum);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var companies = await query
-            .OrderByDescending(c => c.CreatedAt)
+        var results = await query
+            .OrderByDescending(x => x.company.CreatedAt)
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
-            .Select(c => new CompanyProfileResponse(
-                c.Id, c.Name, c.TaxCode, c.LogoUrl, c.Scale, c.Industry,
-                c.WebsiteUrl, c.Address, c.Description,
-                c.VerifiedStatus.ToString(), c.VerifiedAt, c.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        var result = new PagedResult<CompanyProfileResponse>(companies, totalCount, pageIndex, pageSize);
+        // Fetch user emails for each employer
+        var userIds = results.Select(r => r.employer.UserId).Distinct().ToList();
+        var userEmails = new Dictionary<Guid, string?>();
+        foreach (var uid in userIds)
+        {
+            userEmails[uid] = await _identityService.GetUserEmailAsync(uid, cancellationToken);
+        }
+
+        var items = results.Select(r => new AdminCompanyProfileResponse(
+            r.company.Id,
+            r.employer.UserId,
+            r.company.Name,
+            userEmails.GetValueOrDefault(r.employer.UserId) ?? "",
+            r.employer.Phone,
+            r.company.WebsiteUrl,
+            r.company.Address,
+            r.company.Scale,
+            r.company.Industry,
+            r.company.Description,
+            r.company.LogoUrl,
+            r.company.VerifiedStatus.ToString(),
+            r.company.CreatedAt,
+            r.company.UpdatedAt
+        )).ToList();
+
+        var result = new PagedResult<AdminCompanyProfileResponse>(items, totalCount, pageIndex, pageSize);
         return ServiceResult.Success(result);
     }
 
-    public async Task<ServiceResult<CompanyProfileResponse>> UpdateCompanyStatusAsync(
+    public async Task<ServiceResult<AdminCompanyProfileResponse>> UpdateCompanyStatusAsync(
         Guid adminUserId, Guid companyId, UpdateCompanyStatusRequest request, string? ipAddress, CancellationToken cancellationToken = default)
     {
         var company = await _context.Companies
             .FirstOrDefaultAsync(c => c.Id == companyId && !c.IsDeleted, cancellationToken);
 
         if (company is null)
-            return ServiceResult.NotFound<CompanyProfileResponse>("Company not found.");
+            return ServiceResult.NotFound<AdminCompanyProfileResponse>("Company not found.");
+
+        var employer = await _context.Employers
+            .FirstOrDefaultAsync(e => e.CompanyId == companyId && !e.IsDeleted, cancellationToken);
+
+        if (employer is null)
+            return ServiceResult.NotFound<AdminCompanyProfileResponse>("Employer not found for this company.");
 
         if (!Enum.TryParse<CompanyVerificationStatus>(request.Status, true, out var newStatus))
-            return ServiceResult.Failure<CompanyProfileResponse>($"Invalid company verification status: '{request.Status}'.", ServiceErrorType.Validation);
+            return ServiceResult.Failure<AdminCompanyProfileResponse>($"Invalid company verification status: '{request.Status}'.", ServiceErrorType.Validation);
 
         company.VerifiedStatus = newStatus;
         company.VerifiedAt     = newStatus == CompanyVerificationStatus.Verified
@@ -192,10 +222,24 @@ public class AdminService : IAdminService
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        var response = new CompanyProfileResponse(
-            company.Id, company.Name, company.TaxCode, company.LogoUrl,
-            company.Scale, company.Industry, company.WebsiteUrl, company.Address,
-            company.Description, company.VerifiedStatus.ToString(), company.VerifiedAt, company.CreatedAt);
+        var userEmail = await _identityService.GetUserEmailAsync(employer.UserId, cancellationToken);
+
+        var response = new AdminCompanyProfileResponse(
+            company.Id,
+            employer.UserId,
+            company.Name,
+            userEmail ?? "",
+            employer.Phone,
+            company.WebsiteUrl,
+            company.Address,
+            company.Scale,
+            company.Industry,
+            company.Description,
+            company.LogoUrl,
+            company.VerifiedStatus.ToString(),
+            company.CreatedAt,
+            company.UpdatedAt
+        );
 
         return ServiceResult.Success(response);
     }
