@@ -6,6 +6,7 @@ using FutureCV.Application.Features.Admin.DTOs;
 using FutureCV.Application.Features.Admin.Interfaces;
 using FutureCV.Application.Features.Employer.DTOs;
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 
 namespace FutureCV.Application.Features.Admin.Services;
 
@@ -129,20 +130,20 @@ public class AdminService : IAdminService
         var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
         var pageSize  = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
 
-        var query = _context.Companies.AsNoTracking();
+        var query = _context.Companies.AsNoTracking().Where(c => !c.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            var search = filter.Search.Trim().ToLower();
+            var search = filter.Search.Trim().ToLowerInvariant();
             query = query.Where(c =>
                 c.Name.ToLower().Contains(search) ||
                 c.TaxCode.ToLower().Contains(search));
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<CompanyVerificationStatus>(filter.Status, true, out var statusEnum))
         {
-            var status = filter.Status.Trim();
-            query = query.Where(c => c.VerifiedStatus.ToLower() == status.ToLower());
+            query = query.Where(c => c.VerifiedStatus == statusEnum);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -154,7 +155,7 @@ public class AdminService : IAdminService
             .Select(c => new CompanyProfileResponse(
                 c.Id, c.Name, c.TaxCode, c.LogoUrl, c.Scale, c.Industry,
                 c.WebsiteUrl, c.Address, c.Description,
-                c.VerifiedStatus, c.VerifiedAt, c.CreatedAt))
+                c.VerifiedStatus.ToString(), c.VerifiedAt, c.CreatedAt))
             .ToListAsync(cancellationToken);
 
         var result = new PagedResult<CompanyProfileResponse>(companies, totalCount, pageIndex, pageSize);
@@ -165,13 +166,16 @@ public class AdminService : IAdminService
         Guid adminUserId, Guid companyId, UpdateCompanyStatusRequest request, string? ipAddress, CancellationToken cancellationToken = default)
     {
         var company = await _context.Companies
-            .FirstOrDefaultAsync(c => c.Id == companyId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.Id == companyId && !c.IsDeleted, cancellationToken);
 
         if (company is null)
             return ServiceResult.NotFound<CompanyProfileResponse>("Company not found.");
 
-        company.VerifiedStatus = request.Status;
-        company.VerifiedAt     = request.Status.Equals("Verified", StringComparison.OrdinalIgnoreCase)
+        if (!Enum.TryParse<CompanyVerificationStatus>(request.Status, true, out var newStatus))
+            return ServiceResult.Failure<CompanyProfileResponse>($"Invalid company verification status: '{request.Status}'.", ServiceErrorType.Validation);
+
+        company.VerifiedStatus = newStatus;
+        company.VerifiedAt     = newStatus == CompanyVerificationStatus.Verified
             ? DateTimeOffset.UtcNow
             : null;
 
@@ -191,7 +195,7 @@ public class AdminService : IAdminService
         var response = new CompanyProfileResponse(
             company.Id, company.Name, company.TaxCode, company.LogoUrl,
             company.Scale, company.Industry, company.WebsiteUrl, company.Address,
-            company.Description, company.VerifiedStatus, company.VerifiedAt, company.CreatedAt);
+            company.Description, company.VerifiedStatus.ToString(), company.VerifiedAt, company.CreatedAt);
 
         return ServiceResult.Success(response);
     }
@@ -230,5 +234,353 @@ public class AdminService : IAdminService
 
         var result = new PagedResult<AuditLogResponse>(logs, totalCount, pageIndex, pageSize);
         return ServiceResult.Success(result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Dashboard Statistics (P5-UC05)
+    // -------------------------------------------------------------------------
+
+    public async Task<ServiceResult<AdminDashboardStatsResponse>> GetDashboardStatsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // 1. User stats via IIdentityService
+        var userStats = await _identityService.GetUserStatsAsync(cancellationToken);
+
+        // 2. Company stats
+        var totalCompanies = await _context.Companies.CountAsync(c => !c.IsDeleted, cancellationToken);
+        var verifiedCompanies = await _context.Companies
+            .CountAsync(c => !c.IsDeleted && c.VerifiedStatus == CompanyVerificationStatus.Verified, cancellationToken);
+        var pendingCompanies = await _context.Companies
+            .CountAsync(c => !c.IsDeleted && c.VerifiedStatus == CompanyVerificationStatus.Pending, cancellationToken);
+        var rejectedCompanies = await _context.Companies
+            .CountAsync(c => !c.IsDeleted && c.VerifiedStatus == CompanyVerificationStatus.Rejected, cancellationToken);
+
+        var companyStats = new AdminCompanyStatsDto(
+            totalCompanies,
+            verifiedCompanies,
+            pendingCompanies,
+            rejectedCompanies);
+
+        // 3. Job stats
+        var totalJobs = await _context.Jobs.CountAsync(j => !j.IsDeleted, cancellationToken);
+        var activeJobs = await _context.Jobs
+            .CountAsync(j => !j.IsDeleted && j.IsActive && !j.IsBanned && j.ApprovalStatus == JobApprovalStatus.Approved, cancellationToken);
+        var pendingJobs = await _context.Jobs
+            .CountAsync(j => !j.IsDeleted && j.ApprovalStatus == JobApprovalStatus.Pending, cancellationToken);
+        var rejectedJobs = await _context.Jobs
+            .CountAsync(j => !j.IsDeleted && j.ApprovalStatus == JobApprovalStatus.Rejected, cancellationToken);
+        var bannedJobs = await _context.Jobs
+            .CountAsync(j => !j.IsDeleted && j.IsBanned, cancellationToken);
+        var now = DateTime.UtcNow;
+        var expiredJobs = await _context.Jobs
+            .CountAsync(j => !j.IsDeleted && j.Deadline.HasValue && j.Deadline.Value < now, cancellationToken);
+
+        var jobStats = new AdminJobStatsDto(
+            totalJobs,
+            activeJobs,
+            pendingJobs,
+            rejectedJobs,
+            bannedJobs,
+            expiredJobs);
+
+        // 4. Application stats
+        var totalApplications = await _context.Applications.CountAsync(a => !a.IsDeleted, cancellationToken);
+        var appliedCount = await _context.Applications.CountAsync(a => !a.IsDeleted && a.Status == ApplicationStatus.Applied, cancellationToken);
+        var screeningCount = await _context.Applications.CountAsync(a => !a.IsDeleted && a.Status == ApplicationStatus.Screening, cancellationToken);
+        var interviewCount = await _context.Applications.CountAsync(a => !a.IsDeleted && a.Status == ApplicationStatus.Interview, cancellationToken);
+        var offerCount = await _context.Applications.CountAsync(a => !a.IsDeleted && a.Status == ApplicationStatus.Offer, cancellationToken);
+        var hiredCount = await _context.Applications.CountAsync(a => !a.IsDeleted && a.Status == ApplicationStatus.Hired, cancellationToken);
+        var rejectedAppsCount = await _context.Applications.CountAsync(a => !a.IsDeleted && a.Status == ApplicationStatus.Rejected, cancellationToken);
+        var withdrawnCount = await _context.Applications.CountAsync(a => !a.IsDeleted && a.Status == ApplicationStatus.Withdrawn, cancellationToken);
+
+        var appStats = new AdminApplicationStatsDto(
+            totalApplications,
+            appliedCount,
+            screeningCount,
+            interviewCount,
+            offerCount,
+            hiredCount,
+            rejectedAppsCount,
+            withdrawnCount);
+
+        // 5. Pending reports count
+        var pendingReportsCount = await _context.JobReports
+            .CountAsync(r => !r.IsDeleted && r.Status == JobReportStatus.Pending, cancellationToken);
+
+        // 6. Monthly trend (last 6 months)
+        var monthlyTrends = new List<MonthlyTrendDto>();
+        for (int i = 5; i >= 0; i--)
+        {
+            var monthStart = new DateTime(now.Year, now.Month, 1).AddMonths(-i);
+            var monthEnd = monthStart.AddMonths(1);
+            var monthLabel = monthStart.ToString("yyyy-MM");
+
+            var newJobs = await _context.Jobs
+                .CountAsync(j => !j.IsDeleted && j.CreatedAt >= monthStart && j.CreatedAt < monthEnd, cancellationToken);
+            var newApps = await _context.Applications
+                .CountAsync(a => !a.IsDeleted && a.AppliedAt >= monthStart && a.AppliedAt < monthEnd, cancellationToken);
+            var newCandidates = await _context.Candidates
+                .CountAsync(c => !c.IsDeleted && c.CreatedAt >= monthStart && c.CreatedAt < monthEnd, cancellationToken);
+            var newEmployers = await _context.Employers
+                .CountAsync(e => !e.IsDeleted && e.CreatedAt >= monthStart && e.CreatedAt < monthEnd, cancellationToken);
+
+            monthlyTrends.Add(new MonthlyTrendDto(monthLabel, newCandidates + newEmployers, newJobs, newApps));
+        }
+
+        var response = new AdminDashboardStatsResponse(
+            userStats,
+            companyStats,
+            jobStats,
+            appStats,
+            pendingReportsCount,
+            monthlyTrends);
+
+        return ServiceResult.Success(response);
+    }
+
+    // -------------------------------------------------------------------------
+    // Job Reports & Moderation (P5-UC07)
+    // -------------------------------------------------------------------------
+
+    public async Task<ServiceResult<PagedResult<JobReportResponse>>> GetJobReportsAsync(
+        JobReportFilterRequest filter, CancellationToken cancellationToken = default)
+    {
+        var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
+        var pageSize  = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
+
+        var query = _context.JobReports
+            .AsNoTracking()
+            .Include(r => r.Job)
+                .ThenInclude(j => j.Company)
+            .Where(r => !r.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<JobReportStatus>(filter.Status, true, out var reportStatusEnum))
+        {
+            query = query.Where(r => r.Status == reportStatusEnum);
+        }
+
+        if (filter.JobId.HasValue)
+        {
+            query = query.Where(r => r.JobId == filter.JobId.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var reports = await query
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        // Fetch reporter emails
+        var reporterUserIds = reports.Select(r => r.ReporterUserId).Distinct().ToList();
+        var userEmails = new Dictionary<Guid, string?>();
+        foreach (var uid in reporterUserIds)
+        {
+            userEmails[uid] = await _identityService.GetUserEmailAsync(uid, cancellationToken);
+        }
+
+        var items = reports.Select(r => new JobReportResponse(
+            r.Id,
+            r.JobId,
+            r.Job.Title,
+            r.Job.CompanyId,
+            r.Job.Company.Name,
+            r.ReporterUserId,
+            userEmails.GetValueOrDefault(r.ReporterUserId),
+            r.Reason,
+            r.Details,
+            r.Status.ToString(),
+            r.ResolvedByAdminId,
+            r.ResolvedAt,
+            r.AdminNote,
+            r.CreatedAt
+        )).ToList();
+
+        return ServiceResult.Success(new PagedResult<JobReportResponse>(items, totalCount, pageIndex, pageSize));
+    }
+
+    public async Task<ServiceResult<JobReportResponse>> GetJobReportByIdAsync(
+        Guid reportId, CancellationToken cancellationToken = default)
+    {
+        var report = await _context.JobReports
+            .AsNoTracking()
+            .Include(r => r.Job)
+                .ThenInclude(j => j.Company)
+            .FirstOrDefaultAsync(r => r.Id == reportId && !r.IsDeleted, cancellationToken);
+
+        if (report is null)
+            return ServiceResult.NotFound<JobReportResponse>("Job report not found.");
+
+        var reporterEmail = await _identityService.GetUserEmailAsync(report.ReporterUserId, cancellationToken);
+
+        var response = new JobReportResponse(
+            report.Id,
+            report.JobId,
+            report.Job.Title,
+            report.Job.CompanyId,
+            report.Job.Company.Name,
+            report.ReporterUserId,
+            reporterEmail,
+            report.Reason,
+            report.Details,
+            report.Status.ToString(),
+            report.ResolvedByAdminId,
+            report.ResolvedAt,
+            report.AdminNote,
+            report.CreatedAt
+        );
+
+        return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<bool>> ResolveJobReportAsync(
+        Guid adminUserId, Guid reportId, ResolveJobReportRequest request, string? ipAddress, CancellationToken cancellationToken = default)
+    {
+        var report = await _context.JobReports
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.Id == reportId && !r.IsDeleted, cancellationToken);
+
+        if (report is null)
+            return ServiceResult.NotFound<bool>("Job report not found.");
+
+        if (report.Status != JobReportStatus.Pending)
+            return ServiceResult.Failure<bool>($"Report has already been processed with status '{report.Status}'.", ServiceErrorType.Validation);
+
+        var now = DateTimeOffset.UtcNow;
+        report.ResolvedByAdminId = adminUserId;
+        report.ResolvedAt        = now;
+        report.AdminNote         = request.AdminNote;
+
+        if (request.Action.Equals("BanJob", StringComparison.OrdinalIgnoreCase))
+        {
+            report.Status = JobReportStatus.Resolved;
+
+            // Ban the job
+            report.Job.IsBanned = true;
+            report.Job.IsActive = false;
+            report.Job.BannedAt = now;
+            report.Job.BannedByAdminId = adminUserId;
+            report.Job.BannedReason = string.IsNullOrWhiteSpace(request.AdminNote) ? report.Reason : request.AdminNote;
+
+            // Auto-resolve other pending reports for the same job
+            var otherReports = await _context.JobReports
+                .Where(r => r.JobId == report.JobId && r.Id != reportId && r.Status == JobReportStatus.Pending && !r.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            foreach (var other in otherReports)
+            {
+                other.Status = JobReportStatus.Resolved;
+                other.ResolvedByAdminId = adminUserId;
+                other.ResolvedAt = now;
+                other.AdminNote = "Resolved along with report " + reportId;
+            }
+
+            // Audit Log
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId      = adminUserId,
+                Action      = "Job.BannedViaReport",
+                EntityType  = "Job",
+                EntityId    = report.JobId.ToString(),
+                PayloadJson = JsonSerializer.Serialize(new { ReportId = reportId, Reason = report.Job.BannedReason }),
+                IpAddress   = ipAddress
+            });
+        }
+        else
+        {
+            report.Status = JobReportStatus.Dismissed;
+
+            // Audit Log
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId      = adminUserId,
+                Action      = "JobReport.Dismissed",
+                EntityType  = "JobReport",
+                EntityId    = reportId.ToString(),
+                PayloadJson = JsonSerializer.Serialize(new { Reason = request.AdminNote }),
+                IpAddress   = ipAddress
+            });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return ServiceResult.Success(true);
+    }
+
+    public async Task<ServiceResult<bool>> BanJobAsync(
+        Guid adminUserId, Guid jobId, string reason, string? ipAddress, CancellationToken cancellationToken = default)
+    {
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
+
+        if (job is null)
+            return ServiceResult.NotFound<bool>("Job not found.");
+
+        if (job.IsBanned)
+            return ServiceResult.Failure<bool>("This job is already banned.", ServiceErrorType.Validation);
+
+        var now = DateTimeOffset.UtcNow;
+        job.IsBanned          = true;
+        job.IsActive          = false;
+        job.BannedAt          = now;
+        job.BannedByAdminId   = adminUserId;
+        job.BannedReason      = reason;
+
+        // Resolve any pending reports for this job
+        var pendingReports = await _context.JobReports
+            .Where(r => r.JobId == jobId && r.Status == JobReportStatus.Pending && !r.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        foreach (var r in pendingReports)
+        {
+            r.Status            = JobReportStatus.Resolved;
+            r.ResolvedByAdminId = adminUserId;
+            r.ResolvedAt        = now;
+            r.AdminNote         = $"Job was banned directly by Admin: {reason}";
+        }
+
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId      = adminUserId,
+            Action      = "Job.Banned",
+            EntityType  = "Job",
+            EntityId    = jobId.ToString(),
+            PayloadJson = JsonSerializer.Serialize(new { Reason = reason }),
+            IpAddress   = ipAddress
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return ServiceResult.Success(true);
+    }
+
+    public async Task<ServiceResult<bool>> UnbanJobAsync(
+        Guid adminUserId, Guid jobId, string? ipAddress, CancellationToken cancellationToken = default)
+    {
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
+
+        if (job is null)
+            return ServiceResult.NotFound<bool>("Job not found.");
+
+        if (!job.IsBanned)
+            return ServiceResult.Failure<bool>("This job is not currently banned.", ServiceErrorType.Validation);
+
+        job.IsBanned        = false;
+        job.BannedAt        = null;
+        job.BannedByAdminId = null;
+        job.BannedReason    = null;
+
+        _context.AuditLogs.Add(new AuditLog
+        {
+            UserId      = adminUserId,
+            Action      = "Job.Unbanned",
+            EntityType  = "Job",
+            EntityId    = jobId.ToString(),
+            IpAddress   = ipAddress
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return ServiceResult.Success(true);
     }
 }

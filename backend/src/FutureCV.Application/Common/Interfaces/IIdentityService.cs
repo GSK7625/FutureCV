@@ -16,4 +16,6 @@ public interface IIdentityService
     Task<ServiceResult<bool>> LockUserAsync(Guid targetUserId, CancellationToken cancellationToken = default);
 
     Task<ServiceResult<bool>> UnlockUserAsync(Guid targetUserId, CancellationToken cancellationToken = default);
+
+    Task<AdminUserStatsDto> GetUserStatsAsync(CancellationToken cancellationToken = default);
 }

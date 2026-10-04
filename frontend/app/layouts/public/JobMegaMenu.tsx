@@ -16,7 +16,6 @@ import {
 } from "@tabler/icons-react";
 import {
   JOB_MENU_ACTIONS,
-  COMPANY_MENU_ACTIONS,
   JOB_POSITION_LINKS,
   JOB_FIELD_LINKS,
 } from "./navConfig";
@@ -59,29 +58,6 @@ export function JobMegaMenu({ onClose, onMouseEnter, onMouseLeave }: JobMegaMenu
                 >
                   {item.iconName && ACTION_ICONS[item.iconName]}
                   <span>{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-            Công ty
-          </div>
-          <ul className="flex flex-col gap-2.5">
-            {COMPANY_MENU_ACTIONS.map((item) => (
-              <li key={item.label}>
-                <Link
-                  to={item.href}
-                  onClick={onClose}
-                  className="group flex items-center gap-2.5 font-medium text-ink hover:text-gold"
-                >
-                  {item.iconName && ACTION_ICONS[item.iconName]}
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span className="rounded bg-gold px-1.5 py-0.2 text-[10px] font-bold text-white">
-                      {item.badge}
-                    </span>
-                  )}
                 </Link>
               </li>
             ))}
