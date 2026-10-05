@@ -23,6 +23,7 @@ export default [
   // ── Candidate Protected Routes ─────────────────────────────
   ...prefix("candidate", [
     layout("layouts/CandidateLayout.tsx", [
+      route("saved-jobs", "routes/candidate/saved-jobs.tsx"),
       route("personal-info", "routes/candidate/personal-info.tsx"),
       route("security", "routes/candidate/security.tsx"),
       route("email-settings", "routes/candidate/email-settings.tsx"),
