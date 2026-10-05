@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FutureCV.Application.Features.Job.Services;
 
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 
 public class JobService : IJobService
 {
@@ -37,7 +38,9 @@ public class JobService : IJobService
             return ServiceResult.Failure<JobDetailResponse>("Employer is not linked to any company. Please register company first.");
 
         // 2. Determine approval status: Verified companies post Approved jobs, others are Pending
-        var initialApprovalStatus = employer.Company.VerifiedStatus == "Verified" ? "Approved" : "Pending";
+        var initialApprovalStatus = employer.Company.VerifiedStatus == CompanyVerificationStatus.Verified
+            ? JobApprovalStatus.Approved
+            : JobApprovalStatus.Pending;
 
         // 3. Initialize Job entity
         var job = new Job
@@ -155,7 +158,14 @@ public class JobService : IJobService
         var (job, error) = await FindJobWithOwnershipAsync(userId, jobId, cancellationToken);
         if (error is not null) return ServiceResult.Failure<bool>(error.ErrorMessage ?? "Job not found.", error.ErrorType);
 
-        job!.IsActive = !job.IsActive;
+        if (job!.IsBanned)
+        {
+            return ServiceResult.Failure<bool>(
+                "This job has been banned by an administrator due to policy violations and cannot be activated.",
+                ServiceErrorType.Forbidden);
+        }
+
+        job.IsActive = !job.IsActive;
         await _context.SaveChangesAsync(cancellationToken);
 
         return ServiceResult.Success(job.IsActive);
@@ -192,9 +202,10 @@ public class JobService : IJobService
             query = query.Where(j => j.Title.ToLower().Contains(kw));
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.ApprovalStatus))
+        if (!string.IsNullOrWhiteSpace(filter.ApprovalStatus) &&
+            Enum.TryParse<JobApprovalStatus>(filter.ApprovalStatus, true, out var approvalStatusEnum))
         {
-            query = query.Where(j => j.ApprovalStatus == filter.ApprovalStatus);
+            query = query.Where(j => j.ApprovalStatus == approvalStatusEnum);
         }
 
         if (filter.IsActive.HasValue)
@@ -228,7 +239,7 @@ public class JobService : IJobService
                 j.ExperienceYearsMax,
                 j.Deadline,
                 j.PositionsCount,
-                j.ApprovalStatus,
+                j.ApprovalStatus.ToString(),
                 j.IsActive,
                 j.IsExpired,
                 j.ViewCount,
@@ -260,7 +271,7 @@ public class JobService : IJobService
 
         var query = _context.Jobs
             .AsNoTracking()
-            .Where(j => !j.IsDeleted && j.IsActive && j.ApprovalStatus == "Approved");
+            .Where(j => !j.IsDeleted && !j.IsBanned && j.IsActive && j.ApprovalStatus == JobApprovalStatus.Approved);
 
         // Exclude expired jobs
         query = query.Where(j => !j.Deadline.HasValue || j.Deadline.Value >= now);
@@ -331,7 +342,7 @@ public class JobService : IJobService
                 j.ExperienceYearsMax,
                 j.Deadline,
                 j.PositionsCount,
-                j.ApprovalStatus,
+                j.ApprovalStatus.ToString(),
                 j.IsActive,
                 j.IsExpired,
                 j.ViewCount,
@@ -349,7 +360,7 @@ public class JobService : IJobService
         var job = await _context.Jobs
             .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
 
-        if (job is null)
+        if (job is null || job.IsBanned)
             return ServiceResult.NotFound<JobDetailResponse>("Job not found.");
 
         // Automatically increment view count
@@ -360,6 +371,41 @@ public class JobService : IJobService
         }
 
         return await GetJobDetailInternalAsync(jobId, cancellationToken);
+    }
+
+    public async Task<ServiceResult<bool>> ReportJobAsync(
+        Guid userId, Guid jobId, CreateJobReportRequest request, CancellationToken cancellationToken = default)
+    {
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
+
+        if (job is null || job.IsBanned)
+            return ServiceResult.NotFound<bool>("Job not found.");
+
+        // Prevent reporting own job
+        if (job.PostedById == userId)
+            return ServiceResult.Failure<bool>("You cannot report your own job posting.", ServiceErrorType.Validation);
+
+        // Check if user has already submitted a pending report for this job
+        var alreadyReported = await _context.JobReports
+            .AnyAsync(r => r.JobId == jobId && r.ReporterUserId == userId && r.Status == JobReportStatus.Pending && !r.IsDeleted, cancellationToken);
+
+        if (alreadyReported)
+            return ServiceResult.Conflict<bool>("You have already submitted a pending report for this job.");
+
+        var report = new JobReport
+        {
+            JobId          = jobId,
+            ReporterUserId = userId,
+            Reason         = request.Reason.Trim(),
+            Details        = request.Details?.Trim(),
+            Status         = JobReportStatus.Pending
+        };
+
+        _context.JobReports.Add(report);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return ServiceResult.Success(true);
     }
 
     // -------------------------------------------------------------------------
@@ -431,9 +477,10 @@ public class JobService : IJobService
             query = query.Where(j => j.Title.ToLower().Contains(kw) || j.Company.Name.ToLower().Contains(kw));
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.ApprovalStatus))
+        if (!string.IsNullOrWhiteSpace(filter.ApprovalStatus) &&
+            Enum.TryParse<JobApprovalStatus>(filter.ApprovalStatus, true, out var approvalStatusEnum))
         {
-            query = query.Where(j => j.ApprovalStatus == filter.ApprovalStatus);
+            query = query.Where(j => j.ApprovalStatus == approvalStatusEnum);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -462,7 +509,7 @@ public class JobService : IJobService
                 j.ExperienceYearsMax,
                 j.Deadline,
                 j.PositionsCount,
-                j.ApprovalStatus,
+                j.ApprovalStatus.ToString(),
                 j.IsActive,
                 j.IsExpired,
                 j.ViewCount,
@@ -483,7 +530,7 @@ public class JobService : IJobService
         if (job is null)
             return ServiceResult.NotFound<bool>("Job not found.");
 
-        job.ApprovalStatus    = request.IsApproved ? "Approved" : "Rejected";
+        job.ApprovalStatus    = request.IsApproved ? JobApprovalStatus.Approved : JobApprovalStatus.Rejected;
         job.ApprovedByAdminId = adminUserId;
         job.ApprovedAt        = DateTimeOffset.UtcNow;
         job.RejectionReason   = request.IsApproved ? null : request.RejectionReason;
@@ -552,7 +599,7 @@ public class JobService : IJobService
             j.Company.Address,
             j.Company.Industry,
             j.Company.Scale,
-            j.Company.VerifiedStatus
+            j.Company.VerifiedStatus.ToString()
         ),
         j.PostedById,
         j.Title,
@@ -574,7 +621,7 @@ public class JobService : IJobService
         j.ExperienceYearsMax,
         j.Deadline,
         j.PositionsCount,
-        j.ApprovalStatus,
+        j.ApprovalStatus.ToString(),
         j.IsActive,
         j.IsExpired,
         j.ViewCount,

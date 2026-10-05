@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FutureCV.Application.Features.JobApplication.Services;
 using FutureCV.Domain.Entities;
+using FutureCV.Domain.Enums;
 
 public class ApplicationService : IApplicationService
 {
@@ -49,7 +50,7 @@ public class ApplicationService : IApplicationService
         if (job is null)
             return ServiceResult.NotFound<ApplyJobResponse>("Job not found.");
 
-        if (!job.IsActive || job.ApprovalStatus != "Approved" || (job.Deadline.HasValue && job.Deadline.Value < DateTime.UtcNow))
+        if (!job.IsActive || job.ApprovalStatus != JobApprovalStatus.Approved || (job.Deadline.HasValue && job.Deadline.Value < DateTime.UtcNow))
             return ServiceResult.Failure<ApplyJobResponse>("Job is closed, expired, or not approved for applications.");
 
         // Check self-application (dual-role user cannot apply to own job or own company)
@@ -64,7 +65,7 @@ public class ApplicationService : IApplicationService
 
         // 4. Check for duplicate active application (P3-UC05 E2)
         var alreadyApplied = await _context.Applications
-            .AnyAsync(a => a.CandidateId == candidate.Id && a.JobId == jobId && !a.IsDeleted && a.Status != "Withdrawn", cancellationToken);
+            .AnyAsync(a => a.CandidateId == candidate.Id && a.JobId == jobId && !a.IsDeleted && a.Status != ApplicationStatus.Withdrawn, cancellationToken);
 
         if (alreadyApplied)
             return ServiceResult.Conflict<ApplyJobResponse>("You have already applied for this position.");
@@ -79,7 +80,7 @@ public class ApplicationService : IApplicationService
             JobId              = jobId,
             CvId               = request.CvId,
             CoverLetter        = request.CoverLetter,
-            Status             = "Applied",
+            Status             = ApplicationStatus.Applied,
             AppliedAt          = DateTime.UtcNow,
             MatchScore         = matchScore,
             MatchExplanation   = explanation,
@@ -93,7 +94,7 @@ public class ApplicationService : IApplicationService
         {
             Application  = application,
             FromStatus   = null,
-            ToStatus     = "Applied",
+            ToStatus     = ApplicationStatus.Applied.ToString(),
             ChangedById  = userId,
             Reason       = "Initial application submission",
             ChangedAt    = DateTime.UtcNow
@@ -106,7 +107,7 @@ public class ApplicationService : IApplicationService
             application.Id,
             job.Id,
             job.Title,
-            application.Status,
+            application.Status.ToString(),
             application.MatchScore,
             application.AppliedAt
         ));
@@ -125,9 +126,10 @@ public class ApplicationService : IApplicationService
             .AsNoTracking()
             .Where(a => a.CandidateId == candidate.Id && !a.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<ApplicationStatus>(filter.Status, true, out var appStatusEnum))
         {
-            query = query.Where(a => a.Status == filter.Status);
+            query = query.Where(a => a.Status == appStatusEnum);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -150,7 +152,7 @@ public class ApplicationService : IApplicationService
                 a.Job.SalaryMin,
                 a.Job.SalaryMax,
                 a.Job.SalaryCurrency,
-                a.Status,
+                a.Status.ToString(),
                 a.MatchScore,
                 a.AppliedAt,
                 a.UpdatedAt
@@ -199,7 +201,7 @@ public class ApplicationService : IApplicationService
             application.Cv.Title,
             application.Cv.FileUrl,
             application.CoverLetter,
-            application.Status,
+            application.Status.ToString(),
             application.MatchScore,
             application.MatchExplanation,
             matchedSkills,
@@ -228,20 +230,20 @@ public class ApplicationService : IApplicationService
             return ServiceResult.NotFound<bool>("Application not found.");
 
         // P3-UC07 E1: Cannot withdraw if already finalized (Offer, Hired, Rejected) or past Interview
-        if (application.Status is "Offer" or "Hired" or "Rejected" or "Interview")
+        if (application.Status is ApplicationStatus.Offer or ApplicationStatus.Hired or ApplicationStatus.Rejected or ApplicationStatus.Interview)
             return ServiceResult.Failure<bool>($"Cannot withdraw an application currently in '{application.Status}' status.");
 
-        if (application.Status == "Withdrawn")
+        if (application.Status == ApplicationStatus.Withdrawn)
             return ServiceResult.Failure<bool>("Application has already been withdrawn.");
 
         var oldStatus = application.Status;
-        application.Status = "Withdrawn";
+        application.Status = ApplicationStatus.Withdrawn;
 
         application.StatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
-            FromStatus    = oldStatus,
-            ToStatus      = "Withdrawn",
+            FromStatus    = oldStatus.ToString(),
+            ToStatus      = ApplicationStatus.Withdrawn.ToString(),
             ChangedById   = userId,
             Reason        = string.IsNullOrWhiteSpace(request.Reason) ? "Candidate withdrew application" : request.Reason.Trim(),
             ChangedAt     = DateTime.UtcNow
@@ -351,7 +353,7 @@ public class ApplicationService : IApplicationService
             .Include(j => j.Location)
             .Include(j => j.JobSkills)
                 .ThenInclude(js => js.Skill)
-            .Where(j => !j.IsDeleted && j.IsActive && j.ApprovalStatus == "Approved" && (!j.Deadline.HasValue || j.Deadline.Value >= now))
+            .Where(j => !j.IsDeleted && j.IsActive && j.ApprovalStatus == JobApprovalStatus.Approved && (!j.Deadline.HasValue || j.Deadline.Value >= now))
             .ToListAsync(cancellationToken);
 
         // Score each job using Rule-Based matching engine
@@ -431,9 +433,10 @@ public class ApplicationService : IApplicationService
             .Include(a => a.Cv)
             .Where(a => a.JobId == jobId && !a.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<ApplicationStatus>(filter.Status, true, out var appStatusEnum))
         {
-            query = query.Where(a => a.Status == filter.Status);
+            query = query.Where(a => a.Status == appStatusEnum);
         }
 
         if (filter.MinRating.HasValue)
@@ -466,7 +469,7 @@ public class ApplicationService : IApplicationService
                 a.CvId,
                 a.Cv.Title,
                 a.Cv.FileUrl,
-                a.Status,
+                a.Status.ToString(),
                 a.Rating,
                 a.EvaluationLabel,
                 a.MatchScore,
@@ -505,7 +508,7 @@ public class ApplicationService : IApplicationService
             application.Cv.Title,
             application.Cv.FileUrl,
             application.CoverLetter,
-            application.Status,
+            application.Status.ToString(),
             application.Rating,
             application.EvaluationLabel,
             application.PrivateNotes,
@@ -540,17 +543,20 @@ public class ApplicationService : IApplicationService
         var (application, error) = await FindApplicationWithRecruiterOwnershipAsync(userId, applicationId, cancellationToken);
         if (error is not null) return ServiceResult.Failure<bool>(error.ErrorMessage ?? "Access denied.", error.ErrorType);
 
-        if (application!.Status == "Withdrawn")
+        if (!Enum.TryParse<ApplicationStatus>(request.NewStatus, true, out var newStatusEnum))
+            return ServiceResult.Failure<bool>($"Invalid application status: '{request.NewStatus}'.", ServiceErrorType.Validation);
+
+        if (application!.Status == ApplicationStatus.Withdrawn)
             return ServiceResult.Failure<bool>("Cannot update status of a withdrawn application.");
 
         var oldStatus = application.Status;
-        application.Status = request.NewStatus;
+        application.Status = newStatusEnum;
 
         application.StatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
-            FromStatus    = oldStatus,
-            ToStatus      = request.NewStatus,
+            FromStatus    = oldStatus.ToString(),
+            ToStatus      = newStatusEnum.ToString(),
             ChangedById   = userId,
             Reason        = request.Reason,
             ChangedAt     = DateTime.UtcNow
@@ -583,14 +589,14 @@ public class ApplicationService : IApplicationService
             .AsNoTracking()
             .Include(a => a.Candidate)
             .Include(a => a.Cv)
-            .Where(a => a.JobId == jobId && !a.IsDeleted && a.Status != "Withdrawn")
+            .Where(a => a.JobId == jobId && !a.IsDeleted && a.Status != ApplicationStatus.Withdrawn)
             .ToListAsync(cancellationToken);
 
         var pipelineStages = new[] { "Applied", "Screening", "Interview", "Offer", "Hired", "Rejected" };
 
         var stageResponses = pipelineStages.Select(stage =>
         {
-            var appsInStage = applications.Where(a => a.Status.Equals(stage, StringComparison.OrdinalIgnoreCase)).ToList();
+            var appsInStage = applications.Where(a => a.Status.ToString().Equals(stage, StringComparison.OrdinalIgnoreCase)).ToList();
             var cards = appsInStage.Select(a => new PipelineCandidateCardResponse(
                 a.Id,
                 a.CandidateId,

@@ -35,6 +35,7 @@ public interface IApplicationDbContext
     DbSet<SavedJob> SavedJobs { get; }
     DbSet<JobApplication> Applications { get; }
     DbSet<ApplicationStatusHistory> ApplicationStatusHistories { get; }
+    DbSet<JobReport> JobReports { get; }
 
 
     Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade Database { get; }
