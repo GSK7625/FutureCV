@@ -65,7 +65,7 @@ public class AdminController : ApiControllerBase
     // -------------------------------------------------------------------------
 
     [HttpGet("companies")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<CompanyProfileResponse>))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AdminCompanyProfileResponse>))]
     public async Task<IActionResult> GetCompanies(
         [FromQuery] CompanyQueryFilter filter, CancellationToken cancellationToken)
     {
@@ -74,7 +74,7 @@ public class AdminController : ApiControllerBase
     }
 
     [HttpPut("companies/{id:guid}/status")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CompanyProfileResponse))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AdminCompanyProfileResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateCompanyStatus(
