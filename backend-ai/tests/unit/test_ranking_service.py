@@ -4,9 +4,10 @@ import pytest
 
 from app.application.matching_service import MatchingService
 from app.application.ranking_service import RankingService
-from app.contracts.cv import StructuredCv
+from app.contracts.cv import EducationItem, ProjectItem, StructuredCv, WorkExperienceItem
 from app.contracts.job import StructuredJob
 from app.contracts.matching import CandidateItem, CandidateRankRequest
+from app.infrastructure.embeddings.providers.mock_provider import MockEmbeddingProvider
 from app.infrastructure.llm.providers.mock_provider import MockLlmProvider
 
 
@@ -114,3 +115,285 @@ async def test_ranking_service_makes_zero_llm_generate_text_calls():
         assert rc.match_result.meta.algorithm_variant == "matching-v0"
         assert rc.match_result.meta.schema_version == "1.0.0"
         assert rc.match_result.meta.llm_invoked is False
+
+
+@pytest.mark.asyncio
+async def test_ranking_required_skills_outrank_preferred_skills():
+    """Verify candidate matching required skills strictly outranks candidate matching preferred skills."""
+    llm = MockLlmProvider()
+    matching_service = MatchingService(llm=llm)
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(
+        title="Senior Backend Engineer",
+        required_skills=["Python", "FastAPI"],
+        preferred_skills=["Docker", "Kubernetes"],
+        minimum_experience_years=3.0,
+    )
+
+    # Candidate 1: Has required skills (Python, FastAPI), no preferred skills
+    cand_1_cv = StructuredCv(
+        full_name="Candidate Required Match",
+        skills=["Python", "FastAPI"],
+        work_experience=[{"job_title": "Backend Dev", "years_of_experience": 3.0}],
+    )
+
+    # Candidate 2: Has preferred skills (Docker, Kubernetes), no required skills
+    cand_2_cv = StructuredCv(
+        full_name="Candidate Preferred Match",
+        skills=["Docker", "Kubernetes"],
+        work_experience=[{"job_title": "DevOps Dev", "years_of_experience": 3.0}],
+    )
+
+    req = CandidateRankRequest(
+        job=job,
+        candidates=[
+            CandidateItem(candidate_id="cand-pref", cv=cand_2_cv),
+            CandidateItem(candidate_id="cand-req", cv=cand_1_cv),
+        ],
+    )
+
+    response = await ranking_service.rank_candidates(req)
+
+    assert response.total_evaluated == 2
+    # Candidate with required skills must be Rank 1
+    assert response.ranked_candidates[0].candidate_id == "cand-req"
+    assert response.ranked_candidates[0].rank == 1
+    # Candidate with preferred skills only must be Rank 2
+    assert response.ranked_candidates[1].candidate_id == "cand-pref"
+    assert response.ranked_candidates[1].rank == 2
+
+    # Invariant: Score of required-matched candidate must be strictly greater than preferred-only candidate
+    req_score = response.ranked_candidates[0].match_result.match_score
+    pref_score = response.ranked_candidates[1].match_result.match_score
+    assert req_score > pref_score
+
+
+@pytest.mark.asyncio
+async def test_ranking_experience_outranks_underqualified():
+    """Verify candidate with qualified experience ranks above underqualified candidate when skills match."""
+    llm = MockLlmProvider()
+    matching_service = MatchingService(llm=llm)
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(
+        title="Senior Python Engineer",
+        required_skills=["Python", "FastAPI"],
+        minimum_experience_years=3.0,
+    )
+
+    # Candidate 1: 4.0 years experience (meets/exceeds requirement -> 100% experience score)
+    cand_1_cv = StructuredCv(
+        full_name="Experienced Candidate",
+        skills=["Python", "FastAPI"],
+        work_experience=[
+            WorkExperienceItem(
+                job_title="Backend Dev",
+                start_date="2020-01",
+                end_date="2024-01",
+                years_of_experience=4.0,
+            )
+        ],
+    )
+
+    # Candidate 2: 1.0 year experience (under requirement -> 33.33% experience score)
+    cand_2_cv = StructuredCv(
+        full_name="Junior Candidate",
+        skills=["Python", "FastAPI"],
+        work_experience=[
+            WorkExperienceItem(
+                job_title="Junior Backend Dev",
+                start_date="2023-01",
+                end_date="2024-01",
+                years_of_experience=1.0,
+            )
+        ],
+    )
+
+    req = CandidateRankRequest(
+        job=job,
+        candidates=[
+            CandidateItem(candidate_id="cand-junior", cv=cand_2_cv),
+            CandidateItem(candidate_id="cand-senior", cv=cand_1_cv),
+        ],
+    )
+
+    response = await ranking_service.rank_candidates(req)
+
+    assert response.total_evaluated == 2
+    # Senior candidate must rank at Rank 1
+    assert response.ranked_candidates[0].candidate_id == "cand-senior"
+    assert response.ranked_candidates[0].rank == 1
+    # Junior candidate must rank at Rank 2
+    assert response.ranked_candidates[1].candidate_id == "cand-junior"
+    assert response.ranked_candidates[1].rank == 2
+
+    # Verify score separation
+    senior_score = response.ranked_candidates[0].match_result.match_score
+    junior_score = response.ranked_candidates[1].match_result.match_score
+    assert senior_score > junior_score
+
+    # Check experience comparison text parity
+    senior_exp_cmp = response.ranked_candidates[0].match_result.experience_comparison
+    assert "4.0 năm kinh nghiệm" in senior_exp_cmp
+    assert "vượt 1.0 năm" in senior_exp_cmp
+
+    junior_exp_cmp = response.ranked_candidates[1].match_result.experience_comparison
+    assert "1.0 năm kinh nghiệm" in junior_exp_cmp
+    assert "thiếu khoảng 2.0 năm" in junior_exp_cmp
+
+
+@pytest.mark.asyncio
+async def test_ranking_education_outranks_lower_degree():
+    """Verify candidate with required degree ranks above candidate with lower degree when other factors match."""
+    llm = MockLlmProvider()
+    matching_service = MatchingService(llm=llm)
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(
+        title="Research Scientist",
+        required_skills=["Python", "PyTorch"],
+        education_requirement="Master",
+    )
+
+    # Candidate 1: Master degree (meets requirement -> 100% education score)
+    cand_1_cv = StructuredCv(
+        full_name="Master Candidate",
+        skills=["Python", "PyTorch"],
+        education=[EducationItem(degree="Master of Science in AI", institution="University A")],
+    )
+
+    # Candidate 2: Bachelor degree (1 level below requirement -> 75% education score)
+    cand_2_cv = StructuredCv(
+        full_name="Bachelor Candidate",
+        skills=["Python", "PyTorch"],
+        education=[EducationItem(degree="Bachelor of Science in CS", institution="University B")],
+    )
+
+    req = CandidateRankRequest(
+        job=job,
+        candidates=[
+            CandidateItem(candidate_id="cand-bachelor", cv=cand_2_cv),
+            CandidateItem(candidate_id="cand-master", cv=cand_1_cv),
+        ],
+    )
+
+    response = await ranking_service.rank_candidates(req)
+
+    assert response.total_evaluated == 2
+    # Candidate with Master must rank at Rank 1
+    assert response.ranked_candidates[0].candidate_id == "cand-master"
+    assert response.ranked_candidates[0].rank == 1
+    # Candidate with Bachelor must rank at Rank 2
+    assert response.ranked_candidates[1].candidate_id == "cand-bachelor"
+    assert response.ranked_candidates[1].rank == 2
+
+    # Score comparison: Master (100% * 20% = 20) vs Bachelor (75% * 20% = 15) -> 5 point delta
+    master_score = response.ranked_candidates[0].match_result.match_score
+    bachelor_score = response.ranked_candidates[1].match_result.match_score
+    assert master_score > bachelor_score
+
+    # Comparison text parity
+    master_edu_cmp = response.ranked_candidates[0].match_result.education_comparison
+    assert "đáp ứng hoặc vượt" in master_edu_cmp
+
+    bachelor_edu_cmp = response.ranked_candidates[1].match_result.education_comparison
+    assert "gần tương đương" in bachelor_edu_cmp
+
+
+class ConstantEmbeddingProvider(MockEmbeddingProvider):
+    """Deterministic embedding provider returning constant unit vectors to isolate semantic score."""
+
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        # Return identical normalized vector for all texts so semantic score is identical
+        return [[1.0] * self._dimension for _ in texts]
+
+
+@pytest.mark.asyncio
+async def test_ranking_project_relevance_under_matching_v1():
+    """Verify that under matching-v1, candidate with matching project technologies outranks candidate without.
+
+    Strictly isolates project score: skill, experience, education, and semantic scores are identical.
+    """
+    llm = MockLlmProvider()
+    embedding_provider = ConstantEmbeddingProvider()
+    matching_service = MatchingService(
+        llm=llm,
+        embedding_provider=embedding_provider,
+        matching_algorithm="matching-v1-experimental",
+    )
+    ranking_service = RankingService(matching_service=matching_service)
+
+    job = StructuredJob(
+        title="Python Backend Engineer",
+        required_skills=["Python", "FastAPI"],
+        minimum_experience_years=2.0,
+        education_requirement="Bachelor",
+    )
+
+    work_exp = [
+        WorkExperienceItem(
+            job_title="Backend Developer",
+            duration="2022 - 2024",
+            years_of_experience=2.0,
+        )
+    ]
+
+    # Candidate 1: Has matching project technologies (Python, FastAPI) -> 100% project relevance
+    cand_1_cv = StructuredCv(
+        full_name="Candidate With Projects",
+        skills=["Python", "FastAPI"],
+        work_experience=work_exp,
+        education=[EducationItem(degree="Bachelor", institution="Uni A")],
+        projects=[ProjectItem(name="API Service", technologies=["Python", "FastAPI"])],
+    )
+
+    # Candidate 2: Same skills, exp, and education, but projects use unrelated stack
+    # (PHP, WordPress) -> 0% project relevance
+    cand_2_cv = StructuredCv(
+        full_name="Candidate Without Projects",
+        skills=["Python", "FastAPI"],
+        work_experience=work_exp,
+        education=[EducationItem(degree="Bachelor", institution="Uni A")],
+        projects=[ProjectItem(name="CMS Website", technologies=["PHP", "WordPress"])],
+    )
+
+    req = CandidateRankRequest(
+        job=job,
+        candidates=[
+            CandidateItem(candidate_id="cand-unrelated-proj", cv=cand_2_cv),
+            CandidateItem(candidate_id="cand-relevant-proj", cv=cand_1_cv),
+        ],
+    )
+
+    response = await ranking_service.rank_candidates(req)
+
+    assert response.total_evaluated == 2
+    # Candidate with relevant projects must be Rank 1
+    cand_rel = response.ranked_candidates[0]
+    cand_unrel = response.ranked_candidates[1]
+
+    assert cand_rel.candidate_id == "cand-relevant-proj"
+    assert cand_rel.rank == 1
+    assert cand_unrel.candidate_id == "cand-unrelated-proj"
+    assert cand_unrel.rank == 2
+
+    # Score comparison: 10% project weight delta in matching-v1 (100 vs 90)
+    score_rel = cand_rel.match_result.match_score
+    score_unrel = cand_unrel.match_result.match_score
+    assert score_rel == 100
+    assert score_unrel == 90
+    assert score_rel > score_unrel
+
+    # Strict component isolation verification
+    exp_rel = cand_rel.match_result.match_explanation or ""
+    exp_unrel = cand_unrel.match_result.match_explanation or ""
+    assert "Kỹ năng: 100%" in exp_rel and "Kỹ năng: 100%" in exp_unrel
+    assert "Kinh nghiệm: 100%" in exp_rel and "Kinh nghiệm: 100%" in exp_unrel
+    assert "Học vấn: 100%" in exp_rel and "Học vấn: 100%" in exp_unrel
+    assert "Độ tương đồng ngữ nghĩa: 100%" in exp_rel and "Độ tương đồng ngữ nghĩa: 100%" in exp_unrel
+    assert "Dự án: 100%" in exp_rel
+    assert "Dự án: 0%" in exp_unrel
+
+    assert "1/1 dự án thực tế" in cand_rel.match_result.project_domain_relevance
+    assert "chưa thể hiện sự trùng khớp" in cand_unrel.match_result.project_domain_relevance

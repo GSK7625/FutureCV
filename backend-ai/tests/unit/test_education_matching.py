@@ -186,3 +186,121 @@ def test_degree_rank_extraction_and_alias_coverage():
     assert _get_degree_rank("") is None
     assert _get_degree_rank("   ") is None
     assert _get_degree_rank(None) is None
+
+
+def test_multiple_degrees_order_invariance():
+    """Verify that candidate degree ordering does not affect education score or highest degree evaluation."""
+    order_a = ["Bachelor of Computer Science", "Master of Science in AI"]
+    order_b = ["Master of Science in AI", "Bachelor of Computer Science"]
+
+    res_a = calculate_education_match(candidate_degrees=order_a, required_education="Master")
+    res_b = calculate_education_match(candidate_degrees=order_b, required_education="Master")
+
+    assert res_a.score == 100.0
+    assert res_b.score == 100.0
+    assert res_a.score == res_b.score
+
+
+def test_doctorate_exceeds_master_and_bachelor():
+    """Verify Doctorate (rank 5) candidate receives 100.0 score against Master (rank 4) and Bachelor (rank 3)."""
+    res_vs_master = calculate_education_match(
+        candidate_degrees=["PhD in Computer Science"],
+        required_education="Master",
+    )
+    assert res_vs_master.score == 100.0
+    assert "đáp ứng hoặc vượt" in res_vs_master.comparison_text
+
+    res_vs_bachelor = calculate_education_match(
+        candidate_degrees=["Doctor of Philosophy in Robotics"],
+        required_education="Bachelor",
+    )
+    assert res_vs_bachelor.score == 100.0
+    assert "đáp ứng hoặc vượt" in res_vs_bachelor.comparison_text
+
+
+def test_associate_one_level_below_bachelor():
+    """Verify Associate (rank 2) candidate is exactly 1 tier below Bachelor (rank 3), receiving score 75.0."""
+    res = calculate_education_match(
+        candidate_degrees=["Cao đẳng Thực hành CNTT"],
+        required_education="Bachelor",
+    )
+    assert res.score == 75.0
+    assert "gần tương đương" in res.comparison_text
+
+
+def test_high_school_two_levels_below_bachelor():
+    """Verify High School (rank 1) candidate is 2 tiers below Bachelor (rank 3), receiving score 50.0."""
+    res = calculate_education_match(
+        candidate_degrees=["Tốt nghiệp THPT"],
+        required_education="Bachelor",
+    )
+    assert res.score == 50.0
+    assert "thấp hơn mức yêu cầu" in res.comparison_text
+
+
+def test_high_school_three_levels_below_master():
+    """Verify High School (rank 1) candidate is 3 tiers below Master (rank 4), receiving score 50.0."""
+    res = calculate_education_match(
+        candidate_degrees=["High School Diploma"],
+        required_education="Master",
+    )
+    assert res.score == 50.0
+    assert "thấp hơn mức yêu cầu" in res.comparison_text
+
+
+def test_word_boundary_false_positive_prevention():
+    """Verify sub-word occurrences of degree keywords are not falsely matched as degrees via regex word boundaries."""
+    # Substring matches: "Masterclass" contains "master" as a sub-word, but is NOT matched due to \b
+    assert _get_degree_rank("Masterclass Advanced Prompting") is None
+    assert _get_degree_rank("Masterclass Workshop") is None
+
+    res_masterclass = calculate_education_match(
+        candidate_degrees=["Masterclass Advanced Prompting"],
+        required_education="Bachelor",
+    )
+    assert res_masterclass.score == 50.0
+    assert "chưa được xác định tương đương" in res_masterclass.comparison_text
+
+
+def test_contextual_false_positive_documented_limitations():
+    """
+    Document current MVP behavior and known limitations regarding standalone word tokens in non-academic phrases.
+
+    Word boundaries (\b) prevent sub-word matches (e.g., 'Masterclass' -> None),
+    but standalone keywords inside non-academic phrases match their corresponding degree tier
+    under current deterministic regex rules. This is an intentional MVP tradeoff to preserve
+    standard resume degree shorthands ('Master', 'Bachelor', 'Associate', 'MS', 'BS', 'BE').
+    """
+    # Standalone keywords inside non-degree phrases match the degree tier (documented MVP limitation)
+    assert _get_degree_rank("Bachelor Party Organizer") == 3
+    assert _get_degree_rank("Bachelor Party Organizing") == 3
+    assert _get_degree_rank("Guild Master") == 4
+    assert _get_degree_rank("Master Chef") == 4
+    assert _get_degree_rank("Master Electrician") == 4
+    assert _get_degree_rank("MS Office Certification") == 4
+    assert _get_degree_rank("BS Safety Training") == 3
+    assert _get_degree_rank("BE Developer") == 3
+    assert _get_degree_rank("Associate Software Engineer") == 2
+
+    # In contrast, 'Doctor Who Fan Club' is None because Rank 5 patterns
+    # require 'doctorate' / 'doctoral' / 'phd', not standalone 'doctor'
+    assert _get_degree_rank("Doctor Who Fan Club") is None
+
+
+def test_education_score_bounds_and_numeric_types():
+    """Verify education matching returns valid float scores strictly bounded in [0.0, 100.0]."""
+    test_cases = [
+        ([], None),
+        ([], "Bachelor"),
+        (["High School"], "Doctorate"),
+        (["Bachelor"], "Bachelor"),
+        (["PhD"], "High School"),
+        (["Unknown Degree"], "Bachelor"),
+        (["Bachelor"], "Unknown Requirement"),
+    ]
+    for cand_degs, req_edu in test_cases:
+        res = calculate_education_match(candidate_degrees=cand_degs, required_education=req_edu)
+        assert isinstance(res.score, float)
+        assert 0.0 <= res.score <= 100.0
+        assert isinstance(res.comparison_text, str)
+        assert len(res.comparison_text) > 0
