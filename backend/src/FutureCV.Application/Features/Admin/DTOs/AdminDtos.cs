@@ -17,6 +17,9 @@ public sealed record UpdateCompanyStatusRequest(
     string Status,
     string? Note);
 
+public sealed record RejectCompanyRequest(
+    string Reason);
+
 public sealed record AuditLogResponse(
     Guid Id,
     Guid? UserId,

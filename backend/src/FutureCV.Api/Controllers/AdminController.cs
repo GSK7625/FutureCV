@@ -88,6 +88,33 @@ public class AdminController : ApiControllerBase
         return ToHttpResult(result);
     }
 
+    [HttpPost("companies/{id:guid}/approve")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ApproveCompany(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.ApproveCompanyAsync(
+            GetCurrentUserId(), id, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("companies/{id:guid}/reject")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RejectCompany(
+        Guid id, [FromBody] RejectCompanyRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { message = "Reject reason is required." });
+
+        var result = await _adminService.RejectCompanyAsync(
+            GetCurrentUserId(), id, request.Reason, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
     // -------------------------------------------------------------------------
     // Audit Log Management
     // -------------------------------------------------------------------------
