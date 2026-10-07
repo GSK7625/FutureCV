@@ -415,3 +415,27 @@ def test_realistic_normal_cv_and_job_validate_successfully():
     assert match_req.job.title == "Senior Python Backend Engineer"
     assert len(match_req.cv.work_experience) == 2
     assert len(match_req.job.required_skills) == 3
+
+
+def test_work_experience_optional_job_title():
+    """Verify that job_title is optional and normalizes whitespace/empty to None."""
+    item_none = WorkExperienceItem(job_title=None)
+    assert item_none.job_title is None
+
+    item_empty = WorkExperienceItem(job_title="   ")
+    assert item_empty.job_title is None
+
+    item_val = WorkExperienceItem(job_title="DevOps Engineer")
+    assert item_val.job_title == "DevOps Engineer"
+
+
+def test_education_optional_degree():
+    """Verify that degree is optional and normalizes whitespace/empty to None."""
+    edu_none = EducationItem(degree=None)
+    assert edu_none.degree is None
+
+    edu_empty = EducationItem(degree="   ")
+    assert edu_empty.degree is None
+
+    edu_val = EducationItem(degree="Bachelor of Science")
+    assert edu_val.degree == "Bachelor of Science"

@@ -114,7 +114,7 @@ class MatchingService:
         )
 
         # 4. Education matching
-        candidate_degrees = [edu.degree for edu in cv.education]
+        candidate_degrees = [edu.degree for edu in cv.education if edu.degree]
         edu_res = calculate_education_match(
             candidate_degrees=candidate_degrees,
             required_education=job.education_requirement,

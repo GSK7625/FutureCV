@@ -143,4 +143,5 @@ class CvAnalyzerService:
             weaknesses=merged_weaknesses,
             improvement_suggestions=merged_suggestions,
             meta=meta,
+            raw_text=raw_text,
         )
