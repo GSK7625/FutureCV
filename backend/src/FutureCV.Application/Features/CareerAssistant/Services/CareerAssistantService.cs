@@ -8,6 +8,7 @@ using FutureCV.Application.Features.Candidate.DTOs;
 using FutureCV.Application.Features.CareerAssistant.DTOs;
 using FutureCV.Application.Features.CareerAssistant.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using FutureCV.Domain.Enums;
 
 namespace FutureCV.Application.Features.CareerAssistant.Services;
 
@@ -48,6 +49,19 @@ public sealed class CareerAssistantService(
             }
         }
 
-        return await client.ChatAsync(new(request.Message, request.History, new(cvContext, null)), cancellationToken);
+        AiStructuredJobDto? jobContext = null;
+        if (request.JobId is Guid jobId)
+        {
+            var now = DateTime.UtcNow;
+            var job = await db.Jobs.AsNoTracking().Include(x => x.JobSkills).ThenInclude(x => x.Skill)
+                .Include(x => x.Level).Include(x => x.EmploymentType).Include(x => x.Location)
+                .FirstOrDefaultAsync(x => x.Id == jobId && !x.IsDeleted && !x.IsBanned && x.IsActive && !x.IsExpired &&
+                    x.ApprovalStatus == JobApprovalStatus.Approved && (x.Deadline == null || x.Deadline > now), cancellationToken);
+            if (job is null)
+                return ServiceResult.NotFound<CareerChatResponse>("Khong tim thay viec lam dang tuyen.");
+            jobContext = AiMatchingMapper.ToAiStructuredJob(job);
+        }
+
+        return await client.ChatAsync(new(request.Message, request.History, new(cvContext, jobContext)), cancellationToken);
     }
 }
