@@ -14,6 +14,34 @@ namespace FutureCV.Domain.Tests.IntegrationTests;
 
 public class CareerAssistantServiceTests
 {
+    [Theory]
+    [InlineData("public")]
+    [InlineData("draft")]
+    [InlineData("banned")]
+    [InlineData("closed")]
+    [InlineData("deleted")]
+    [InlineData("expired")]
+    public async Task OnlyUsesPublicJobs(string state)
+    {
+        using var db = Db();
+        var candidate = new Candidate { UserId = Guid.NewGuid(), FullName = "Candidate" };
+        db.Candidates.Add(candidate);
+        var job = new Job
+        {
+            Title = "Backend Developer",
+            ApprovalStatus = state == "draft" ? FutureCV.Domain.Enums.JobApprovalStatus.Draft : FutureCV.Domain.Enums.JobApprovalStatus.Approved,
+            IsBanned = state == "banned", IsActive = state != "closed", IsDeleted = state == "deleted",
+            Deadline = state == "expired" ? DateTime.UtcNow.AddDays(-1) : DateTime.UtcNow.AddDays(1)
+        };
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        var client = new Client();
+        var result = await Service(db, client).ChatAsync(candidate.UserId, new("Advice", [], JobId: job.Id));
+        Assert.Equal(state == "public", result.IsSuccess);
+        if (state == "public") Assert.Equal("Backend Developer", client.Request!.Context.Job!.Title);
+        else Assert.Null(client.Request);
+    }
+
     private sealed class Client : ICareerAssistantClient
     {
         public CareerAiRequest? Request { get; private set; }
