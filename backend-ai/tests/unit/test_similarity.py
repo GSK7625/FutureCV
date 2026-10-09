@@ -55,3 +55,51 @@ def test_similarity_to_semantic_score_mapping():
     assert similarity_to_semantic_score(-1.0) == 0.0
     # Overflows clamped to 100.0
     assert similarity_to_semantic_score(1.05) == 100.0
+
+
+def test_cosine_similarity_nan_safe():
+    """Rule: Vector containing NaN returns 0.0 safely without raising or fabricating positive similarity."""
+    assert cosine_similarity([float("nan"), 1.0], [1.0, 1.0]) == 0.0
+    assert cosine_similarity([1.0, 1.0], [float("nan"), 1.0]) == 0.0
+    assert cosine_similarity([float("nan")], [float("nan")]) == 0.0
+
+
+def test_cosine_similarity_inf_safe():
+    """Rule: Vector containing +Infinity returns 0.0 safely without raising or fabricating positive similarity."""
+    assert cosine_similarity([float("inf"), 1.0], [1.0, 1.0]) == 0.0
+    assert cosine_similarity([1.0, 1.0], [float("inf"), 1.0]) == 0.0
+    assert cosine_similarity([float("inf")], [float("inf")]) == 0.0
+
+
+def test_cosine_similarity_negative_inf_safe():
+    """Rule: Vector containing -Infinity returns 0.0 safely without raising or fabricating positive similarity."""
+    assert cosine_similarity([float("-inf"), 1.0], [1.0, 1.0]) == 0.0
+    assert cosine_similarity([1.0, 1.0], [float("-inf"), 1.0]) == 0.0
+    assert cosine_similarity([float("-inf")], [float("-inf")]) == 0.0
+
+
+def test_cosine_similarity_both_non_finite_safe():
+    """Rule: Mixed non-finite vectors return 0.0 safely."""
+    assert cosine_similarity([float("nan"), float("inf")], [float("inf"), float("nan")]) == 0.0
+
+
+def test_cosine_similarity_non_numeric_elements_safe():
+    """Rule: Non-numeric vectors (str, None, bool, list) return 0.0 safely without raising TypeError."""
+    assert cosine_similarity([1.0, "bad", 0.5], [1.0, 1.0, 1.0]) == 0.0  # type: ignore[list-item]
+    assert cosine_similarity([1.0, 1.0, 1.0], [1.0, None, 0.5]) == 0.0  # type: ignore[list-item]
+    assert cosine_similarity([1.0, True, 0.5], [1.0, 1.0, 1.0]) == 0.0  # type: ignore[list-item]
+    assert cosine_similarity([1.0, [0.5], 0.5], [1.0, 1.0, 1.0]) == 0.0  # type: ignore[list-item]
+
+
+def test_similarity_to_semantic_score_non_finite_safe():
+    """Rule: Non-finite similarity values (NaN, +Inf, -Inf) map to 0.0."""
+    assert similarity_to_semantic_score(float("nan")) == 0.0
+    assert similarity_to_semantic_score(float("inf")) == 0.0
+    assert similarity_to_semantic_score(float("-inf")) == 0.0
+
+
+def test_similarity_to_semantic_score_non_numeric_safe():
+    """Rule: Non-numeric similarity inputs safely map to 0.0 without exception."""
+    assert similarity_to_semantic_score("bad") == 0.0  # type: ignore[arg-type]
+    assert similarity_to_semantic_score(None) == 0.0  # type: ignore[arg-type]
+    assert similarity_to_semantic_score(True) == 0.0  # type: ignore[arg-type]

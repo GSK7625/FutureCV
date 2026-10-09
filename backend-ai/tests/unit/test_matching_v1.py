@@ -131,3 +131,53 @@ async def test_matching_v0_preserves_zero_embedding_calls():
     assert res.match_score > 0
     assert res.meta.algorithm_variant == "matching-v0"
     assert res.meta.embedding_provider is None
+
+
+class CardinalityMismatchedEmbeddingProvider(EmbeddingPort):
+    """Embedding provider returning wrong number of vectors."""
+
+    def __init__(self, returned_count: int) -> None:
+        self.returned_count = returned_count
+
+    @property
+    def provider_name(self) -> str:
+        return "mismatched-emb"
+
+    @property
+    def model_name(self) -> str:
+        return "mismatch-model"
+
+    async def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
+        return [[1.0, 0.0] for _ in range(self.returned_count)]
+
+
+async def test_matching_v1_embedding_cardinality_too_few_vectors():
+    """Rule: When provider returns fewer vectors than requested texts, MatchingService raises ProviderError."""
+    service = MatchingService(
+        llm=MockLlmProvider(),
+        embedding_provider=CardinalityMismatchedEmbeddingProvider(returned_count=1),
+        matching_algorithm="matching-v1-experimental",
+    )
+    cv = StructuredCv(skills=["Python"])
+    job = StructuredJob(title="Python Dev", required_skills=["Python"])
+
+    with pytest.raises(ProviderError) as exc_info:
+        await service.match(cv=cv, job=job)
+
+    assert "Embedding provider returned 1 vectors for 2 requested texts" in str(exc_info.value)
+
+
+async def test_matching_v1_embedding_cardinality_too_many_vectors():
+    """Rule: When provider returns more vectors than requested texts, MatchingService raises ProviderError."""
+    service = MatchingService(
+        llm=MockLlmProvider(),
+        embedding_provider=CardinalityMismatchedEmbeddingProvider(returned_count=3),
+        matching_algorithm="matching-v1-experimental",
+    )
+    cv = StructuredCv(skills=["Python"])
+    job = StructuredJob(title="Python Dev", required_skills=["Python"])
+
+    with pytest.raises(ProviderError) as exc_info:
+        await service.match(cv=cv, job=job)
+
+    assert "Embedding provider returned 3 vectors for 2 requested texts" in str(exc_info.value)

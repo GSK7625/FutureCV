@@ -159,13 +159,28 @@ class MatchingService:
 
                 if cv_vector is None and job_vector is not None:
                     vectors = await self.embedding_provider.embed_texts([cv_text])
+                    if len(vectors) != 1:
+                        raise ProviderError(
+                            f"Embedding provider returned {len(vectors)} vectors for 1 requested text",
+                            provider=self.embedding_provider.provider_name,
+                        )
                     cv_vector = vectors[0]
                 elif cv_vector is not None and job_vector is None:
                     vectors = await self.embedding_provider.embed_texts([job_text])
+                    if len(vectors) != 1:
+                        raise ProviderError(
+                            f"Embedding provider returned {len(vectors)} vectors for 1 requested text",
+                            provider=self.embedding_provider.provider_name,
+                        )
                     job_vector = vectors[0]
                 else:
                     # Single-match: embed both texts in a single batch call
                     vectors = await self.embedding_provider.embed_texts([cv_text, job_text])
+                    if len(vectors) != 2:
+                        raise ProviderError(
+                            f"Embedding provider returned {len(vectors)} vectors for 2 requested texts",
+                            provider=self.embedding_provider.provider_name,
+                        )
                     cv_vector = vectors[0]
                     job_vector = vectors[1]
 
