@@ -1,4 +1,5 @@
 using FutureCV.Domain.Common;
+using FutureCV.Domain.Enums;
 
 namespace FutureCV.Domain.Entities;
 
@@ -12,6 +13,7 @@ public class Company : BaseEntity
     public string? WebsiteUrl { get; set; }
     public string? Address { get; set; }
     public string? Description { get; set; }
-    public string VerifiedStatus { get; set; } = "Unverified";
+    public CompanyVerificationStatus VerifiedStatus { get; set; } = CompanyVerificationStatus.Unverified;
     public DateTimeOffset? VerifiedAt { get; set; }
+    public bool IsDeleted { get; set; } = false;
 }

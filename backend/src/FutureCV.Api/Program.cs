@@ -13,6 +13,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+
+// Global Exception Handling & RFC 7807 ProblemDetails
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // Application layer (use-case services, validators registered via AddValidatorsFromAssembly)
 builder.Services.AddApplication();
@@ -85,17 +90,20 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// CORS (allow React Web & React Native during development)
+// CORS (allow React Web & React Native during development with credentials/cookies)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
 // ── Pipeline ──────────────────────────────────────────────────
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Seed roles (Candidate, Employer, Admin)
 await RoleSeeder.SeedAsync(app.Services);

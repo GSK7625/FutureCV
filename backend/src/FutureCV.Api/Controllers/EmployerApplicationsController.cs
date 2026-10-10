@@ -89,4 +89,31 @@ public class EmployerApplicationsController : ApiControllerBase
         var result = await _applicationService.GetRecruitmentPipelineAsync(GetCurrentUserId(), jobId, cancellationToken);
         return ToHttpResult(result);
     }
+
+    [HttpGet("jobs/{jobId:guid}/pipeline/analytics")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PipelineAnalyticsResponse))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPipelineAnalytics(
+        Guid jobId, CancellationToken cancellationToken)
+    {
+        var result = await _applicationService.GetPipelineAnalyticsAsync(GetCurrentUserId(), jobId, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpGet("jobs/{jobId:guid}/pipeline/export")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportPipelineCsv(
+        Guid jobId, CancellationToken cancellationToken)
+    {
+        var result = await _applicationService.ExportPipelineCsvAsync(GetCurrentUserId(), jobId, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return ToHttpResult(result);
+        }
+
+        return File(result.Data!, "text/csv; charset=utf-8", $"pipeline_{jobId}_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+    }
 }
