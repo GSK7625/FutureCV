@@ -4,28 +4,36 @@ using FutureCV.Application.Common.Models;
 using FutureCV.Application.Features.Candidate.DTOs;
 using FutureCV.Application.Features.Candidate.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FutureCV.Application.Features.Candidate.Services;
+
 using FutureCV.Domain.Entities;
 
 public class CandidateService : ICandidateService
 {
-    private const string AvatarFolder    = "avatars/candidates";
-    private const string CvFolder        = "cvs/candidates";
-    private const long   CvMaxSizeBytes  = 5 * 1024 * 1024; // 5 MB
+    private const string AvatarFolder = "avatars/candidates";
+    private const string CvFolder = "cvs/candidates";
+    private const long CvMaxSizeBytes = 5 * 1024 * 1024; // 5 MB
 
     private readonly IApplicationDbContext _context;
     private readonly IFileStorage _fileStorage;
     private readonly IIdentityService _identityService;
+    private readonly IAiCvClient? _aiCvClient;
+    private readonly ILogger<CandidateService>? _logger;
 
     public CandidateService(
         IApplicationDbContext context,
         IFileStorage fileStorage,
-        IIdentityService identityService)
+        IIdentityService identityService,
+        IAiCvClient? aiCvClient = null,
+        ILogger<CandidateService>? logger = null)
     {
-        _context         = context;
-        _fileStorage     = fileStorage;
+        _context = context;
+        _fileStorage = fileStorage;
         _identityService = identityService;
+        _aiCvClient = aiCvClient;
+        _logger = logger;
     }
 
     // -------------------------------------------------------------------------
@@ -70,12 +78,12 @@ public class CandidateService : ICandidateService
         if (candidate is null)
             return ServiceResult.NotFound<CandidateProfileResponse>("Candidate profile not found.");
 
-        candidate.FullName        = request.FullName;
-        candidate.Phone           = request.Phone;
-        candidate.Address         = request.Address;
-        candidate.DateOfBirth     = request.DateOfBirth;
-        candidate.Gender          = request.Gender;
-        candidate.Summary         = request.Summary;
+        candidate.FullName = request.FullName;
+        candidate.Phone = request.Phone;
+        candidate.Address = request.Address;
+        candidate.DateOfBirth = request.DateOfBirth;
+        candidate.Gender = request.Gender;
+        candidate.Summary = request.Summary;
         candidate.DesiredPosition = request.DesiredPosition;
         candidate.DesiredSalaryMin = request.DesiredSalaryMin;
         candidate.DesiredSalaryMax = request.DesiredSalaryMax;
@@ -165,11 +173,11 @@ public class CandidateService : ICandidateService
         var education = new Education
         {
             CandidateId = candidate.Id,
-            School      = dto.School,
-            Degree      = dto.Degree,
-            Major       = dto.Major,
-            StartYear   = dto.StartYear,
-            EndYear     = dto.EndYear,
+            School = dto.School,
+            Degree = dto.Degree,
+            Major = dto.Major,
+            StartYear = dto.StartYear,
+            EndYear = dto.EndYear,
             Description = dto.Description,
         };
 
@@ -184,11 +192,11 @@ public class CandidateService : ICandidateService
         var (education, error) = await FindEducationWithOwnershipAsync(userId, educationId, cancellationToken);
         if (error is not null) return error;
 
-        education!.School      = dto.School;
-        education.Degree      = dto.Degree;
-        education.Major       = dto.Major;
-        education.StartYear   = dto.StartYear;
-        education.EndYear     = dto.EndYear;
+        education!.School = dto.School;
+        education.Degree = dto.Degree;
+        education.Major = dto.Major;
+        education.StartYear = dto.StartYear;
+        education.EndYear = dto.EndYear;
         education.Description = dto.Description;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -219,13 +227,13 @@ public class CandidateService : ICandidateService
 
         var experience = new Experience
         {
-            CandidateId  = candidate.Id,
-            CompanyName  = dto.CompanyName,
-            Position     = dto.Position,
-            StartDate    = dto.StartDate,
-            EndDate      = dto.IsCurrent ? null : dto.EndDate,
-            IsCurrent    = dto.IsCurrent,
-            Description  = dto.Description,
+            CandidateId = candidate.Id,
+            CompanyName = dto.CompanyName,
+            Position = dto.Position,
+            StartDate = dto.StartDate,
+            EndDate = dto.IsCurrent ? null : dto.EndDate,
+            IsCurrent = dto.IsCurrent,
+            Description = dto.Description,
         };
 
         _context.Experiences.Add(experience);
@@ -240,10 +248,10 @@ public class CandidateService : ICandidateService
         if (error is not null) return error;
 
         experience!.CompanyName = dto.CompanyName;
-        experience.Position    = dto.Position;
-        experience.StartDate   = dto.StartDate;
-        experience.EndDate     = dto.IsCurrent ? null : dto.EndDate;
-        experience.IsCurrent   = dto.IsCurrent;
+        experience.Position = dto.Position;
+        experience.StartDate = dto.StartDate;
+        experience.EndDate = dto.IsCurrent ? null : dto.EndDate;
+        experience.IsCurrent = dto.IsCurrent;
         experience.Description = dto.Description;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -284,9 +292,9 @@ public class CandidateService : ICandidateService
         var candidateSkill = new CandidateSkill
         {
             CandidateId = candidate.Id,
-            SkillId     = dto.SkillId,
-            Level       = dto.Level,
-            Years       = dto.Years,
+            SkillId = dto.SkillId,
+            Level = dto.Level,
+            Years = dto.Years,
         };
 
         _context.CandidateSkills.Add(candidateSkill);
@@ -326,11 +334,20 @@ public class CandidateService : ICandidateService
         if (file.SizeInBytes > CvMaxSizeBytes)
             return ServiceResult.Failure<CvResponse>($"CV file size must not exceed 5 MB.");
 
+        // Read stream to byte array to allow both uploading to Cloudinary and parsing via AI
+        byte[] fileBytes;
+        using (var ms = new MemoryStream())
+        {
+            await file.Stream.CopyToAsync(ms, cancellationToken);
+            fileBytes = ms.ToArray();
+        }
+
         string publicUrl, publicId;
         try
         {
+            using var uploadStream = new MemoryStream(fileBytes);
             (publicUrl, publicId) = await _fileStorage.UploadDocumentAsync(
-                file.Stream, file.FileName, CvFolder, cancellationToken);
+                uploadStream, file.FileName, CvFolder, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -344,15 +361,15 @@ public class CandidateService : ICandidateService
 
         var cv = new CandidateCv
         {
-            CandidateId   = candidate.Id,
-            Title         = title ?? file.FileName,
-            FileUrl       = publicUrl,
-            PublicId      = publicId,
-            FileType      = "PDF",
+            CandidateId = candidate.Id,
+            Title = title ?? file.FileName,
+            FileUrl = publicUrl,
+            PublicId = publicId,
+            FileType = "PDF",
             FileSizeBytes = file.SizeInBytes,
-            Source        = "Upload",
-            ParseStatus   = "Pending",
-            IsPrimary     = !hasPrimary,
+            Source = "Upload",
+            ParseStatus = "Pending",
+            IsPrimary = !hasPrimary,
         };
 
         try
@@ -366,6 +383,66 @@ public class CandidateService : ICandidateService
             try { await _fileStorage.DeleteDocumentAsync(publicId, cancellationToken); } catch { }
             return ServiceResult.Failure<CvResponse>(
                 $"Failed to save CV record: {ex.Message}", ServiceErrorType.Infrastructure);
+        }
+
+        // Automatically trigger AI scanning & extraction if client is available
+        if (_aiCvClient != null)
+        {
+            try
+            {
+                var aiResult = await _aiCvClient.AnalyzePdfAsync(
+                    fileBytes, file.FileName, cancellationToken: cancellationToken);
+
+                if (aiResult.IsSuccess && aiResult.Data != null)
+                {
+                    var analysis = aiResult.Data;
+                    var structuredData = FastApiCvMapper.ToStructuredCvDataDto(analysis.StructuredCv);
+                    var structuredJson = JsonSerializer.Serialize(structuredData);
+
+                    var parser = new CvParser
+                    {
+                        CvId = cv.Id,
+                        RawText = analysis.RawText ?? structuredJson,
+                        ParsedDataJson = structuredJson,
+                        ModelVersion = "AI-v1",
+                        ParsedAt = DateTime.UtcNow,
+                        IsVerifiedByUser = false
+                    };
+                    _context.CvParsers.Add(parser);
+
+                    var evaluation = new CvEvaluation
+                    {
+                        CvId = cv.Id,
+                        CvScore = analysis.CvScore,
+                        StrengthsJson = JsonSerializer.Serialize(analysis.Strengths ?? []),
+                        WeaknessesJson = JsonSerializer.Serialize(analysis.Weaknesses ?? []),
+                        ImprovementsJson = JsonSerializer.Serialize(analysis.ImprovementSuggestions ?? []),
+                        MissingSkillsJson = "[]",
+                        ModelVersion = "AI-v1",
+                        GeneratedAt = DateTime.UtcNow
+                    };
+                    _context.CvEvaluations.Add(evaluation);
+
+                    cv.ParseStatus = "Parsed";
+                    cv.ParsedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    _logger?.LogInformation(
+                        "Automatically scanned and parsed CV {CvId} for candidate {CandidateId}. Score: {Score}",
+                        cv.Id, candidate.Id, analysis.CvScore);
+                }
+                else
+                {
+                    _logger?.LogWarning(
+                        "AI CV analysis returned non-success for CV {CvId}: {Error}",
+                        cv.Id, aiResult.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Background AI CV parsing failed for CV {CvId}. Leaving as Pending.", cv.Id);
+            }
         }
 
         return ServiceResult.Success(MapToCvResponse(cv));
@@ -415,19 +492,45 @@ public class CandidateService : ICandidateService
         var oldPublicId = cv!.PublicId;
         cv.IsDeleted = true;
 
-        // If deleted CV was primary, reassign to the next most recent CV
+        // If deleted CV was primary, reassign to the next most recent CV atomically
         if (cv.IsPrimary)
         {
             var candidate = await FindByUserIdAsync(userId, cancellationToken);
-            var next = await _context.CandidateCvs
-                .Where(c => c.CandidateId == candidate!.Id && c.Id != cvId && !c.IsDeleted)
-                .OrderByDescending(c => c.CreatedAt)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (next is not null) next.IsPrimary = true;
-            cv.IsPrimary = false;
-        }
+            if (candidate is null)
+                return ServiceResult.NotFound<bool>("Candidate profile not found.");
 
-        await _context.SaveChangesAsync(cancellationToken);
+            // Use an explicit database transaction to ensure atomicity and avoid unique index collision
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                // Step 1: Reset primary flag on deleted CV and persist to release unique filtered index
+                cv.IsPrimary = false;
+                await _context.SaveChangesAsync(cancellationToken);
+
+                // Step 2: Promote next most recent non-deleted CV to primary if available
+                var next = await _context.CandidateCvs
+                    .Where(c => c.CandidateId == candidate.Id && c.Id != cvId && !c.IsDeleted)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (next is not null)
+                {
+                    next.IsPrimary = true;
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+        else
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
 
         // Best-effort cleanup on Cloudinary after DB is committed
         if (!string.IsNullOrEmpty(oldPublicId))
@@ -442,16 +545,48 @@ public class CandidateService : ICandidateService
         var (cv, error) = await FindCvWithOwnershipAsync(userId, cvId, cancellationToken);
         if (error is not null) return error;
 
+        // Fast-path: If the selected CV is already primary, return immediately (Idempotent)
+        if (cv!.IsPrimary)
+            return ServiceResult.Success(MapToCvResponse(cv));
+
         var candidate = await FindByUserIdAsync(userId, cancellationToken);
+        if (candidate is null)
+            return ServiceResult.NotFound<CvResponse>("Candidate profile not found.");
 
-        // Unset current primary
-        var currentPrimary = await _context.CandidateCvs
-            .FirstOrDefaultAsync(c => c.CandidateId == candidate!.Id && c.IsPrimary && !c.IsDeleted, cancellationToken);
-        if (currentPrimary is not null) currentPrimary.IsPrimary = false;
+        // Wrap operations in an explicit database transaction to guarantee atomicity and
+        // prevent Unique Filtered Index collision (IX_CandidateCvs_CandidateId_IsPrimary)
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            // Step 1: Unset any existing primary CV(s) for the candidate and persist immediately
+            // to release PostgreSQL unique filtered index constraint
+            var currentPrimaries = await _context.CandidateCvs
+                .Where(c => c.CandidateId == candidate.Id && c.Id != cvId && c.IsPrimary && !c.IsDeleted)
+                .ToListAsync(cancellationToken);
 
-        cv!.IsPrimary = true;
-        await _context.SaveChangesAsync(cancellationToken);
-        return ServiceResult.Success(MapToCvResponse(cv));
+            foreach (var p in currentPrimaries)
+            {
+                p.IsPrimary = false;
+            }
+
+            if (currentPrimaries.Count > 0)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            // Step 2: Assign target CV as primary and persist
+            cv.IsPrimary = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Commit the entire atomic unit of work
+            await transaction.CommitAsync(cancellationToken);
+            return ServiceResult.Success(MapToCvResponse(cv));
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -467,13 +602,13 @@ public class CandidateService : ICandidateService
 
         var cert = new Certificate
         {
-            CandidateId    = candidate.Id,
-            Name           = dto.Name,
-            Organization   = dto.Organization,
-            IssueDate      = dto.IssueDate,
+            CandidateId = candidate.Id,
+            Name = dto.Name,
+            Organization = dto.Organization,
+            IssueDate = dto.IssueDate,
             ExpirationDate = dto.ExpirationDate,
-            CredentialUrl  = dto.CredentialUrl,
-            Description    = dto.Description,
+            CredentialUrl = dto.CredentialUrl,
+            Description = dto.Description,
         };
 
         _context.Certificates.Add(cert);
@@ -487,12 +622,12 @@ public class CandidateService : ICandidateService
         var (cert, error) = await FindCertificateWithOwnershipAsync(userId, certificateId, cancellationToken);
         if (error is not null) return error;
 
-        cert!.Name           = dto.Name;
-        cert.Organization   = dto.Organization;
-        cert.IssueDate      = dto.IssueDate;
+        cert!.Name = dto.Name;
+        cert.Organization = dto.Organization;
+        cert.IssueDate = dto.IssueDate;
         cert.ExpirationDate = dto.ExpirationDate;
-        cert.CredentialUrl  = dto.CredentialUrl;
-        cert.Description    = dto.Description;
+        cert.CredentialUrl = dto.CredentialUrl;
+        cert.Description = dto.Description;
 
         await _context.SaveChangesAsync(cancellationToken);
         return ServiceResult.Success(MapToCertificateResponse(cert));
@@ -523,12 +658,12 @@ public class CandidateService : ICandidateService
         var project = new Project
         {
             CandidateId = candidate.Id,
-            Name        = dto.Name,
-            Role        = dto.Role,
-            StartDate   = dto.StartDate,
-            EndDate     = dto.IsCurrent ? null : dto.EndDate,
-            IsCurrent   = dto.IsCurrent,
-            ProjectUrl  = dto.ProjectUrl,
+            Name = dto.Name,
+            Role = dto.Role,
+            StartDate = dto.StartDate,
+            EndDate = dto.IsCurrent ? null : dto.EndDate,
+            IsCurrent = dto.IsCurrent,
+            ProjectUrl = dto.ProjectUrl,
             Description = dto.Description,
         };
 
@@ -543,12 +678,12 @@ public class CandidateService : ICandidateService
         var (project, error) = await FindProjectWithOwnershipAsync(userId, projectId, cancellationToken);
         if (error is not null) return error;
 
-        project!.Name        = dto.Name;
-        project.Role        = dto.Role;
-        project.StartDate   = dto.StartDate;
-        project.EndDate     = dto.IsCurrent ? null : dto.EndDate;
-        project.IsCurrent   = dto.IsCurrent;
-        project.ProjectUrl  = dto.ProjectUrl;
+        project!.Name = dto.Name;
+        project.Role = dto.Role;
+        project.StartDate = dto.StartDate;
+        project.EndDate = dto.IsCurrent ? null : dto.EndDate;
+        project.IsCurrent = dto.IsCurrent;
+        project.ProjectUrl = dto.ProjectUrl;
         project.Description = dto.Description;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -610,11 +745,11 @@ public class CandidateService : ICandidateService
             {
                 parser = new CvParser
                 {
-                    CvId             = cv!.Id,
-                    RawText          = json,
-                    ParsedDataJson   = json,
-                    ModelVersion     = "1.0",
-                    ParsedAt         = DateTime.UtcNow,
+                    CvId = cv!.Id,
+                    RawText = json,
+                    ParsedDataJson = json,
+                    ModelVersion = "1.0",
+                    ParsedAt = DateTime.UtcNow,
                     IsVerifiedByUser = false
                 };
                 _context.CvParsers.Add(parser);
@@ -674,13 +809,13 @@ public class CandidateService : ICandidateService
         {
             parser = new CvParser
             {
-                CvId             = cv!.Id,
-                RawText          = json,
-                ParsedDataJson   = json,
-                ModelVersion     = "1.0",
-                ParsedAt         = DateTime.UtcNow,
+                CvId = cv!.Id,
+                RawText = json,
+                ParsedDataJson = json,
+                ModelVersion = "1.0",
+                ParsedAt = DateTime.UtcNow,
                 IsVerifiedByUser = true,
-                VerifiedAt       = DateTime.UtcNow
+                VerifiedAt = DateTime.UtcNow
             };
             _context.CvParsers.Add(parser);
         }
@@ -690,9 +825,9 @@ public class CandidateService : ICandidateService
             {
                 parser.RawText = parser.ParsedDataJson ?? json;
             }
-            parser.ParsedDataJson   = json;
+            parser.ParsedDataJson = json;
             parser.IsVerifiedByUser = true;
-            parser.VerifiedAt       = DateTime.UtcNow;
+            parser.VerifiedAt = DateTime.UtcNow;
         }
 
         cv!.ParseStatus = "Parsed";
@@ -724,9 +859,9 @@ public class CandidateService : ICandidateService
         if (parser is null || string.IsNullOrWhiteSpace(parser.RawText))
             return ServiceResult.Failure<CvStructuredDataResponse>("No initial parsed data available to revert to.", ServiceErrorType.Validation);
 
-        parser.ParsedDataJson   = parser.RawText;
+        parser.ParsedDataJson = parser.RawText;
         parser.IsVerifiedByUser = false;
-        parser.VerifiedAt       = null;
+        parser.VerifiedAt = null;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -801,8 +936,51 @@ public class CandidateService : ICandidateService
 
         var data = structuredDataResult.Data.Data;
 
-        // Perform Rule-based Quality Evaluation
-        var (score, strengths, weaknesses, improvements, missingSkills) = EvaluateCvQuality(data);
+        // Perform Quality Evaluation via AI Service with fallback to Rule-based Evaluation
+        int score = 0;
+        IReadOnlyList<string> strengths = [];
+        IReadOnlyList<string> weaknesses = [];
+        IReadOnlyList<string> improvements = [];
+        IReadOnlyList<string> missingSkills = [];
+        string modelVersion = "1.0";
+
+        var parser = await _context.CvParsers.FirstOrDefaultAsync(p => p.CvId == cvId, cancellationToken);
+        var rawTextToAnalyze = parser?.RawText ?? JsonSerializer.Serialize(data);
+
+        bool aiSuccess = false;
+        if (_aiCvClient != null && !string.IsNullOrWhiteSpace(rawTextToAnalyze))
+        {
+            try
+            {
+                var aiResult = await _aiCvClient.AnalyzeTextAsync(
+                    rawTextToAnalyze, cv!.CandidateId.ToString(), cancellationToken: cancellationToken);
+
+                if (aiResult.IsSuccess && aiResult.Data != null)
+                {
+                    score = aiResult.Data.CvScore;
+                    strengths = aiResult.Data.Strengths ?? [];
+                    weaknesses = aiResult.Data.Weaknesses ?? [];
+                    improvements = aiResult.Data.ImprovementSuggestions ?? [];
+                    missingSkills = [];
+                    modelVersion = "AI-v1";
+                    aiSuccess = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "AI CV text re-analysis failed for CV {CvId}. Falling back to rule-based evaluation.", cvId);
+            }
+        }
+
+        if (!aiSuccess)
+        {
+            var ruleEval = EvaluateCvQuality(data);
+            score = ruleEval.Score;
+            strengths = ruleEval.Strengths;
+            weaknesses = ruleEval.Weaknesses;
+            improvements = ruleEval.Improvements;
+            missingSkills = ruleEval.MissingSkills;
+        }
 
         var evaluation = await _context.CvEvaluations
             .FirstOrDefaultAsync(e => e.CvId == cvId, cancellationToken);
@@ -811,25 +989,26 @@ public class CandidateService : ICandidateService
         {
             evaluation = new CvEvaluation
             {
-                CvId              = cv!.Id,
-                CvScore           = score,
-                StrengthsJson     = JsonSerializer.Serialize(strengths),
-                WeaknessesJson    = JsonSerializer.Serialize(weaknesses),
-                ImprovementsJson  = JsonSerializer.Serialize(improvements),
+                CvId = cv!.Id,
+                CvScore = score,
+                StrengthsJson = JsonSerializer.Serialize(strengths),
+                WeaknessesJson = JsonSerializer.Serialize(weaknesses),
+                ImprovementsJson = JsonSerializer.Serialize(improvements),
                 MissingSkillsJson = JsonSerializer.Serialize(missingSkills),
-                ModelVersion      = "1.0",
-                GeneratedAt       = DateTime.UtcNow
+                ModelVersion = modelVersion,
+                GeneratedAt = DateTime.UtcNow
             };
             _context.CvEvaluations.Add(evaluation);
         }
         else
         {
-            evaluation.CvScore           = score;
-            evaluation.StrengthsJson     = JsonSerializer.Serialize(strengths);
-            evaluation.WeaknessesJson    = JsonSerializer.Serialize(weaknesses);
-            evaluation.ImprovementsJson  = JsonSerializer.Serialize(improvements);
+            evaluation.CvScore = score;
+            evaluation.StrengthsJson = JsonSerializer.Serialize(strengths);
+            evaluation.WeaknessesJson = JsonSerializer.Serialize(weaknesses);
+            evaluation.ImprovementsJson = JsonSerializer.Serialize(improvements);
             evaluation.MissingSkillsJson = JsonSerializer.Serialize(missingSkills);
-            evaluation.GeneratedAt       = DateTime.UtcNow;
+            evaluation.ModelVersion = modelVersion;
+            evaluation.GeneratedAt = DateTime.UtcNow;
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -868,21 +1047,21 @@ public class CandidateService : ICandidateService
             {
                 parser = new CvParser
                 {
-                    CvId           = cv.Id,
-                    RawText        = request.RawText ?? json,
+                    CvId = cv.Id,
+                    RawText = request.RawText ?? json,
                     ParsedDataJson = json,
-                    ModelVersion   = "AI-v1",
-                    ParsedAt       = DateTime.UtcNow,
-                    ErrorMessage   = request.ErrorMessage
+                    ModelVersion = "AI-v1",
+                    ParsedAt = DateTime.UtcNow,
+                    ErrorMessage = request.ErrorMessage
                 };
                 _context.CvParsers.Add(parser);
             }
             else
             {
-                parser.RawText        = request.RawText ?? parser.RawText ?? json;
+                parser.RawText = request.RawText ?? parser.RawText ?? json;
                 parser.ParsedDataJson = json;
-                parser.ParsedAt       = DateTime.UtcNow;
-                parser.ErrorMessage   = request.ErrorMessage;
+                parser.ParsedAt = DateTime.UtcNow;
+                parser.ErrorMessage = request.ErrorMessage;
             }
         }
 
@@ -893,25 +1072,25 @@ public class CandidateService : ICandidateService
             {
                 evaluation = new CvEvaluation
                 {
-                    CvId              = cv.Id,
-                    CvScore           = request.CvScore.Value,
-                    StrengthsJson     = JsonSerializer.Serialize(request.Strengths ?? []),
-                    WeaknessesJson    = JsonSerializer.Serialize(request.Weaknesses ?? []),
-                    ImprovementsJson  = JsonSerializer.Serialize(request.Improvements ?? []),
+                    CvId = cv.Id,
+                    CvScore = request.CvScore.Value,
+                    StrengthsJson = JsonSerializer.Serialize(request.Strengths ?? []),
+                    WeaknessesJson = JsonSerializer.Serialize(request.Weaknesses ?? []),
+                    ImprovementsJson = JsonSerializer.Serialize(request.Improvements ?? []),
                     MissingSkillsJson = JsonSerializer.Serialize(request.MissingSkills ?? []),
-                    ModelVersion      = "AI-v1",
-                    GeneratedAt       = DateTime.UtcNow
+                    ModelVersion = "AI-v1",
+                    GeneratedAt = DateTime.UtcNow
                 };
                 _context.CvEvaluations.Add(evaluation);
             }
             else
             {
-                evaluation.CvScore           = request.CvScore.Value;
-                evaluation.StrengthsJson     = JsonSerializer.Serialize(request.Strengths ?? []);
-                evaluation.WeaknessesJson    = JsonSerializer.Serialize(request.Weaknesses ?? []);
-                evaluation.ImprovementsJson  = JsonSerializer.Serialize(request.Improvements ?? []);
+                evaluation.CvScore = request.CvScore.Value;
+                evaluation.StrengthsJson = JsonSerializer.Serialize(request.Strengths ?? []);
+                evaluation.WeaknessesJson = JsonSerializer.Serialize(request.Weaknesses ?? []);
+                evaluation.ImprovementsJson = JsonSerializer.Serialize(request.Improvements ?? []);
                 evaluation.MissingSkillsJson = JsonSerializer.Serialize(request.MissingSkills ?? []);
-                evaluation.GeneratedAt       = DateTime.UtcNow;
+                evaluation.GeneratedAt = DateTime.UtcNow;
             }
         }
 
@@ -1040,27 +1219,27 @@ public class CandidateService : ICandidateService
 
     private static CandidateFullProfileResponse MapToFullProfileResponse(Candidate c, string email) => new()
     {
-        Id               = c.Id,
-        UserId           = c.UserId,
-        Email            = email,
-        FullName         = c.FullName,
-        Phone            = c.Phone,
-        Address          = c.Address,
-        AvatarUrl        = c.AvatarUrl,
-        DateOfBirth      = c.DateOfBirth,
-        Gender           = c.Gender,
-        Summary          = c.Summary,
-        DesiredPosition  = c.DesiredPosition,
+        Id = c.Id,
+        UserId = c.UserId,
+        Email = email,
+        FullName = c.FullName,
+        Phone = c.Phone,
+        Address = c.Address,
+        AvatarUrl = c.AvatarUrl,
+        DateOfBirth = c.DateOfBirth,
+        Gender = c.Gender,
+        Summary = c.Summary,
+        DesiredPosition = c.DesiredPosition,
         DesiredSalaryMin = c.DesiredSalaryMin,
         DesiredSalaryMax = c.DesiredSalaryMax,
         ProfileUpdatedAt = c.ProfileUpdatedAt,
-        CreatedAt        = c.CreatedAt,
-        Educations       = c.Educations.Select(MapToEducationResponse).ToList(),
-        Experiences      = c.Experiences.Select(MapToExperienceResponse).ToList(),
-        Skills           = c.Skills.Select(cs => MapToSkillResponse(cs, cs.Skill)).ToList(),
-        Certificates     = c.Certificates.Select(MapToCertificateResponse).ToList(),
-        Projects         = c.Projects.Select(MapToProjectResponse).ToList(),
-        CVs              = c.CVs.Select(MapToCvResponse).ToList(),
+        CreatedAt = c.CreatedAt,
+        Educations = c.Educations.Select(MapToEducationResponse).ToList(),
+        Experiences = c.Experiences.Select(MapToExperienceResponse).ToList(),
+        Skills = c.Skills.Select(cs => MapToSkillResponse(cs, cs.Skill)).ToList(),
+        Certificates = c.Certificates.Select(MapToCertificateResponse).ToList(),
+        Projects = c.Projects.Select(MapToProjectResponse).ToList(),
+        CVs = c.CVs.Select(MapToCvResponse).ToList(),
     };
 
     private static EducationResponse MapToEducationResponse(Education e) => new(
