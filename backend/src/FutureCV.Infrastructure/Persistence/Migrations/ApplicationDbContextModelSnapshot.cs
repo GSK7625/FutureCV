@@ -364,7 +364,7 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Unverified");
+                        .HasDefaultValue("Pending");
 
                     b.Property<string>("WebsiteUrl")
                         .HasColumnType("text");

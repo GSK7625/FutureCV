@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
+import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook, IconUserCircle } from "@tabler/icons-react";
 import { Field, Input, Button } from "~/components/ui";
 import { useLogin } from "~/features/auth/hooks/useLogin";
 import { useUIStore } from "~/stores/useUIStore";
@@ -34,6 +34,9 @@ export default function LoginPage() {
   return (
     <div>
       <div className="mb-6">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-navy">
+          <IconUserCircle size={24} stroke={1.6} className="text-gold" />
+        </div>
         <h1 className="text-2xl font-bold text-ink">Đăng nhập</h1>
         <p className="mt-1 text-label-sm text-ink-muted">Chào mừng bạn quay trở lại với tương lai sự nghiệp.</p>
       </div>

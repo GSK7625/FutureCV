@@ -21,6 +21,12 @@ public interface IAdminService
     Task<ServiceResult<AdminCompanyProfileResponse>> UpdateCompanyStatusAsync(
         Guid adminUserId, Guid companyId, UpdateCompanyStatusRequest request, string? ipAddress, CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<bool>> ApproveCompanyAsync(
+        Guid adminUserId, Guid companyId, string? ipAddress, CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<bool>> RejectCompanyAsync(
+        Guid adminUserId, Guid companyId, string reason, string? ipAddress, CancellationToken cancellationToken = default);
+
     Task<ServiceResult<PagedResult<AuditLogResponse>>> GetAuditLogsAsync(
         AuditLogQueryFilter filter, CancellationToken cancellationToken = default);
 
