@@ -1,5 +1,6 @@
 import { useAuthStore } from "~/stores/useAuthStore";
 import { prepareRequestBody } from "./requestBody";
+import { translateErrorMessage } from "./errorMapper";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -25,17 +26,23 @@ export interface FetchOptions extends Omit<RequestInit, "body"> {
 }
 
 async function parseErrorMessage(response: Response): Promise<string> {
+  let rawMessage: string | null = null;
   try {
     const data = await response.json();
-    if (data?.message) return data.message;
-    if (data?.errors) {
+    if (data?.message && typeof data.message === "string") {
+      rawMessage = data.message;
+    } else if (data?.detail && typeof data.detail === "string") {
+      rawMessage = data.detail;
+    } else if (data?.errors && typeof data.errors === "object") {
       const first = Object.values(data.errors).flat()[0];
-      if (typeof first === "string") return first;
+      if (typeof first === "string") rawMessage = first;
+    } else if (data?.title && typeof data.title === "string") {
+      rawMessage = data.title;
     }
   } catch {
     // Body không phải JSON -> dùng message mặc định
   }
-  return `Yêu cầu thất bại (${response.status})`;
+  return translateErrorMessage(rawMessage, response.status);
 }
 
 async function requestOnce<T>(

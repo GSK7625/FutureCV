@@ -125,13 +125,17 @@ export function ApplicationsView() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl py-6 px-4 sm:px-6 space-y-8">
+    <div className="mx-auto max-w-5xl space-y-6">
       {/* Header section with Double-bezel accent */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-navy/10 pb-6">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-navy/5 text-navy text-[10px] uppercase tracking-[0.2em] font-semibold mb-2">
-            <IconBriefcase size={13} /> Hồ sơ ứng tuyển
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-navy/10 pb-6">
+        <div className="space-y-1.5">
+          <nav className="flex items-center gap-2 text-xs text-ink-muted mb-1.5">
+            <Link to="/" className="hover:text-navy transition-colors">
+              Trang chủ
+            </Link>
+            <span>/</span>
+            <span className="font-semibold text-navy">Việc làm đã ứng tuyển</span>
+          </nav>
           <h1 className="text-2xl sm:text-3xl font-bold text-navy">
             Việc làm đã ứng tuyển {data?.total != null ? `(${data.total})` : ""}
           </h1>
