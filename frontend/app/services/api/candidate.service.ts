@@ -72,13 +72,11 @@ export const candidateCVApi = {
     formData.append("title", dto.title);
     formData.append("cv", dto.file);
     formData.append("file", dto.file);
-    return fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/candidate/cvs?title=${encodeURIComponent(dto.title)}`, {
+    return fetcher<CandidateCVDto>(`/api/candidate/cvs?title=${encodeURIComponent(dto.title)}`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
       body: formData,
-    }).then((res) => res.json());
+      auth: true,
+    });
   },
 
   updateCVTitle: (id: string, dto: UpdateCandidateCVTitleDto) =>

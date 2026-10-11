@@ -27,7 +27,7 @@ export function JobDetailContent({ job }: JobDetailContentProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy/5 text-navy">
               <IconFileDescription size={18} stroke={1.8} />
             </div>
-            <h2 className="text-title font-bold text-navy">Mô tả công việc</h2>
+            <h2 className="text-headline-md font-bold text-navy">Mô tả công việc</h2>
           </div>
           <div className="whitespace-pre-line text-body leading-relaxed text-ink">
             {job.description}
@@ -42,7 +42,7 @@ export function JobDetailContent({ job }: JobDetailContentProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <IconCircleCheck size={18} stroke={1.8} />
             </div>
-            <h2 className="text-title font-bold text-navy">Yêu cầu ứng viên</h2>
+            <h2 className="text-headline-md font-bold text-navy">Yêu cầu ứng viên</h2>
           </div>
 
           {job.requirements && job.requirements.length > 0 ? (
@@ -69,7 +69,7 @@ export function JobDetailContent({ job }: JobDetailContentProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/15 text-gold">
               <IconGift size={18} stroke={1.8} />
             </div>
-            <h2 className="text-title font-bold text-navy">Quyền lợi được hưởng</h2>
+            <h2 className="text-headline-md font-bold text-navy">Quyền lợi được hưởng</h2>
           </div>
 
           {job.benefits && job.benefits.length > 0 ? (
@@ -94,7 +94,7 @@ export function JobDetailContent({ job }: JobDetailContentProps) {
         <section className="rounded-xl border border-border-subtle bg-surface p-6 shadow-surface">
           <div className="mb-3 flex items-center gap-2">
             <IconSparkles size={18} stroke={1.8} className="text-gold" />
-            <h2 className="text-title font-bold text-navy">Kỹ năng chuyên môn</h2>
+            <h2 className="text-headline-md font-bold text-navy">Kỹ năng chuyên môn</h2>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             {job.skills.map((skill, idx) => (

@@ -52,7 +52,7 @@ export function JobListFilters({
   };
 
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-6 rounded-default border border-border-subtle bg-surface p-5 shadow-surface lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto overscroll-contain">
+    <aside className="flex min-h-full w-full shrink-0 flex-col gap-6 rounded-default border border-border-subtle bg-surface p-5 shadow-surface overscroll-contain">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border-subtle pb-3">
         <div className="flex items-center gap-2 font-semibold text-navy">

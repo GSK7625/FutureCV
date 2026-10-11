@@ -4,6 +4,7 @@ import { authService } from "../services/authService";
 import { useAuthStore, type Role } from "~/stores/useAuthStore";
 import { useUIStore } from "~/stores/useUIStore";
 import type { AuthResponseDto } from "../types";
+import { getDefaultDashboard, getSafeReturnUrl } from "../constants";
 
 export function normalizeRole(role?: string): Role {
   const r = (role ?? "").trim().toLowerCase();
@@ -42,13 +43,11 @@ export function useLogin() {
       queryClient.removeQueries({ type: "all" });
       const role = applySession(result, variables.email);
       showToast("Đăng nhập thành công", "success");
-      // Nguồn duy nhất quyết định đích đến sau login: returnTo (server-side redirect flow) trước,
-      // fallback theo role (candidate vào home, header đã có menu cá nhân).
+      // Single owner: Nguồn duy nhất quyết định đích đến sau login.
+      // Ưu tiên returnTo (đã validate internal path), fallback theo role mặc định.
       const returnTo = new URLSearchParams(location.search).get("returnTo");
-      const safeReturn =
-        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : null;
-      const targetUrl = safeReturn
-        ?? (role === "employer" ? "/hr" : role === "admin" ? "/admin" : "/");
+      const safeReturn = getSafeReturnUrl(returnTo);
+      const targetUrl = safeReturn ?? getDefaultDashboard(role);
       navigate(targetUrl, { replace: true });
     },
   });

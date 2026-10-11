@@ -1,7 +1,8 @@
-import { Link, Outlet, useNavigate } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { IconSparkles, IconFileText, IconChartBar } from "@tabler/icons-react";
 import { useAuthStore } from "~/stores/useAuthStore";
 import { useEffect } from "react";
+import { isLoginRoute, getDefaultDashboard } from "~/features/auth/constants";
 
 const highlights = [
   { icon: IconSparkles, text: "Gợi ý việc làm phù hợp bằng AI" },
@@ -12,20 +13,20 @@ const highlights = [
 export default function AuthLayout() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (user) {
-      const targetUrl =
-        user.role === "employer"
-          ? "/hr"
-          : user.role === "candidate"
-            ? "/"
-            : user.role === "admin"
-              ? "/admin"
-              : "/";
-      navigate(targetUrl, { replace: true });
+      // Cho phép user đã đăng nhập truy cập tất cả login routes (/login, /login-employer, /login-admin)
+      // để chuyển đổi tài khoản giữa các vai trò khác nhau.
+      if (isLoginRoute(location.pathname)) {
+        return;
+      }
+
+      // Các auth routes khác như /register, /forgot-password vẫn redirect về trang chính theo vai trò.
+      navigate(getDefaultDashboard(user.role), { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location.pathname]);
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-background lg:grid-cols-2">
@@ -40,7 +41,7 @@ export default function AuthLayout() {
       </div>
 
       {/* Panel navy bên phải: brand + visual */}
-      <div className="relative hidden items-center justify-center overflow-hidden bg-navy lg:flex">
+      <div className="relative hidden overflow-hidden bg-navy lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center lg:justify-center">
         <div
           aria-hidden
           className="absolute inset-0 opacity-10"

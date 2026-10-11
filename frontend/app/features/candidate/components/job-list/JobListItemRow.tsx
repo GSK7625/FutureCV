@@ -57,7 +57,7 @@ export function JobListItemRow({ job, saved, onToggleSave }: JobListItemRowProps
         {/* Info Column */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-col-reverse items-start justify-between gap-2 sm:flex-row sm:items-center">
-            <h3 className="line-clamp-2 text-title font-semibold leading-snug text-navy">
+            <h3 className="line-clamp-2 text-base sm:text-lg font-semibold leading-snug text-navy">
               <Link
                 to={`/jobs/${job.id}`}
                 className="transition-colors hover:text-gold"
