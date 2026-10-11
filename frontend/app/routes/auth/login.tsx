@@ -1,13 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link } from "react-router";
 import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
 import { Field, Input, Button } from "~/components/ui";
 import { useLogin } from "~/features/auth/hooks/useLogin";
 import { useUIStore } from "~/stores/useUIStore";
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const login = useLogin();
   const showToast = useUIStore((s) => s.showToast);
 
@@ -29,15 +27,7 @@ export default function LoginPage() {
     if (!validate()) return;
     login.mutate(
       { email: email.trim(), password },
-      {
-        onError: (error) => showToast(error.message, "error"),
-        onSuccess: () => {
-          const returnTo = searchParams.get("returnTo");
-          if (returnTo?.startsWith("/")) {
-            navigate(returnTo, { replace: true });
-          }
-        },
-      },
+      { onError: (error) => showToast(error.message, "error") },
     );
   };
 
@@ -124,12 +114,20 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-5 text-center text-label-sm text-ink-variant">
-        Bạn chưa có tài khoản?{" "}
-        <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
-          Đăng ký ngay
-        </Link>
-      </p>
+      <div className="mt-5 space-y-3 text-center text-label-sm">
+        <p className="text-ink-variant">
+          Bạn chưa có tài khoản?{" "}
+          <Link to="/register" className="font-semibold text-navy underline decoration-gold hover:text-gold">
+            Đăng ký ngay
+          </Link>
+        </p>
+        <p className="text-ink-muted">
+          Bạn là nhà tuyển dụng?{" "}
+          <Link to="/login-employer" className="font-semibold text-navy hover:underline">
+            Đăng nhập nhà tuyển dụng
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,13 +1,15 @@
 using FluentValidation;
+using FutureCV.Application.Common.Interfaces;
 using FutureCV.Application.Features.Auth.DTOs;
 
 namespace FutureCV.Application.Features.Auth.Validators;
 
 public class RefreshTokenRequestValidator : AbstractValidator<RefreshTokenRequest>
 {
-    public RefreshTokenRequestValidator()
+    public RefreshTokenRequestValidator(ITokenCookieService tokenCookieService)
     {
-        RuleFor(x => x.RefreshToken)
-            .NotEmpty().WithMessage("Refresh token is required.");
+        RuleFor(x => x)
+            .Must(req => !string.IsNullOrWhiteSpace(req.RefreshToken) || !string.IsNullOrWhiteSpace(tokenCookieService.GetRefreshToken()))
+            .WithMessage("Refresh token is required.");
     }
 }

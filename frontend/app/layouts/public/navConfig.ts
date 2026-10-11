@@ -13,16 +13,13 @@ export interface NavItem {
 }
 
 export const JOB_MENU_ACTIONS: NavItem[] = [
-  { label: "Tìm việc làm", href: "/", iconName: "search" },
-  { label: "Việc làm đã lưu", href: "/", iconName: "bookmark" },
-  { label: "Việc làm đã ứng tuyển", href: "/", iconName: "file-text" },
+  { label: "Tìm việc làm", href: "/jobs", iconName: "search" },
+  { label: "Việc làm đã lưu", href: "/candidate/saved-jobs", iconName: "bookmark" },
+  { label: "Việc làm đã ứng tuyển", href: "/candidate/applications", iconName: "file-text" },
   { label: "Việc làm phù hợp", href: "/", iconName: "thumb-up" },
 ];
 
-export const COMPANY_MENU_ACTIONS: NavItem[] = [
-  { label: "Danh sách công ty", href: "/#companies", iconName: "building" },
-  { label: "Công ty", href: "/#companies", iconName: "sparkles", badge: "Pro" },
-];
+
 
 export const JOB_POSITION_LINKS: { label: string; href: string }[] = [
   { label: "Việc làm Nhân viên kinh doanh", href: "/" },
@@ -56,16 +53,9 @@ export const CV_STYLE_LINKS: NavItem[] = [
   { label: "Mẫu CV Harvard", href: "/cv/templates?category=harvard", iconName: "writing" },
 ];
 
-export const CV_ROLE_LINKS: NavItem[] = [
-  { label: "Nhân viên kinh doanh", href: "/cv/templates", iconName: "briefcase" },
-  { label: "Lập trình viên", href: "/cv/templates", iconName: "briefcase" },
-  { label: "Nhân viên kế toán", href: "/cv/templates", iconName: "briefcase" },
-  { label: "Chuyên viên marketing", href: "/cv/templates", iconName: "briefcase" },
-];
-
 export const CV_TOOL_LINKS: NavItem[] = [
-  { label: "Quản lý CV", href: "/cv/templates", iconName: "file-text" },
-  { label: "Tải CV lên", href: "/cv/templates", iconName: "cloud-upload" },
+  { label: "Quản lý CV", href: "/candidate/cvs", iconName: "file-text" },
+  { label: "Tải CV lên", href: "/cv/upload", iconName: "cloud-upload" },
   { label: "Hướng dẫn viết CV", href: "/cv/templates", iconName: "file-description" },
 ];
 

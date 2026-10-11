@@ -1,16 +1,43 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { useNavigate } from "react-router";
 import { IconHeart, IconHeartFilled } from "@tabler/icons-react";
 import { formatSalary } from "~/utils";
 import type { Job } from "~/features/candidate/types";
+import { useSavedJobIds } from "~/features/candidate/hooks/useSavedJobIds";
+import { useToggleSaveJob } from "~/features/candidate/hooks/useToggleSaveJob";
 import { cn } from "~/lib/cn";
 
-export const JobCard = memo(function JobCard({ job, className }: { job: Job; className?: string }) {
-  const [saved, setSaved] = useState(false);
+export interface JobCardProps {
+  job: Job;
+  className?: string;
+  saved?: boolean;
+  onToggleSave?: () => void;
+}
+
+export const JobCard = memo(function JobCard({
+  job,
+  className,
+  saved,
+  onToggleSave,
+}: JobCardProps) {
   const navigate = useNavigate();
+  const { data: savedJobIds } = useSavedJobIds();
+  const { toggleSave, isPending } = useToggleSaveJob();
+
+  const isSaved = saved !== undefined ? saved : (savedJobIds ? savedJobIds.has(job.id) : false);
 
   const handleCardClick = () => {
     navigate(`/jobs/${job.id}`);
+  };
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onToggleSave) {
+      onToggleSave();
+    } else {
+      toggleSave(job.id);
+    }
   };
 
   return (
@@ -71,15 +98,12 @@ export const JobCard = memo(function JobCard({ job, className }: { job: Job; cla
 
           <button
             type="button"
-            aria-label={saved ? "Bỏ lưu việc làm" : "Lưu việc làm"}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              setSaved(!saved);
-            }}
-            className="text-ink-muted transition-colors hover:text-danger p-0.5"
+            aria-label={isSaved ? "Bỏ lưu việc làm" : "Lưu việc làm"}
+            onClick={handleToggle}
+            disabled={isPending}
+            className="text-ink-muted transition-colors hover:text-danger p-0.5 disabled:opacity-50"
           >
-            {saved ? (
+            {isSaved ? (
               <IconHeartFilled size={16} className="text-danger" />
             ) : (
               <IconHeart size={16} stroke={1.6} />
