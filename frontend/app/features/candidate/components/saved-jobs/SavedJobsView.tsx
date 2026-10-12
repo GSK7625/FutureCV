@@ -44,22 +44,20 @@ function SavedJobsSkeleton() {
       {Array.from({ length: 3 }).map((_, i) => (
         <div
           key={i}
-          className="flex flex-col gap-4 rounded-default border border-border-subtle bg-surface p-5 shadow-surface sm:flex-row"
+          className="p-1 rounded-[2rem] bg-navy/5 border border-navy/10"
         >
-          <Skeleton className="h-16 w-16 shrink-0 rounded-default sm:h-20 sm:w-20" />
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex flex-col justify-between gap-2 sm:flex-row">
-              <Skeleton className="h-6 w-2/3" />
-              <Skeleton className="h-6 w-28" />
+          <div className="p-6 bg-white rounded-[calc(2rem-0.25rem)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <Skeleton className="w-14 h-14 rounded-2xl shrink-0" />
+              <div className="space-y-2.5">
+                <Skeleton className="h-6 w-56 rounded-md" />
+                <Skeleton className="h-4 w-40 rounded-md" />
+                <Skeleton className="h-4 w-64 rounded-md" />
+              </div>
             </div>
-            <Skeleton className="h-4 w-1/3" />
-            <div className="flex gap-2">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-5 w-28" />
-            </div>
-            <div className="flex justify-between border-t border-border-subtle pt-3">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-8 w-20" />
+            <div className="flex items-center gap-2 self-end md:self-center">
+              <Skeleton className="h-9 w-24 rounded-full" />
+              <Skeleton className="h-9 w-28 rounded-full" />
             </div>
           </div>
         </div>
@@ -112,22 +110,30 @@ export function SavedJobsView() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 py-4">
-      {/* Header */}
-      <div className="flex flex-col gap-1 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-display-xs font-bold text-navy sm:text-display-sm">
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* Header section with Double-bezel accent */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-navy/10 pb-6">
+        <div className="space-y-1.5">
+          <nav className="flex items-center gap-2 text-xs text-ink-muted mb-1.5">
+            <Link to="/" className="hover:text-navy transition-colors">
+              Trang chủ
+            </Link>
+            <span>/</span>
+            <span className="font-semibold text-navy">Việc làm đã lưu</span>
+          </nav>
+          <h1 className="text-2xl sm:text-3xl font-bold text-navy">
             Việc làm đã lưu {data?.total != null ? `(${data.total})` : ""}
           </h1>
-          <p className="mt-1 text-body-sm text-ink-muted">
+          <p className="mt-1 text-sm text-ink-variant">
             Quản lý danh sách các cơ hội nghề nghiệp bạn đã lưu để ứng tuyển.
           </p>
         </div>
-        <Link to="/jobs">
-          <Button variant="secondary" size="sm" className="mt-2 sm:mt-0">
-            <IconSearch size={16} />
-            Tìm thêm việc làm
-          </Button>
+        <Link
+          to="/jobs"
+          className="self-start sm:self-center inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-navy/20 bg-surface-low text-xs font-semibold text-navy hover:bg-navy/5 transition-all active:scale-[0.98]"
+        >
+          <IconSearch size={15} />
+          <span>Tìm thêm việc làm</span>
         </Link>
       </div>
 
@@ -161,85 +167,89 @@ export function SavedJobsView() {
               return (
                 <article
                   key={job.jobId}
-                  className="group relative rounded-default border border-border-subtle bg-surface p-5 shadow-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-navy hover:shadow-card"
+                  className="group p-1 rounded-[2rem] bg-navy/5 border border-navy/10 hover:border-navy/20 hover:shadow-md transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row">
-                    {/* Company Logo */}
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-default border border-border-subtle bg-surface-low sm:h-20 sm:w-20">
-                      {job.companyLogo ? (
-                        <img
-                          src={job.companyLogo}
-                          alt={job.company}
-                          className="h-full w-full object-contain p-2"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="text-headline-md font-bold text-navy">
-                          {companyInitial}
-                        </span>
-                      )}
-                    </div>
+                  <div className="p-5 sm:p-6 bg-white rounded-[calc(2rem-0.25rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] flex flex-col md:flex-row md:items-center justify-between gap-5">
+                    {/* Main Info */}
+                    <div className="flex items-start gap-4 min-w-0 flex-1">
+                      {/* Company Logo */}
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-navy/10 bg-navy/5">
+                        {job.companyLogo ? (
+                          <img
+                            src={job.companyLogo}
+                            alt={job.company}
+                            className="h-full w-full object-cover shadow-2xs"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-navy">
+                            {companyInitial}
+                          </span>
+                        )}
+                      </div>
 
-                    {/* Info Column */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-col-reverse items-start justify-between gap-2 sm:flex-row sm:items-center">
-                        <h2 className="line-clamp-2 text-title font-semibold leading-snug text-navy">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                           <Link
                             to={`/jobs/${job.jobId}`}
-                            className="transition-colors hover:text-gold"
+                            className="text-base sm:text-lg font-bold text-navy hover:text-navy-secondary transition-colors truncate"
                           >
                             {job.title}
                           </Link>
-                        </h2>
-                        <Badge variant="gold" className="shrink-0 font-bold text-label">
-                          {formatSalary(job.salaryMin, job.salaryMax)}
-                        </Badge>
-                      </div>
+                          {job.isExpired ? (
+                            <Badge variant="danger">Hết hạn</Badge>
+                          ) : !job.isActive ? (
+                            <Badge variant="neutral">Đã đóng</Badge>
+                          ) : null}
+                        </div>
 
-                      <p className="mt-1 text-label font-medium uppercase tracking-wide text-ink-variant">
-                        {job.company}
-                      </p>
+                        <p className="text-xs sm:text-sm text-ink-variant font-medium flex items-center gap-2 truncate">
+                          <span>{job.company}</span>
+                          <span className="text-ink-muted">•</span>
+                          <span className="inline-flex items-center gap-1 text-ink-muted">
+                            <IconMapPin size={14} />
+                            {job.location}
+                          </span>
+                        </p>
 
-                      {/* Badges / Meta */}
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Badge variant="neutral" className="gap-1">
-                          <IconMapPin size={13} stroke={1.8} className="text-ink-muted" />
-                          {job.location}
-                        </Badge>
-
-                        {job.deadline && (
-                          <Badge variant="neutral" className="gap-1">
-                            <IconCalendar size={13} stroke={1.8} className="text-ink-muted" />
-                            Hạn nộp: {job.deadline}
-                          </Badge>
-                        )}
-
-                        {job.isExpired ? (
-                          <Badge variant="danger">Hết hạn</Badge>
-                        ) : !job.isActive ? (
-                          <Badge variant="neutral">Đã đóng</Badge>
-                        ) : null}
-                      </div>
-
-                      {/* Footer */}
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-3 text-label-sm text-ink-muted">
-                        <span className="flex items-center gap-1">
-                          <IconClock size={14} stroke={1.6} />
-                          Lưu: {formatSavedTime(job.savedAt)}
-                        </span>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1 text-ink-muted hover:bg-danger/10 hover:text-danger"
-                            onClick={() => setJobToUnsave(job)}
-                          >
-                            <IconBookmarkFilled size={15} className="text-gold" />
-                            Bỏ lưu
-                          </Button>
+                        <div className="flex items-center gap-3 pt-1 text-xs text-ink-muted flex-wrap">
+                          <span className="font-semibold text-navy">
+                            {formatSalary(job.salaryMin, job.salaryMax)}
+                          </span>
+                          <span>•</span>
+                          {job.deadline && (
+                            <>
+                              <span className="inline-flex items-center gap-1">
+                                <IconCalendar size={13} />
+                                Hạn nộp: {job.deadline}
+                              </span>
+                              <span>•</span>
+                            </>
+                          )}
+                          <span className="inline-flex items-center gap-1">
+                            <IconClock size={13} />
+                            Lưu: {formatSavedTime(job.savedAt)}
+                          </span>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+                      <button
+                        type="button"
+                        onClick={() => setJobToUnsave(job)}
+                        className="px-4 py-2 rounded-full border border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors inline-flex items-center gap-1.5"
+                      >
+                        Bỏ lưu
+                      </button>
+
+                      <Link
+                        to={`/jobs/${job.jobId}`}
+                        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-navy text-xs font-semibold text-white shadow-xs hover:bg-navy-secondary active:scale-[0.98] transition-all"
+                      >
+                        Ứng tuyển
+                      </Link>
                     </div>
                   </div>
                 </article>

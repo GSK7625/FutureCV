@@ -1,13 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
-import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook, IconBriefcase } from "@tabler/icons-react";
+import { Link } from "react-router";
+import { IconEye, IconEyeOff, IconBrandGoogle, IconBrandFacebook } from "@tabler/icons-react";
 import { Field, Input, Button } from "~/components/ui";
 import { useLogin } from "~/features/auth/hooks/useLogin";
 import { useUIStore } from "~/stores/useUIStore";
 
 export default function LoginEmployerPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const login = useLogin();
   const showToast = useUIStore((s) => s.showToast);
 
@@ -31,14 +29,6 @@ export default function LoginEmployerPage() {
       { email: email.trim(), password },
       {
         onError: (error) => showToast(error.message, "error"),
-        onSuccess: () => {
-          const returnTo = searchParams.get("returnTo");
-          if (returnTo?.startsWith("/")) {
-            navigate(returnTo, { replace: true });
-          } else {
-            navigate("/hr", { replace: true });
-          }
-        },
       },
     );
   };
@@ -46,9 +36,6 @@ export default function LoginEmployerPage() {
   return (
     <div>
       <div className="mb-6">
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-navy">
-          <IconBriefcase size={24} stroke={1.6} className="text-gold" />
-        </div>
         <h1 className="text-2xl font-bold text-ink">Đăng nhập Nhà tuyển dụng</h1>
         <p className="mt-1 text-label-sm text-ink-muted">Quản lý tuyển dụng chuyên nghiệp, hiệu quả.</p>
       </div>

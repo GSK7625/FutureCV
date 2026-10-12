@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams, Link } from "react-router";
 import {
   IconFilter,
   IconFileText,
@@ -156,7 +156,16 @@ export function JobListView() {
   };
 
   return (
-    <div className="container-page mx-auto">
+    <div className="container-page mx-auto py-8">
+      {/* Breadcrumbs */}
+      <div className="mb-4 flex items-center gap-2 text-label-sm font-medium text-ink-muted">
+        <Link to="/" className="hover:text-navy transition-colors">
+          Trang chủ
+        </Link>
+        <span>/</span>
+        <span className="text-navy">Việc làm</span>
+      </div>
+
       {/* Search Header Banner */}
       <div className="rounded-2xl bg-navy p-6 text-white shadow-xl md:p-8">
         <h1 className="text-display-sm font-bold md:text-headline-lg">
@@ -190,7 +199,7 @@ export function JobListView() {
       {/* Control Bar (Total Count, Mobile Filter Button, Sort Dropdown) */}
       <div className="mt-8 flex flex-col justify-between gap-4 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-title font-bold text-navy">
+          <span className="text-headline-md font-bold text-navy">
             {query.data ? `${query.data.total} việc làm phù hợp` : "Đang tìm kiếm việc làm..."}
           </span>
           {urlKeyword && (
@@ -239,9 +248,9 @@ export function JobListView() {
       </div>
 
       {/* Main Layout: Filters Sidebar + Job Rows */}
-      <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:h-[950px]">
         {/* Desktop Sidebar */}
-        <div className="hidden lg:block lg:w-72 lg:shrink-0 self-start">
+        <div className="hidden lg:block lg:w-72 lg:shrink-0 lg:h-full lg:overflow-y-auto lg:pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-navy/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-navy/30">
           <JobListFilters
             categoryId={categoryId}
             locationId={locationId}
@@ -270,7 +279,7 @@ export function JobListView() {
         />
 
         {/* Job Cards List */}
-        <div className="flex min-w-0 flex-1 flex-col gap-4 min-h-[480px]" aria-label="Danh sách việc làm">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 min-h-[480px] lg:h-full lg:overflow-y-auto lg:pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-navy/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-navy/30" aria-label="Danh sách việc làm">
           <QueryBoundary
             isLoading={query.isLoading}
             error={query.error}
@@ -284,22 +293,11 @@ export function JobListView() {
             }
           >
             {query.data && query.data.items.length > 0 ? (
-              <>
-                <div className="flex flex-col gap-4">
-                  {query.data.items.map((job) => (
-                    <JobListItemRow key={job.id} job={job} />
-                  ))}
-                </div>
-
-                {/* Phân trang số trang chuẩn */}
-                <JobListPagination
-                  currentPage={query.data.page}
-                  totalPages={query.data.totalPages}
-                  hasPreviousPage={query.data.hasPreviousPage}
-                  hasNextPage={query.data.hasNextPage}
-                  onPageChange={handlePageChange}
-                />
-              </>
+              <div className="flex flex-col gap-4">
+                {query.data.items.map((job) => (
+                  <JobListItemRow key={job.id} job={job} />
+                ))}
+              </div>
             ) : (
               <EmptyState
                 icon={<IconFileText size={48} stroke={1.2} />}
@@ -317,6 +315,19 @@ export function JobListView() {
           </QueryBoundary>
         </div>
       </div>
+
+      {/* Pagination moved outside of scrolling area */}
+      {query.data && query.data.items.length > 0 && (
+        <div className="mt-6">
+          <JobListPagination
+            currentPage={query.data.page}
+            totalPages={query.data.totalPages}
+            hasPreviousPage={query.data.hasPreviousPage}
+            hasNextPage={query.data.hasNextPage}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
     </div>
   );
 }
