@@ -1,9 +1,9 @@
+using System.Text.Json;
 using FutureCV.Application.Common.Interfaces;
 using FutureCV.Application.Common.Models;
 using FutureCV.Application.Features.Candidate.DTOs;
 using FutureCV.Application.Features.Candidate.Interfaces;
 using Microsoft.EntityFrameworkCore;
-
 
 namespace FutureCV.Application.Features.Candidate.Services;
 using FutureCV.Domain.Entities;
@@ -567,6 +567,359 @@ public class CandidateService : ICandidateService
     }
 
     // -------------------------------------------------------------------------
+    // Structured CV Data & AI Analysis (P2-UC04, P2-UC05, P2-UC06)
+    // -------------------------------------------------------------------------
+
+    public async Task<ServiceResult<CvStructuredDataResponse>> GetStructuredCvDataAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default)
+    {
+        var (cv, error) = await FindCvWithOwnershipAsync(userId, cvId, cancellationToken);
+        if (error is not null) return ServiceResult.Failure<CvStructuredDataResponse>(error.ErrorMessage ?? "CV not found.", error.ErrorType);
+
+        var parser = await _context.CvParsers
+            .FirstOrDefaultAsync(p => p.CvId == cvId, cancellationToken);
+
+        StructuredCvDataDto data;
+
+        if (parser is null || string.IsNullOrWhiteSpace(parser.ParsedDataJson))
+        {
+            // Auto-populate initial baseline structured data from candidate profile
+            var candidate = await _context.Candidates
+                .Include(c => c.Skills).ThenInclude(cs => cs.Skill)
+                .Include(c => c.Experiences)
+                .Include(c => c.Educations)
+                .Include(c => c.Projects)
+                .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
+
+            var email = await GetUserEmailAsync(userId);
+
+            data = new StructuredCvDataDto(
+                candidate?.FullName ?? string.Empty,
+                email,
+                candidate?.Phone,
+                candidate?.Summary,
+                candidate?.Skills.Select(s => s.Skill?.Name ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList() ?? [],
+                candidate?.Experiences.Where(e => !e.IsDeleted).Select(e => new CvExperienceDto(e.CompanyName, e.Position, e.StartDate, e.EndDate, e.IsCurrent, e.Description)).ToList() ?? [],
+                candidate?.Educations.Where(e => !e.IsDeleted).Select(e => new CvEducationDto(e.School, e.Degree, e.Major, e.StartYear, e.EndYear, e.Description)).ToList() ?? [],
+                candidate?.Projects.Where(p => !p.IsDeleted).Select(p => new CvProjectDto(p.Name, p.Role, p.StartDate, p.EndDate, p.IsCurrent, p.Description, null)).ToList() ?? []
+            );
+
+            var json = JsonSerializer.Serialize(data);
+
+            if (parser is null)
+            {
+                parser = new CvParser
+                {
+                    CvId             = cv!.Id,
+                    RawText          = json,
+                    ParsedDataJson   = json,
+                    ModelVersion     = "1.0",
+                    ParsedAt         = DateTime.UtcNow,
+                    IsVerifiedByUser = false
+                };
+                _context.CvParsers.Add(parser);
+            }
+            else
+            {
+                parser.ParsedDataJson = json;
+                if (string.IsNullOrWhiteSpace(parser.RawText))
+                {
+                    parser.RawText = json;
+                }
+            }
+
+            cv!.ParseStatus = "Parsed";
+            cv.ParsedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            try
+            {
+                data = JsonSerializer.Deserialize<StructuredCvDataDto>(parser.ParsedDataJson) ?? FallbackEmptyStructuredData();
+            }
+            catch
+            {
+                data = FallbackEmptyStructuredData();
+            }
+        }
+
+        var response = new CvStructuredDataResponse(
+            cv!.Id,
+            cv.Title,
+            cv.FileUrl,
+            cv.ParseStatus,
+            parser.IsVerifiedByUser,
+            parser.VerifiedAt,
+            data,
+            parser.RawText
+        );
+
+        return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<CvStructuredDataResponse>> UpdateStructuredCvDataAsync(
+        Guid userId, Guid cvId, UpdateStructuredCvDataRequest request, CancellationToken cancellationToken = default)
+    {
+        var (cv, error) = await FindCvWithOwnershipAsync(userId, cvId, cancellationToken);
+        if (error is not null) return ServiceResult.Failure<CvStructuredDataResponse>(error.ErrorMessage ?? "CV not found.", error.ErrorType);
+
+        var parser = await _context.CvParsers
+            .FirstOrDefaultAsync(p => p.CvId == cvId, cancellationToken);
+
+        var json = JsonSerializer.Serialize(request.Data);
+
+        if (parser is null)
+        {
+            parser = new CvParser
+            {
+                CvId             = cv!.Id,
+                RawText          = json,
+                ParsedDataJson   = json,
+                ModelVersion     = "1.0",
+                ParsedAt         = DateTime.UtcNow,
+                IsVerifiedByUser = true,
+                VerifiedAt       = DateTime.UtcNow
+            };
+            _context.CvParsers.Add(parser);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(parser.RawText))
+            {
+                parser.RawText = parser.ParsedDataJson ?? json;
+            }
+            parser.ParsedDataJson   = json;
+            parser.IsVerifiedByUser = true;
+            parser.VerifiedAt       = DateTime.UtcNow;
+        }
+
+        cv!.ParseStatus = "Parsed";
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var response = new CvStructuredDataResponse(
+            cv.Id,
+            cv.Title,
+            cv.FileUrl,
+            cv.ParseStatus,
+            parser.IsVerifiedByUser,
+            parser.VerifiedAt,
+            request.Data,
+            parser.RawText
+        );
+
+        return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<CvStructuredDataResponse>> RevertStructuredCvDataAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default)
+    {
+        var (cv, error) = await FindCvWithOwnershipAsync(userId, cvId, cancellationToken);
+        if (error is not null) return ServiceResult.Failure<CvStructuredDataResponse>(error.ErrorMessage ?? "CV not found.", error.ErrorType);
+
+        var parser = await _context.CvParsers
+            .FirstOrDefaultAsync(p => p.CvId == cvId, cancellationToken);
+
+        if (parser is null || string.IsNullOrWhiteSpace(parser.RawText))
+            return ServiceResult.Failure<CvStructuredDataResponse>("No initial parsed data available to revert to.", ServiceErrorType.Validation);
+
+        parser.ParsedDataJson   = parser.RawText;
+        parser.IsVerifiedByUser = false;
+        parser.VerifiedAt       = null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        StructuredCvDataDto data;
+        try
+        {
+            data = JsonSerializer.Deserialize<StructuredCvDataDto>(parser.ParsedDataJson) ?? FallbackEmptyStructuredData();
+        }
+        catch
+        {
+            data = FallbackEmptyStructuredData();
+        }
+
+        var response = new CvStructuredDataResponse(
+            cv!.Id,
+            cv.Title,
+            cv.FileUrl,
+            cv.ParseStatus,
+            parser.IsVerifiedByUser,
+            parser.VerifiedAt,
+            data,
+            parser.RawText
+        );
+
+        return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<CvAnalysisResponse>> GetCvAnalysisAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default)
+    {
+        var (cv, error) = await FindCvWithOwnershipAsync(userId, cvId, cancellationToken);
+        if (error is not null) return ServiceResult.Failure<CvAnalysisResponse>(error.ErrorMessage ?? "CV not found.", error.ErrorType);
+
+        var evaluation = await _context.CvEvaluations
+            .FirstOrDefaultAsync(e => e.CvId == cvId, cancellationToken);
+
+        if (evaluation is null)
+        {
+            // Auto-analyze CV if not yet evaluated
+            return await AnalyzeCvAsync(userId, cvId, cancellationToken);
+        }
+
+        var strengths = DeserializeList(evaluation.StrengthsJson);
+        var weaknesses = DeserializeList(evaluation.WeaknessesJson);
+        var improvements = DeserializeList(evaluation.ImprovementsJson);
+        var missingSkills = DeserializeList(evaluation.MissingSkillsJson);
+
+        var response = new CvAnalysisResponse(
+            cv!.Id,
+            evaluation.CvScore ?? 0,
+            strengths,
+            weaknesses,
+            improvements,
+            missingSkills,
+            evaluation.ModelVersion,
+            evaluation.GeneratedAt
+        );
+
+        return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<CvAnalysisResponse>> AnalyzeCvAsync(
+        Guid userId, Guid cvId, CancellationToken cancellationToken = default)
+    {
+        var (cv, error) = await FindCvWithOwnershipAsync(userId, cvId, cancellationToken);
+        if (error is not null) return ServiceResult.Failure<CvAnalysisResponse>(error.ErrorMessage ?? "CV not found.", error.ErrorType);
+
+        // Load structured data
+        var structuredDataResult = await GetStructuredCvDataAsync(userId, cvId, cancellationToken);
+        if (!structuredDataResult.IsSuccess || structuredDataResult.Data is null)
+            return ServiceResult.Failure<CvAnalysisResponse>("Could not load structured CV data for analysis.");
+
+        var data = structuredDataResult.Data.Data;
+
+        // Perform Rule-based Quality Evaluation
+        var (score, strengths, weaknesses, improvements, missingSkills) = EvaluateCvQuality(data);
+
+        var evaluation = await _context.CvEvaluations
+            .FirstOrDefaultAsync(e => e.CvId == cvId, cancellationToken);
+
+        if (evaluation is null)
+        {
+            evaluation = new CvEvaluation
+            {
+                CvId              = cv!.Id,
+                CvScore           = score,
+                StrengthsJson     = JsonSerializer.Serialize(strengths),
+                WeaknessesJson    = JsonSerializer.Serialize(weaknesses),
+                ImprovementsJson  = JsonSerializer.Serialize(improvements),
+                MissingSkillsJson = JsonSerializer.Serialize(missingSkills),
+                ModelVersion      = "1.0",
+                GeneratedAt       = DateTime.UtcNow
+            };
+            _context.CvEvaluations.Add(evaluation);
+        }
+        else
+        {
+            evaluation.CvScore           = score;
+            evaluation.StrengthsJson     = JsonSerializer.Serialize(strengths);
+            evaluation.WeaknessesJson    = JsonSerializer.Serialize(weaknesses);
+            evaluation.ImprovementsJson  = JsonSerializer.Serialize(improvements);
+            evaluation.MissingSkillsJson = JsonSerializer.Serialize(missingSkills);
+            evaluation.GeneratedAt       = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var response = new CvAnalysisResponse(
+            cv!.Id,
+            score,
+            strengths,
+            weaknesses,
+            improvements,
+            missingSkills,
+            evaluation.ModelVersion,
+            evaluation.GeneratedAt
+        );
+
+        return ServiceResult.Success(response);
+    }
+
+    public async Task<ServiceResult<bool>> ProcessAiCvCallbackAsync(
+        Guid cvId, AiCvCallbackRequest request, CancellationToken cancellationToken = default)
+    {
+        var cv = await _context.CandidateCvs
+            .FirstOrDefaultAsync(c => c.Id == cvId && !c.IsDeleted, cancellationToken);
+
+        if (cv is null)
+            return ServiceResult.NotFound<bool>("CV not found.");
+
+        cv.ParseStatus = request.ErrorMessage != null ? "Failed" : "Parsed";
+        cv.ParsedAt = DateTime.UtcNow;
+
+        if (request.StructuredData != null)
+        {
+            var json = JsonSerializer.Serialize(request.StructuredData);
+            var parser = await _context.CvParsers.FirstOrDefaultAsync(p => p.CvId == cvId, cancellationToken);
+            if (parser is null)
+            {
+                parser = new CvParser
+                {
+                    CvId           = cv.Id,
+                    RawText        = request.RawText ?? json,
+                    ParsedDataJson = json,
+                    ModelVersion   = "AI-v1",
+                    ParsedAt       = DateTime.UtcNow,
+                    ErrorMessage   = request.ErrorMessage
+                };
+                _context.CvParsers.Add(parser);
+            }
+            else
+            {
+                parser.RawText        = request.RawText ?? parser.RawText ?? json;
+                parser.ParsedDataJson = json;
+                parser.ParsedAt       = DateTime.UtcNow;
+                parser.ErrorMessage   = request.ErrorMessage;
+            }
+        }
+
+        if (request.CvScore.HasValue)
+        {
+            var evaluation = await _context.CvEvaluations.FirstOrDefaultAsync(e => e.CvId == cvId, cancellationToken);
+            if (evaluation is null)
+            {
+                evaluation = new CvEvaluation
+                {
+                    CvId              = cv.Id,
+                    CvScore           = request.CvScore.Value,
+                    StrengthsJson     = JsonSerializer.Serialize(request.Strengths ?? []),
+                    WeaknessesJson    = JsonSerializer.Serialize(request.Weaknesses ?? []),
+                    ImprovementsJson  = JsonSerializer.Serialize(request.Improvements ?? []),
+                    MissingSkillsJson = JsonSerializer.Serialize(request.MissingSkills ?? []),
+                    ModelVersion      = "AI-v1",
+                    GeneratedAt       = DateTime.UtcNow
+                };
+                _context.CvEvaluations.Add(evaluation);
+            }
+            else
+            {
+                evaluation.CvScore           = request.CvScore.Value;
+                evaluation.StrengthsJson     = JsonSerializer.Serialize(request.Strengths ?? []);
+                evaluation.WeaknessesJson    = JsonSerializer.Serialize(request.Weaknesses ?? []);
+                evaluation.ImprovementsJson  = JsonSerializer.Serialize(request.Improvements ?? []);
+                evaluation.MissingSkillsJson = JsonSerializer.Serialize(request.MissingSkills ?? []);
+                evaluation.GeneratedAt       = DateTime.UtcNow;
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return ServiceResult.Success(true);
+    }
+
+    // -------------------------------------------------------------------------
     // Private helpers — reusable across all methods
     // -------------------------------------------------------------------------
 
@@ -728,4 +1081,143 @@ public class CandidateService : ICandidateService
 
     private static ProjectResponse MapToProjectResponse(Project p) => new(
         p.Id, p.Name, p.Role, p.StartDate, p.EndDate, p.IsCurrent, p.ProjectUrl, p.Description);
+
+    private static (int Score, List<string> Strengths, List<string> Weaknesses, List<string> Improvements, List<string> MissingSkills)
+        EvaluateCvQuality(StructuredCvDataDto data)
+    {
+        int score = 0;
+        var strengths = new List<string>();
+        var weaknesses = new List<string>();
+        var improvements = new List<string>();
+        var missingSkills = new List<string>();
+
+        // 1. Career Summary (15 points)
+        if (!string.IsNullOrWhiteSpace(data.Summary) && data.Summary.Trim().Length >= 50)
+        {
+            score += 15;
+            strengths.Add("Phần tóm tắt sự nghiệp (Summary) rõ ràng, súc tích và có điểm nhấn.");
+        }
+        else if (!string.IsNullOrWhiteSpace(data.Summary))
+        {
+            score += 8;
+            improvements.Add("Nên mở rộng phần giới thiệu bản thân chi tiết hơn (3-5 câu nêu rõ mục tiêu và thế mạnh nổi bật).");
+        }
+        else
+        {
+            weaknesses.Add("Hồ sơ chưa có đoạn tóm tắt mục tiêu và định hướng sự nghiệp.");
+            improvements.Add("Bổ sung mục Career Summary để gây ấn tượng nhanh với nhà tuyển dụng trong 6 giây đầu tiên.");
+        }
+
+        // 2. Skills Portfolio (25 points)
+        var validSkills = data.Skills.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
+        if (validSkills.Count >= 7)
+        {
+            score += 25;
+            strengths.Add($"Danh mục kỹ năng đa dạng và phong phú ({validSkills.Count} kỹ năng chuyên môn).");
+        }
+        else if (validSkills.Count >= 4)
+        {
+            score += 18;
+            strengths.Add($"Có bộ kỹ năng cơ bản tốt ({validSkills.Count} kỹ năng).");
+            improvements.Add("Nên bổ sung thêm các công cụ hỗ trợ hoặc công nghệ liên quan để làm phong phú hồ sơ.");
+        }
+        else if (validSkills.Count >= 1)
+        {
+            score += 10;
+            weaknesses.Add($"Số lượng kỹ năng còn khá ít ({validSkills.Count} kỹ năng).");
+            improvements.Add("Liệt kê thêm các kỹ năng kỹ thuật, thư viện, hoặc kỹ năng mềm liên quan đến chuyên môn.");
+        }
+        else
+        {
+            weaknesses.Add("Hồ sơ chưa có kỹ năng chuyên môn nào.");
+            improvements.Add("Bổ sung ngay danh sách các kỹ năng then chốt cho vị trí ứng tuyển.");
+        }
+
+        // 3. Work Experiences (35 points)
+        var validExperiences = data.Experiences.Where(e => !string.IsNullOrWhiteSpace(e.CompanyName)).ToList();
+        if (validExperiences.Count >= 2)
+        {
+            score += 25;
+            var detailedCount = validExperiences.Count(e => !string.IsNullOrWhiteSpace(e.Description) && e.Description.Trim().Length >= 40);
+            if (detailedCount >= 2)
+            {
+                score += 10;
+                strengths.Add("Lịch sử kinh nghiệm công tác rõ ràng, có phần mô tả công việc và trách nhiệm chi tiết.");
+            }
+            else
+            {
+                improvements.Add("Bổ sung thêm mô tả cụ thể về trách nhiệm, công nghệ và kết quả đạt được tại các công ty.");
+            }
+        }
+        else if (validExperiences.Count == 1)
+        {
+            score += 20;
+            if (!string.IsNullOrWhiteSpace(validExperiences[0].Description) && validExperiences[0].Description.Trim().Length >= 40)
+            {
+                score += 8;
+                strengths.Add("Kinh nghiệm làm việc có mô tả rõ ràng.");
+            }
+            else
+            {
+                improvements.Add("Bổ sung các gạch đầu dòng mô tả nhiệm vụ và thành tựu tại nơi làm việc.");
+            }
+        }
+        else
+        {
+            score += 10; // Junior / Fresher baseline
+            weaknesses.Add("Chưa có mục kinh nghiệm làm việc thực tế.");
+            improvements.Add("Nếu bạn là sinh viên mới ra trường, hãy nhấn mạnh kinh nghiệm thực tập, dự án môn học hoặc hoạt động ngoại khóa.");
+        }
+
+        // 4. Education & Academic Background (15 points)
+        var validEducations = data.Educations.Where(e => !string.IsNullOrWhiteSpace(e.School)).ToList();
+        if (validEducations.Count > 0)
+        {
+            score += 15;
+            strengths.Add("Thông tin trình độ học vấn và cơ sở đào tạo đầy đủ.");
+        }
+        else
+        {
+            weaknesses.Add("Chưa cung cấp thông tin học vấn/bằng cấp.");
+            improvements.Add("Cập nhật thông tin trường Đại học / Cao đẳng / Trung tâm đào tạo đã theo học.");
+        }
+
+        // 5. Projects (10 points)
+        var validProjects = data.Projects.Where(p => !string.IsNullOrWhiteSpace(p.Name)).ToList();
+        if (validProjects.Count >= 2)
+        {
+            score += 10;
+            strengths.Add($"Có {validProjects.Count} dự án thực tế minh chứng trực quan cho năng lực chuyên môn.");
+        }
+        else if (validProjects.Count == 1)
+        {
+            score += 7;
+            strengths.Add("Có dự án thực tế minh họa kinh nghiệm.");
+            improvements.Add("Bổ sung thêm 1 dự án tiêu biểu khác kèm link demo/Github (nếu có).");
+        }
+        else
+        {
+            improvements.Add("Nên bổ sung các dự án cá nhân hoặc dự án nhóm nổi bật để chứng minh kỹ năng áp dụng vào thực tế.");
+        }
+
+        score = Math.Clamp(score, 0, 100);
+
+        return (score, strengths, weaknesses, improvements, missingSkills);
+    }
+
+    private static StructuredCvDataDto FallbackEmptyStructuredData() =>
+        new(string.Empty, null, null, null, [], [], [], []);
+
+    private static List<string> DeserializeList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json) ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
 }
