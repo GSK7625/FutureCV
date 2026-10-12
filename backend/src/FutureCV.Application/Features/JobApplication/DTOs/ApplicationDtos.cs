@@ -241,4 +241,8 @@ public sealed record JobMatchPreviewResponse(
     IReadOnlyList<string> MissingSkills,
     string Explanation,
     bool LocationMatched,
-    bool SalaryMatched);
+    bool SalaryMatched,
+    string? ExperienceComparison = null,
+    string? EducationComparison = null,
+    string? ProjectDomainRelevance = null);
+
