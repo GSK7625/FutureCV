@@ -30,6 +30,7 @@
   /* ── Typography ─────────────────────────────────────────── */
   --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif,
     "Segoe UI Emoji", "Noto Color Emoji";
+  --font-serif: var(--font-sans);
 
   --text-display: 3rem; /* 48 */
   --text-display--line-height: 3.5rem; /* 56 */

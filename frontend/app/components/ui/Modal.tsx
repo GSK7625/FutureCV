@@ -40,19 +40,19 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "z-modal w-full max-w-lg rounded-lg border border-border-subtle bg-surface shadow-overlay",
+          "z-modal w-full max-w-lg rounded-2xl border border-border-subtle bg-surface shadow-overlay max-h-[calc(100dvh-2.5rem)] flex flex-col my-auto overflow-hidden",
           className,
         )}
       >
-        <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4 shrink-0 bg-surface">
           <h2 className="text-headline-md text-navy">{title}</h2>
           <Button variant="ghost" size="icon" aria-label="Đóng" onClick={onClose}>
             <X size={20} />
           </Button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-3 border-t border-border-subtle px-6 py-4">
+          <div className="flex justify-end gap-3 border-t border-border-subtle px-6 py-4 shrink-0 bg-surface">
             {footer}
           </div>
         )}

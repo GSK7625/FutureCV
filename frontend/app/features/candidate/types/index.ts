@@ -226,3 +226,137 @@ export interface SavedJobsResult {
   hasPreviousPage: boolean;
   hasNextPage: boolean;
 }
+
+// -----------------------------------------------------------------------------
+// Candidate CV (P3-UC01, P3-UC05) — map CvResponse từ /api/candidate/cvs
+// -----------------------------------------------------------------------------
+
+export interface CvResponse {
+  id: string;
+  candidateId: string;
+  title?: string | null;
+  fileUrl?: string | null;
+  fileType?: string | null;
+  fileSizeBytes?: number | null;
+  isPrimary: boolean;
+  uploadedAt: string;
+}
+
+// -----------------------------------------------------------------------------
+// Candidate Applications & Match Preview (P3-UC05, P3-UC06, P3-UC07, P4-UC01)
+// -----------------------------------------------------------------------------
+
+export type CandidateApplicationStatus =
+  | "Applied"
+  | "Screening"
+  | "Interview"
+  | "Offer"
+  | "Hired"
+  | "Rejected"
+  | "Withdrawn";
+
+export const CAN_WITHDRAW_STATUSES = ["Applied", "Screening"] as const;
+
+export interface ApplyJobRequest {
+  cvId: string;
+  coverLetter?: string | null;
+}
+
+export interface ApplyJobResponse {
+  applicationId: string;
+  jobId: string;
+  jobTitle: string;
+  status: string;
+  matchScore: number | null;
+  appliedAt: string;
+}
+
+export interface JobMatchPreviewResponse {
+  jobId: string;
+  jobTitle: string;
+  cvId: string;
+  cvTitle: string;
+  matchScore: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  explanation: string;
+  locationMatched: boolean;
+  salaryMatched: boolean;
+}
+
+export interface ApiTimelineItem {
+  fromStatus: string | null;
+  toStatus: string;
+  reason?: string | null;
+  changedAt: string;
+}
+
+export interface ApiApplicationListItem {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyId: string;
+  companyName: string;
+  companyLogoUrl?: string | null;
+  locationName?: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string;
+  status: CandidateApplicationStatus | string;
+  matchScore: number | null;
+  appliedAt: string;
+  updatedAt?: string | null;
+}
+
+export interface ApplicationListItem {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  location: string;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  status: CandidateApplicationStatus | string;
+  matchScore?: number | null;
+  appliedAt: string;
+  updatedAt?: string | null;
+}
+
+export interface ApiApplicationDetail {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyId: string;
+  companyName: string;
+  companyLogoUrl?: string | null;
+  cvId: string;
+  cvTitle?: string | null;
+  cvFileUrl?: string | null;
+  coverLetter?: string | null;
+  status: CandidateApplicationStatus | string;
+  matchScore?: number | null;
+  matchExplanation?: string | null;
+  matchedSkills: string[];
+  missingSkills: string[];
+  appliedAt: string;
+  timeline: ApiTimelineItem[];
+}
+
+export interface ApplicationFilters {
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ApplicationListResult {
+  items: ApplicationListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
