@@ -157,7 +157,7 @@ public class EmployerService : IEmployerService
             WebsiteUrl     = request.WebsiteUrl,
             Address        = request.Address,
             Description    = request.Description,
-            VerifiedStatus = CompanyVerificationStatus.Unverified,
+            VerifiedStatus = CompanyVerificationStatus.Pending,
         };
 
         _context.Companies.Add(company);

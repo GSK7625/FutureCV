@@ -1,8 +1,12 @@
-import { Link, Outlet, useLocation } from "react-router";
+import { useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { IconLayoutDashboard, IconUsers, IconBuildingSkyscraper, IconBriefcase, IconFileText, IconSettings, IconLogout } from "@tabler/icons-react";
 import { requireRole } from "~/guards/requireRole";
 import { useAuthStore } from "~/stores/useAuthStore";
 import { Avatar } from "~/components/ui/Avatar";
+import { useQueryClient } from "@tanstack/react-query";
+import { authService } from "~/features/auth/services/authService";
+import { useUIStore } from "~/stores/useUIStore";
 
 export const clientLoader = () => {
   return requireRole(["admin"]);
@@ -21,7 +25,27 @@ const menuItems = [
 export default function AdminLayout() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const showToast = useUIStore((state) => state.showToast);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await authService().logout(useAuthStore.getState().refreshToken);
+      logout();
+      queryClient.clear();
+      navigate("/login-admin", { replace: true });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không thể đăng xuất. Vui lòng thử lại.", "error");
+      if (!useAuthStore.getState().user) navigate("/login-admin", { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   const isActive = (path: string) => {
     if (path === "/admin") {
@@ -79,11 +103,12 @@ export default function AdminLayout() {
               </div>
             </div>
             <button
-              onClick={logout}
-              className="mt-3 flex w-full items-center gap-2 rounded-default px-4 py-2 text-body-sm font-medium text-danger transition-colors hover:bg-danger/10"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="mt-3 flex w-full items-center gap-2 rounded-default px-4 py-2 text-body-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
             >
               <IconLogout size={18} />
-              <span>Đăng xuất</span>
+              <span>{loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
             </button>
           </div>
         </div>

@@ -26,7 +26,7 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
             .HasConversion<string>()
             .IsRequired()
             .HasMaxLength(20)
-            .HasDefaultValue(CompanyVerificationStatus.Unverified);
+            .HasDefaultValue(CompanyVerificationStatus.Pending);
 
         builder.Property(c => c.IsDeleted)
             .HasDefaultValue(false);

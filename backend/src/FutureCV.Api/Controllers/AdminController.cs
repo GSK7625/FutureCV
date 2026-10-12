@@ -65,7 +65,7 @@ public class AdminController : ApiControllerBase
     // -------------------------------------------------------------------------
 
     [HttpGet("companies")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<CompanyProfileResponse>))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AdminCompanyProfileResponse>))]
     public async Task<IActionResult> GetCompanies(
         [FromQuery] CompanyQueryFilter filter, CancellationToken cancellationToken)
     {
@@ -74,7 +74,7 @@ public class AdminController : ApiControllerBase
     }
 
     [HttpPut("companies/{id:guid}/status")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CompanyProfileResponse))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AdminCompanyProfileResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateCompanyStatus(
@@ -85,6 +85,33 @@ public class AdminController : ApiControllerBase
 
         var result = await _adminService.UpdateCompanyStatusAsync(
             GetCurrentUserId(), id, request, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("companies/{id:guid}/approve")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ApproveCompany(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _adminService.ApproveCompanyAsync(
+            GetCurrentUserId(), id, GetClientIpAddress(), cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("companies/{id:guid}/reject")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(bool))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RejectCompany(
+        Guid id, [FromBody] RejectCompanyRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { message = "Reject reason is required." });
+
+        var result = await _adminService.RejectCompanyAsync(
+            GetCurrentUserId(), id, request.Reason, GetClientIpAddress(), cancellationToken);
         return ToHttpResult(result);
     }
 
