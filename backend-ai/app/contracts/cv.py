@@ -16,7 +16,7 @@ from app.contracts.validators import (
 class WorkExperienceItem(BaseModel):
     """Work experience entry in structured CV."""
 
-    job_title: str = Field(max_length=300, description="Job title or role")
+    job_title: str | None = Field(default=None, max_length=300, description="Job title or role")
     company: str = Field(default="", max_length=200, description="Company or organization name")
     duration: str = Field(default="", max_length=100, description="Period or duration of employment")
     start_date: str | None = Field(
@@ -39,8 +39,8 @@ class WorkExperienceItem(BaseModel):
 
     @field_validator("job_title")
     @classmethod
-    def validate_job_title(cls, v: str) -> str:
-        return validate_non_empty_string(v, "job_title", 300)
+    def validate_job_title(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 300)
 
     @field_validator("years_of_experience", mode="before")
     @classmethod
@@ -56,15 +56,19 @@ class WorkExperienceItem(BaseModel):
 class EducationItem(BaseModel):
     """Education entry in structured CV."""
 
-    degree: str = Field(max_length=200, description="Degree or qualification (e.g. Bachelor, Master)")
+    degree: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Degree or qualification (e.g. Bachelor, Master)",
+    )
     institution: str = Field(default="", max_length=200, description="University or educational institution")
     field_of_study: str = Field(default="", max_length=200, description="Major or specialization")
     graduation_year: str | None = Field(default=None, max_length=50, description="Year of completion")
 
     @field_validator("degree")
     @classmethod
-    def validate_degree(cls, v: str) -> str:
-        return validate_non_empty_string(v, "degree", 200)
+    def validate_degree(cls, v: str | None) -> str | None:
+        return validate_optional_string(v, 200)
 
     @field_validator("graduation_year")
     @classmethod

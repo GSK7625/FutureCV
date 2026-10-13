@@ -118,7 +118,7 @@ def calculate_total_experience_years(
     seen = set()
     for exp in work_experiences:
         key = (
-            exp.job_title.strip().lower(),
+            (exp.job_title or "").strip().lower(),
             exp.company.strip().lower(),
             (exp.start_date or "").strip(),
             (exp.end_date or "").strip(),
