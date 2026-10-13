@@ -2,10 +2,11 @@
  * @file JobListView.tsx
  * @description Giao diện chính danh sách việc làm ứng viên (Search, Filters, Job cards, Pagination).
  * @architecture Feature UI container kết nối URL params với Custom Hooks và dumb components.
+ * Tối ưu hóa Fine-grained Render Isolation: cô lập Hero/Search bar và header khỏi filter changes.
  */
 
-import { useState, useMemo } from "react";
-import { useSearchParams, Link } from "react-router";
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router";
 import {
   IconFilter,
   IconFileText,
@@ -19,8 +20,27 @@ import { JobListFilters } from "./JobListFilters";
 import { JobListItemRow } from "./JobListItemRow";
 import { JobListPagination } from "./JobListPagination";
 import { MobileFilterSheet } from "./MobileFilterSheet";
-import { JobSearchBar } from "./JobSearchBar";
+import { JobSearchHero } from "./JobSearchHero";
 import { useJobMasterData } from "../../hooks/useJobMasterData";
+import type { LookupOption } from "../../types";
+
+const EMPTY_LOCATIONS: LookupOption[] = [];
+
+// Resolve một master-data option từ id trực tiếp HOẶC text (label từ link trang chủ)
+function resolveOptionId(
+  opts: { id: string; name: string }[] | undefined,
+  directId: string | undefined,
+  text: string | undefined,
+): string | undefined {
+  if (directId) return directId;
+  if (!text || !opts) return undefined;
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const nt = norm(text);
+  return opts.find((o) => {
+    const on = norm(o.name);
+    return on === nt || on.includes(nt) || nt.includes(on);
+  })?.id;
+}
 
 export function JobListView() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,30 +59,14 @@ export function JobListView() {
   const sortBy = searchParams.get("sortBy") ?? "newest";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
 
-  // Resolve một master-data option từ id trực tiếp HOẶC text (label từ link trang chủ)
-  const resolveOptionId = (
-    opts: { id: string; name: string }[] | undefined,
-    directId: string | undefined,
-    text: string | undefined,
-  ) => {
-    if (directId) return directId;
-    if (!text || !opts) return undefined;
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
-    const nt = norm(text);
-    return opts.find((o) => {
-      const on = norm(o.name);
-      return on === nt || on.includes(nt) || nt.includes(on);
-    })?.id;
-  };
-
   const categoryId = useMemo(
     () => resolveOptionId(masterData?.categories, rawCategoryId, urlCategoryText),
-    [rawCategoryId, urlCategoryText, masterData],
+    [rawCategoryId, urlCategoryText, masterData?.categories],
   );
 
   const locationId = useMemo(
     () => resolveOptionId(masterData?.locations, rawLocationId, urlLocationText),
-    [rawLocationId, urlLocationText, masterData],
+    [rawLocationId, urlLocationText, masterData?.locations],
   );
 
   const salaryMin = salaryMinStr ? parseInt(salaryMinStr, 10) : undefined;
@@ -98,103 +102,125 @@ export function JobListView() {
 
   const hasActiveFilters = activeFilterCount > 0 || Boolean(urlKeyword);
 
-  // Hàm cập nhật filter lên URL
-  const handleFilterChange = (updates: {
-    categoryId?: string;
-    locationId?: string;
-    employmentTypeId?: string;
-    salaryMin?: number;
-    salaryMax?: number;
-  }) => {
-    const next = new URLSearchParams(searchParams);
+  // Hàm submit tìm kiếm từ JobSearchBar (memoized, functional updater)
+  const handleSearchSubmit = useCallback(
+    (v: { keyword: string; locationId?: string }) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (v.keyword) next.set("q", v.keyword);
+          else next.delete("q");
 
-    if ("categoryId" in updates) {
-      if (updates.categoryId) next.set("categoryId", updates.categoryId);
-      else next.delete("categoryId");
-    }
-    if ("locationId" in updates) {
-      if (updates.locationId) next.set("locationId", updates.locationId);
-      else next.delete("locationId");
-    }
-    if ("employmentTypeId" in updates) {
-      if (updates.employmentTypeId) next.set("employmentTypeId", updates.employmentTypeId);
-      else next.delete("employmentTypeId");
-    }
-    if ("salaryMin" in updates) {
-      if (updates.salaryMin != null) next.set("salaryMin", String(updates.salaryMin));
-      else next.delete("salaryMin");
-    }
-    if ("salaryMax" in updates) {
-      if (updates.salaryMax != null) next.set("salaryMax", String(updates.salaryMax));
-      else next.delete("salaryMax");
-    }
+          if (v.locationId) next.set("locationId", v.locationId);
+          else next.delete("locationId");
+          next.delete("location"); // Xóa text param cũ nếu có
 
-    next.delete("page"); // Reset về trang 1
-    setSearchParams(next);
-  };
+          next.delete("page");
+          return next;
+        },
+        { replace: true, preventScrollReset: true },
+      );
+    },
+    [setSearchParams],
+  );
 
-  const handleClearAll = () => {
-    const next = new URLSearchParams();
-    if (sortBy !== "newest") next.set("sortBy", sortBy);
-    setSearchParams(next);
-  };
+  // Hàm cập nhật filter lên URL (memoized, functional updater, không reload scroll)
+  const handleFilterChange = useCallback(
+    (updates: {
+      categoryId?: string;
+      locationId?: string;
+      employmentTypeId?: string;
+      salaryMin?: number;
+      salaryMax?: number;
+    }) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
 
-  const handleSortChange = (newSort: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (newSort === "newest") next.delete("sortBy");
-    else next.set("sortBy", newSort);
-    next.delete("page");
-    setSearchParams(next);
-  };
+          if ("categoryId" in updates) {
+            if (updates.categoryId) next.set("categoryId", updates.categoryId);
+            else next.delete("categoryId");
+          }
+          if ("locationId" in updates) {
+            if (updates.locationId) next.set("locationId", updates.locationId);
+            else next.delete("locationId");
+          }
+          if ("employmentTypeId" in updates) {
+            if (updates.employmentTypeId) next.set("employmentTypeId", updates.employmentTypeId);
+            else next.delete("employmentTypeId");
+          }
+          if ("salaryMin" in updates) {
+            if (updates.salaryMin != null) next.set("salaryMin", String(updates.salaryMin));
+            else next.delete("salaryMin");
+          }
+          if ("salaryMax" in updates) {
+            if (updates.salaryMax != null) next.set("salaryMax", String(updates.salaryMax));
+            else next.delete("salaryMax");
+          }
 
-  const handlePageChange = (newPage: number) => {
-    const next = new URLSearchParams(searchParams);
-    if (newPage <= 1) next.delete("page");
-    else next.set("page", String(newPage));
-    setSearchParams(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+          next.delete("page"); // Reset về trang 1
+          return next;
+        },
+        { replace: true, preventScrollReset: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const handleClearAll = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams();
+        const currentSort = prev.get("sortBy");
+        if (currentSort && currentSort !== "newest") next.set("sortBy", currentSort);
+        return next;
+      },
+      { replace: true, preventScrollReset: true },
+    );
+  }, [setSearchParams]);
+
+  const handleSortChange = useCallback(
+    (newSort: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (newSort === "newest") next.delete("sortBy");
+          else next.set("sortBy", newSort);
+          next.delete("page");
+          return next;
+        },
+        { replace: true, preventScrollReset: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (newPage <= 1) next.delete("page");
+          else next.set("page", String(newPage));
+          return next;
+        },
+        { replace: true },
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [setSearchParams],
+  );
 
   return (
     <div className="container-page mx-auto py-8">
-      {/* Breadcrumbs */}
-      <div className="mb-4 flex items-center gap-2 text-label-sm font-medium text-ink-muted">
-        <Link to="/" className="hover:text-navy transition-colors">
-          Trang chủ
-        </Link>
-        <span>/</span>
-        <span className="text-navy">Việc làm</span>
-      </div>
-
-      {/* Search Header Banner */}
-      <div className="rounded-2xl bg-navy p-6 text-white shadow-xl md:p-8">
-        <h1 className="text-display-sm font-bold md:text-headline-lg">
-          Khám phá cơ hội nghề nghiệp
-        </h1>
-        <p className="mt-2 text-body text-white/75">
-          Tìm kiếm công việc lý tưởng theo chuyên môn, mức lương và địa điểm của bạn.
-        </p>
-
-        <JobSearchBar
-          keyword={urlKeyword}
-          locationId={rawLocationId || locationId || ""}
-          locations={masterData?.locations ?? []}
-          loadingLocations={loadingMasterData}
-          className="mt-6"
-          onSubmit={(v) => {
-            const next = new URLSearchParams(searchParams);
-            if (v.keyword) next.set("q", v.keyword);
-            else next.delete("q");
-
-            if (v.locationId) next.set("locationId", v.locationId);
-            else next.delete("locationId");
-            next.delete("location"); // Xóa text param cũ nếu có
-
-            next.delete("page");
-            setSearchParams(next, { replace: true });
-          }}
-        />
-      </div>
+      {/* Search Header Hero (Memoized: giữ nguyên 100% khi lọc danh mục/lương) */}
+      <JobSearchHero
+        keyword={urlKeyword}
+        locationId={rawLocationId || locationId || ""}
+        locations={masterData?.locations ?? EMPTY_LOCATIONS}
+        loadingLocations={loadingMasterData}
+        onSearch={handleSearchSubmit}
+      />
 
       {/* Control Bar (Total Count, Mobile Filter Button, Sort Dropdown) */}
       <div className="mt-8 flex flex-col justify-between gap-4 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
@@ -205,6 +231,12 @@ export function JobListView() {
           {urlKeyword && (
             <span className="text-body-sm text-ink-muted">
               với từ khóa &ldquo;<strong className="text-navy">{urlKeyword}</strong>&rdquo;
+            </span>
+          )}
+          {query.isFetching && !query.isLoading && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-low px-2.5 py-0.5 text-label-sm text-ink-muted animate-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+              Đang cập nhật...
             </span>
           )}
           {import.meta.env.DEV && query.data?.isDemoFallback && (
@@ -278,8 +310,13 @@ export function JobListView() {
           activeCount={activeFilterCount}
         />
 
-        {/* Job Cards List */}
-        <div className="flex min-w-0 flex-1 flex-col gap-4 min-h-[480px] lg:h-full lg:overflow-y-auto lg:pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-navy/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-navy/30" aria-label="Danh sách việc làm">
+        {/* Job Cards List (Chỉ vùng này re-render và hiển thị dữ liệu mới) */}
+        <div
+          className={`flex min-w-0 flex-1 flex-col gap-4 min-h-[480px] lg:h-full lg:overflow-y-auto lg:pr-2 transition-opacity duration-200 ${
+            query.isFetching && !query.isLoading ? "opacity-60 pointer-events-none" : "opacity-100"
+          } [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-navy/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-navy/30`}
+          aria-label="Danh sách việc làm"
+        >
           <QueryBoundary
             isLoading={query.isLoading}
             error={query.error}

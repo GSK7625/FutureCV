@@ -42,6 +42,13 @@ export interface ForgotPasswordDto {
   email: string;
 }
 
+export interface ResetPasswordDto {
+  email: string;
+  token: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
 export interface MessageDto {
   message: string;
 }
