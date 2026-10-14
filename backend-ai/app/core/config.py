@@ -1,9 +1,9 @@
 """Application configuration management using Pydantic Settings."""
 
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, alias="PORT")
 
     # LLM Provider Configuration
-    # Supported providers: "mock" (offline/deterministic) | "openai"
-    llm_provider: Literal["mock", "openai"] = Field(
+    # Supported providers: "mock" (offline/deterministic) | "openai" | "gemini"
+    llm_provider: Literal["mock", "openai", "gemini"] = Field(
         default="mock",
         alias="LLM_PROVIDER",
     )
@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     )
 
     # Embedding Provider Configuration
-    # Supported providers: "mock" (offline/deterministic) | "openai"
-    embedding_provider: Literal["mock", "openai"] = Field(
+    # Supported providers: "mock" (offline/deterministic) | "openai" | "gemini"
+    embedding_provider: Literal["mock", "openai", "gemini"] = Field(
         default="mock",
         alias="EMBEDDING_PROVIDER",
     )
@@ -54,15 +54,73 @@ class Settings(BaseSettings):
         alias="EMBEDDING_MODEL",
     )
 
+    # Semantic Matching Mode
+    # Supported: "disabled" | "advisory" (shadow mode) | "integrated" (v1 formula)
+    semantic_mode: Literal["disabled", "advisory", "integrated"] = Field(
+        default="advisory",
+        alias="SEMANTIC_MODE",
+    )
+
     # Provider API keys
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    gemini_api_key: SecretStr | None = Field(default=None, alias="GEMINI_API_KEY")
+    gemini_llm_api_key: SecretStr | None = Field(default=None, alias="GEMINI_LLM_API_KEY")
+    gemini_embedding_api_key: SecretStr | None = Field(default=None, alias="GEMINI_EMBEDDING_API_KEY")
+
+    def get_effective_gemini_llm_key(self) -> str | None:
+        """
+        Return effective Gemini API key for LLM:
+        1. GEMINI_LLM_API_KEY if configured and non-empty.
+        2. Fallback to GEMINI_API_KEY if configured and non-empty.
+        3. None otherwise.
+        """
+        if self.gemini_llm_api_key:
+            val = self.gemini_llm_api_key.get_secret_value().strip()
+            if val:
+                return val
+        if self.gemini_api_key:
+            val = self.gemini_api_key.get_secret_value().strip()
+            if val:
+                return val
+        return None
+
+    def get_effective_gemini_embedding_key(self) -> str | None:
+        """
+        Return effective Gemini API key for Embedding:
+        1. GEMINI_EMBEDDING_API_KEY if configured and non-empty.
+        2. Fallback to GEMINI_API_KEY if configured and non-empty.
+        3. None otherwise.
+        """
+        if self.gemini_embedding_api_key:
+            val = self.gemini_embedding_api_key.get_secret_value().strip()
+            if val:
+                return val
+        if self.gemini_api_key:
+            val = self.gemini_api_key.get_secret_value().strip()
+            if val:
+                return val
+        return None
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_gemini_keys(cls, data: Any) -> Any:
+        """Resolve GEMINI_API_KEY from dedicated LLM or Embedding keys if primary is unset."""
+        if isinstance(data, dict):
+            llm_key = data.get("GEMINI_LLM_API_KEY") or data.get("gemini_llm_api_key")
+            emb_key = data.get("GEMINI_EMBEDDING_API_KEY") or data.get("gemini_embedding_api_key")
+            main_key = data.get("GEMINI_API_KEY") or data.get("gemini_api_key")
+            if not main_key:
+                fallback = llm_key or emb_key
+                if fallback:
+                    data["GEMINI_API_KEY"] = fallback
+        return data
 
     # Internal Service Authentication (ASP.NET Core -> FastAPI)
     internal_api_key: str = Field(default="", alias="INTERNAL_API_KEY")
 
     # LLM Resilience
-    llm_timeout_seconds: int = Field(default=60, alias="LLM_TIMEOUT_SECONDS", ge=5, le=300)
-    llm_max_retries: int = Field(default=2, alias="LLM_MAX_RETRIES", ge=0, le=5)
+    llm_timeout_seconds: int = Field(default=25, alias="LLM_TIMEOUT_SECONDS", ge=5, le=300)
+    llm_max_retries: int = Field(default=1, alias="LLM_MAX_RETRIES", ge=0, le=5)
 
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
@@ -109,6 +167,10 @@ class Settings(BaseSettings):
         if self.llm_provider == "openai" and not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY must be configured when LLM_PROVIDER is 'openai'")
 
+        # 4. LLM_PROVIDER=gemini without GEMINI_API_KEY -> configuration error
+        if self.llm_provider == "gemini" and not self.get_effective_gemini_llm_key():
+            raise ValueError("GEMINI_API_KEY must be configured when LLM_PROVIDER is 'gemini'")
+
         # 4. Production + matching-v1-experimental + mock embedding -> configuration error
         if (
             self.is_production
@@ -129,6 +191,21 @@ class Settings(BaseSettings):
                 "OPENAI_API_KEY must be configured when EMBEDDING_PROVIDER is 'openai' "
                 "and matching-v1-experimental is active"
             )
+
+        # 6. EMBEDDING_PROVIDER=gemini without GEMINI_API_KEY when matching-v1 is active -> configuration error
+        if (
+            self.matching_algorithm == "matching-v1-experimental"
+            and self.embedding_provider == "gemini"
+            and not self.get_effective_gemini_embedding_key()
+        ):
+            raise ValueError(
+                "GEMINI_API_KEY must be configured when EMBEDDING_PROVIDER is 'gemini' "
+                "and matching-v1-experimental is active"
+            )
+
+        # 7. Production + EMBEDDING_PROVIDER=gemini without GEMINI_API_KEY -> configuration error
+        if self.is_production and self.embedding_provider == "gemini" and not self.get_effective_gemini_embedding_key():
+            raise ValueError("GEMINI_API_KEY must be configured when EMBEDDING_PROVIDER is 'gemini' in production")
 
         return self
 
