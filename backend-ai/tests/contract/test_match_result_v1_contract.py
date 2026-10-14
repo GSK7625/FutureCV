@@ -142,6 +142,8 @@ def test_match_result_exact_json_field_names():
         "education_comparison",
         "project_domain_relevance",
         "match_explanation",
+        "status",
+        "warning",
         "meta",
     }
     assert set(dumped.keys()) == expected_exact_keys

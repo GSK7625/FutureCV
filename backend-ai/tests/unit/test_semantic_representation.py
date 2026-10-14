@@ -111,7 +111,6 @@ def test_comprehensive_pii_sanitization_across_all_field_categories():
     from app.contracts.cv import EducationItem
 
     cv = StructuredCv(
-        candidate_id="cand-secret-uuid-9999",
         full_name="Secret Candidate Name",
         email="identity.leak@secret.com",
         phone="+84 999 888 777",
@@ -214,21 +213,18 @@ def test_cv_semantic_representation_name_and_contact_invariance():
         full_name="Alice Smith",
         email="alice@company.com",
         phone="+1 555 123 4567",
-        candidate_id="cand-001",
         **base_kwargs,
     )
     cv_bob = StructuredCv(
         full_name="Bob Jones",
         email="bob@startup.io",
         phone="+84 901 234 567",
-        candidate_id="cand-002",
         **base_kwargs,
     )
     cv_anon = StructuredCv(
         full_name=None,
         email=None,
         phone=None,
-        candidate_id=None,
         **base_kwargs,
     )
 
