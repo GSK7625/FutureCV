@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\FutureCV.Api\FutureCV.Api.csproj" />
     <ProjectReference Include="..\..\src\FutureCV.Domain\FutureCV.Domain.csproj" />
     <ProjectReference Include="..\..\src\FutureCV.Application\FutureCV.Application.csproj" />
     <ProjectReference Include="..\..\src\FutureCV.Infrastructure\FutureCV.Infrastructure.csproj" />

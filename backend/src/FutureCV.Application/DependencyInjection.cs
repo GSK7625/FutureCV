@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IJobService, JobService>();
         services.AddScoped<IApplicationService, ApplicationService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<Features.CareerAssistant.Interfaces.ICareerAssistantService, Features.CareerAssistant.Services.CareerAssistantService>();
 
         return services;
     }
