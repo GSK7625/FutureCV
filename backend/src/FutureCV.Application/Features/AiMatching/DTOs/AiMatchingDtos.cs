@@ -209,6 +209,12 @@ public sealed record AiMatchResultDto
     [JsonPropertyName("match_explanation")]
     public string? MatchExplanation { get; init; }
 
+    [JsonPropertyName("status")]
+    public string? Status { get; init; }
+
+    [JsonPropertyName("warning")]
+    public string? Warning { get; init; }
+
     [JsonPropertyName("meta")]
     public AiResponseMetaDto Meta { get; init; } = new();
 
@@ -223,6 +229,8 @@ public sealed record AiMatchResultDto
         string EducationComparison = "",
         string ProjectDomainRelevance = "",
         string? MatchExplanation = null,
+        string? Status = null,
+        string? Warning = null,
         AiResponseMetaDto? Meta = null)
     {
         this.MatchScore = MatchScore;
@@ -232,6 +240,8 @@ public sealed record AiMatchResultDto
         this.EducationComparison = EducationComparison;
         this.ProjectDomainRelevance = ProjectDomainRelevance;
         this.MatchExplanation = MatchExplanation;
+        this.Status = Status;
+        this.Warning = Warning;
         this.Meta = Meta ?? new AiResponseMetaDto();
     }
 }

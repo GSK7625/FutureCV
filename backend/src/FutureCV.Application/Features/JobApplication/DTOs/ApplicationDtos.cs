@@ -244,5 +244,7 @@ public sealed record JobMatchPreviewResponse(
     bool SalaryMatched,
     string? ExperienceComparison = null,
     string? EducationComparison = null,
-    string? ProjectDomainRelevance = null);
+    string? ProjectDomainRelevance = null,
+    bool IsAiPreview = false,
+    string? MatchSource = null);
 

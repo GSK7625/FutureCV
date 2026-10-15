@@ -491,7 +491,12 @@ public class ApplicationService : IApplicationService
             missingSkills,
             explanation,
             locationMatched,
-            salaryMatched
+            salaryMatched,
+            ExperienceComparison: null,
+            EducationComparison: null,
+            ProjectDomainRelevance: null,
+            IsAiPreview: false,
+            MatchSource: "legacy"
         );
 
         // ---------------------------------------------------------------------
@@ -621,7 +626,9 @@ public class ApplicationService : IApplicationService
                 legacyResponse.SalaryMatched,
                 matchResult.ExperienceComparison,
                 matchResult.EducationComparison,
-                matchResult.ProjectDomainRelevance
+                matchResult.ProjectDomainRelevance,
+                IsAiPreview: true,
+                MatchSource: "ai"
             );
 
         }
