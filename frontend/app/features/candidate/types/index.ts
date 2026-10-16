@@ -275,6 +275,8 @@ export interface JobMatchPreviewResponse {
   experienceComparison?: string | null;
   educationComparison?: string | null;
   projectDomainRelevance?: string | null;
+  isAiPreview?: boolean | null;
+  matchSource?: string | null;
 }
 
 
