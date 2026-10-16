@@ -4,6 +4,7 @@
  * @architecture Dumb/Controlled component — toàn bộ trạng thái đẩy lên URL search params.
  */
 
+import { memo } from "react";
 import { IconFilter, IconRotate2 } from "@tabler/icons-react";
 import { useJobMasterData } from "../../hooks/useJobMasterData";
 import { Button } from "~/components/ui/Button";
@@ -36,7 +37,7 @@ const SALARY_RANGES = [
   { label: "Trên 35 triệu", min: 35_000_000, max: undefined },
 ];
 
-export function JobListFilters({
+export const JobListFilters = memo(function JobListFilters({
   categoryId,
   employmentTypeId,
   salaryMin,
@@ -221,4 +222,4 @@ export function JobListFilters({
       )}
     </aside>
   );
-}
+});

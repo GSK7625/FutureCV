@@ -25,6 +25,18 @@ const EXACT_ERROR_MAP: Record<string, string> = {
   "passwords must have at least one lowercase ('a'-'z').": "Mật khẩu phải chứa ít nhất một chữ cái viết thường (a-z).",
   "passwords must be at least 6 characters.": "Mật khẩu phải có độ dài tối thiểu 6 ký tự.",
 
+  // --- Forgot & Reset Password ---
+  "email is required.": "Vui lòng nhập địa chỉ email.",
+  "a valid email address is required.": "Địa chỉ email không đúng định dạng.",
+  "if the email exists, a reset link has been sent.": "Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được gửi.",
+  "reset token is required.": "Mã xác thực đặt lại mật khẩu không được để trống.",
+  "new password is required.": "Vui lòng nhập mật khẩu mới.",
+  "new password must be between 6 and 25 characters.": "Mật khẩu mới phải có độ dài từ 6 đến 25 ký tự.",
+  "new password must contain at least one uppercase letter.": "Mật khẩu mới phải chứa ít nhất một chữ cái in hoa (A-Z).",
+  "new password must contain at least one lowercase letter.": "Mật khẩu mới phải chứa ít nhất một chữ cái viết thường (a-z).",
+  "new password must contain at least one numeric digit.": "Mật khẩu mới phải chứa ít nhất một chữ số (0-9).",
+  "passwords do not match.": "Mật khẩu xác nhận không khớp.",
+
   // --- CV & Profile ---
   "cv file size must not exceed 5 mb.": "Dung lượng tệp CV không được vượt quá 5MB.",
   "only pdf files are accepted.": "Chỉ chấp nhận tệp định dạng PDF.",
