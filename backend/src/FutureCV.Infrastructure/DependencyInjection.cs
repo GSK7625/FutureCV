@@ -52,6 +52,9 @@ public static class DependencyInjection
         // Register JWT Token Service
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
+        // Register Token Cookie Service
+        services.AddScoped<ITokenCookieService, TokenCookieService>();
+
         // Register SmtpSettings & Email Service
         services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
         services.AddTransient<IEmailService, EmailService>();

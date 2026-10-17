@@ -87,7 +87,7 @@ public class CandidateApplicationsController : ApiControllerBase
     }
 
     // -------------------------------------------------------------------------
-    // Job Suggestions (P4-UC03)
+    // Job Suggestions & Match Preview (P4-UC01, P4-UC02, P4-UC03)
     // -------------------------------------------------------------------------
 
     [HttpGet("jobs/suggestions")]
@@ -96,6 +96,17 @@ public class CandidateApplicationsController : ApiControllerBase
         [FromQuery] JobSuggestionFilterRequest filter, CancellationToken cancellationToken)
     {
         var result = await _applicationService.GetJobSuggestionsAsync(GetCurrentUserId(), filter, cancellationToken);
+        return ToHttpResult(result);
+    }
+
+    [HttpPost("jobs/{jobId:guid}/preview-match")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(JobMatchPreviewResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PreviewJobMatch(
+        Guid jobId, [FromBody] PreviewJobMatchRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _applicationService.PreviewJobMatchAsync(GetCurrentUserId(), jobId, request, cancellationToken);
         return ToHttpResult(result);
     }
 }
