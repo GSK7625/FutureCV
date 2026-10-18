@@ -12,6 +12,38 @@
   "education_comparison": "Yêu cầu: Bachelor. Ứng viên có: Bachelor of Computer Science (đáp ứng yêu cầu).",
   "project_domain_relevance": "Có 2/3 dự án sử dụng các công nghệ yêu cầu: Python, FastAPI.",
   "match_explanation": "Điểm phù hợp: 88/100 (Kỹ năng: 80%, Kinh nghiệm: 100%, Học vấn: 100%). Khớp 3 kỹ năng, thiếu 1 kỹ năng yêu cầu.",
+  "explanation_details": {
+    "summary": "Mức độ phù hợp cao theo các tiêu chí đã được hệ thống đánh giá. Vẫn cần xác minh các yêu cầu chưa có đủ bằng chứng trong CV.",
+    "strengths": [
+      {
+        "item": "Python",
+        "statement": "CV có đề cập kỹ năng Python.",
+        "evidence_source": "cv.skills",
+        "evidence_text": "Python"
+      },
+      {
+        "item": "FastAPI",
+        "statement": "CV có đề cập kỹ năng FastAPI.",
+        "evidence_source": "cv.skills",
+        "evidence_text": "FastAPI"
+      },
+      {
+        "item": "PostgreSQL",
+        "statement": "CV có đề cập kỹ năng PostgreSQL.",
+        "evidence_source": "cv.skills",
+        "evidence_text": "PostgreSQL"
+      }
+    ],
+    "gaps": [
+      {
+        "requirement": "Docker",
+        "statement": "Chưa đủ bằng chứng về kỹ năng bắt buộc Docker."
+      }
+    ],
+    "recommendations": [
+      "Bổ sung kinh nghiệm hoặc dự án thực tế sử dụng Docker."
+    ]
+  },
   "meta": {
     "contract_version": "match-result-v1",
     "algorithm_version": "matching-v0",

@@ -9,12 +9,24 @@ from app.domain.cv.normalization import normalize_skill
 class SkillMatchResult:
     """Outcome of skill comparison."""
 
-    matched_skills: list[str] = field(default_factory=list)
-    missing_skills: list[str] = field(default_factory=list)
+    matched_required_skills: list[str] = field(default_factory=list)
+    missing_required_skills: list[str] = field(default_factory=list)
+    matched_preferred_skills: list[str] = field(default_factory=list)
+    missing_preferred_skills: list[str] = field(default_factory=list)
     skill_score: float = 0.0
     matched_required_count: int = 0
     total_required_count: int = 0
     is_active: bool = True
+
+    @property
+    def matched_skills(self) -> list[str]:
+        return list(self.matched_required_skills) + [
+            f"{s} (Preferred)" for s in self.matched_preferred_skills
+        ]
+
+    @property
+    def missing_skills(self) -> list[str]:
+        return list(self.missing_required_skills)
 
 
 def _deduplicate_canonical_skills(skills: list[str]) -> dict[str, str]:
@@ -59,24 +71,29 @@ def calculate_skill_match(
     cand_canonical_set = {normalize_skill(s) for s in candidate_skills if s.strip()}
 
     # 3. Match evaluation
-    matched_skills: list[str] = []
-    missing_skills: list[str] = []
+    matched_required_skills: list[str] = []
+    missing_required_skills: list[str] = []
 
     matched_req_count = 0
     for canon, display in req_map.items():
         if canon in cand_canonical_set:
             matched_req_count += 1
-            matched_skills.append(display)
+            matched_required_skills.append(display)
         else:
-            missing_skills.append(display)
+            missing_required_skills.append(display)
 
     total_req = len(req_map)
+
+    matched_preferred_skills: list[str] = []
+    missing_preferred_skills: list[str] = []
 
     matched_pref_count = 0
     for canon, display in pref_map.items():
         if canon in cand_canonical_set:
             matched_pref_count += 1
-            matched_skills.append(f"{display} (Preferred)")
+            matched_preferred_skills.append(display)
+        else:
+            missing_preferred_skills.append(display)
 
     total_pref = len(pref_map)
 
@@ -101,8 +118,10 @@ def calculate_skill_match(
     bounded_score = max(0.0, min(100.0, total_skill_score))
 
     return SkillMatchResult(
-        matched_skills=matched_skills,
-        missing_skills=missing_skills,
+        matched_required_skills=matched_required_skills,
+        missing_required_skills=missing_required_skills,
+        matched_preferred_skills=matched_preferred_skills,
+        missing_preferred_skills=missing_preferred_skills,
         skill_score=round(bounded_score, 2),
         matched_required_count=matched_req_count,
         total_required_count=total_req,

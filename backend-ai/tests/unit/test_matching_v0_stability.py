@@ -118,7 +118,12 @@ def test_job_missing_education_does_not_award_free_twenty_points() -> None:
     assert edu_res.score == 100.0  # internal neutral
 
     # Candidate with 0 skills and 0 experience
-    skill_zero = SkillMatchResult(skill_score=0.0, matched_skills=[], missing_skills=["Python"], is_active=True)
+    skill_zero = SkillMatchResult(
+        skill_score=0.0,
+        matched_required_skills=[],
+        missing_required_skills=["Python"],
+        is_active=True,
+    )
     exp_zero = ExperienceMatchResult(
         score=0.0, candidate_years=0.0, required_years=3.0, comparison_text="", is_active=True
     )

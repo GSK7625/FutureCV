@@ -261,6 +261,25 @@ export interface ApplyJobResponse {
   appliedAt: string;
 }
 
+export interface MatchStrengthItem {
+  item: string;
+  statement: string;
+  evidence_source: "cv.skills" | "cv.technologies" | "cv.projects";
+  evidence_text?: string | null;
+}
+
+export interface MatchGapItem {
+  requirement: string;
+  statement: string;
+}
+
+export interface MatchExplanationDetails {
+  summary: string;
+  strengths?: MatchStrengthItem[];
+  gaps?: MatchGapItem[];
+  recommendations?: string[];
+}
+
 export interface JobMatchPreviewResponse {
   jobId: string;
   jobTitle: string;
@@ -277,6 +296,7 @@ export interface JobMatchPreviewResponse {
   projectDomainRelevance?: string | null;
   isAiPreview?: boolean | null;
   matchSource?: string | null;
+  explanationDetails?: MatchExplanationDetails | null;
 }
 
 

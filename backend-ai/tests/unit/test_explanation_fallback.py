@@ -129,7 +129,8 @@ async def test_v0_generate_explanation_llm_success(sample_cv: StructuredCv, samp
     result = await service.match(cv=sample_cv, job=sample_job, generate_explanation=True)
 
     assert result.match_score > 0
-    assert "Ứng viên có nền tảng vững chắc" in result.match_explanation
+    assert "Mức độ phù hợp cao" in result.match_explanation
+    assert result.explanation_details is not None
     assert result.meta.algorithm_variant == "matching-v0"
     assert result.meta.prompt_version == "v1"
     assert result.meta.llm_invoked is True
