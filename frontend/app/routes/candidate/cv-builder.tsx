@@ -100,6 +100,7 @@ export default function CvBuilderPage() {
         selectedTemplate={selectedTemplate}
         activeColor={cv.activeColor}
         isSaved={isSaved}
+        personalInfoFullName={cv.personalInfo.fullName}
         onColorChange={actions.setActiveColor}
         onResetData={handleResetData}
         onSaveCV={handleSaveCV}
