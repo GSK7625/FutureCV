@@ -25,7 +25,8 @@ export interface FetchOptions extends Omit<RequestInit, "body"> {
   auth?: boolean;
   /** Mặc định 15s. Truyền Infinity để tắt. */
   timeoutMs?: number;
-
+  /** Kiểu response mong muốn: "json" (mặc định), "blob", "text" */
+  responseType?: "json" | "blob" | "text";
 }
 
 async function parseErrorMessage(response: Response): Promise<string> {
@@ -46,7 +47,27 @@ async function parseErrorMessage(response: Response): Promise<string> {
     // Body không phải JSON -> dùng message mặc định
   }
   return translateErrorMessage(rawMessage, response.status);
+}
 
+async function readApiError(response: Response): Promise<string> {
+  return await parseErrorMessage(response);
+}
+
+async function readApiResponse(response: Response, responseType: string = "json"): Promise<unknown> {
+  if (responseType === "blob") {
+    return await response.blob();
+  }
+  if (responseType === "text") {
+    return await response.text();
+  }
+  // Default: json
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 async function requestOnce<T>(
