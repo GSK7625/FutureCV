@@ -228,19 +228,9 @@ export interface SavedJobsResult {
 }
 
 // -----------------------------------------------------------------------------
-// Candidate CV (P3-UC01, P3-UC05) — map CvResponse từ /api/candidate/cvs
+// Candidate CV (P3-UC01, P3-UC05) — Re-export toàn bộ CV DTOs từ cv.types.ts
 // -----------------------------------------------------------------------------
-
-export interface CvResponse {
-  id: string;
-  candidateId: string;
-  title?: string | null;
-  fileUrl?: string | null;
-  fileType?: string | null;
-  fileSizeBytes?: number | null;
-  isPrimary: boolean;
-  uploadedAt: string;
-}
+export * from "./cv.types";
 
 // -----------------------------------------------------------------------------
 // Candidate Applications & Match Preview (P3-UC05, P3-UC06, P3-UC07, P4-UC01)

@@ -13,14 +13,18 @@ export const clientLoader = ({ request }: ClientLoaderFunctionArgs) => {
 
 export default function CandidateLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <PublicHeader />
+    <div className="flex min-h-screen flex-col bg-background print:bg-white">
+      <div className="print:hidden">
+        <PublicHeader />
+      </div>
 
-      <main className="container-page mx-auto flex-1 px-margin-mobile py-8 md:px-margin-desktop">
+      <main className="container-page mx-auto flex-1 px-margin-mobile py-8 md:px-margin-desktop print:p-0 print:m-0 print:max-w-none print:w-full">
         <Outlet />
       </main>
 
-      <PublicFooter />
+      <div className="print:hidden">
+        <PublicFooter />
+      </div>
     </div>
   );
 }
