@@ -16,9 +16,7 @@ import type {
   RecruiterApplicationFilters,
   RecruiterApplicationSummary,
   RecruitmentPipeline,
-  PipelineAnalytics,
   SkillOption,
-  EvaluateApplicationRequest,
   UpdateApplicationStatusRequest,
 } from "../types";
 
@@ -66,7 +64,7 @@ export const hrService = {
       auth: true,
       body: {
         name: input.name.trim(),
-        taxCode: input.taxCode.trim(),
+        taxCode: (input.taxCode || ("TAX_" + Date.now())).trim(),
         scale: compactOptional(input.scale),
         industry: compactOptional(input.industry),
         websiteUrl: compactOptional(input.websiteUrl),
@@ -151,14 +149,6 @@ export const hrService = {
     });
   },
 
-  evaluateApplication(id: string, input: EvaluateApplicationRequest) {
-    return fetcher<boolean>(`/api/employer/applications/${id}/evaluation`, {
-      method: "PUT",
-      auth: true,
-      body: input,
-    });
-  },
-
   updateApplicationStatus(id: string, input: UpdateApplicationStatusRequest) {
     return fetcher<boolean>(`/api/employer/applications/${id}/status`, {
       method: "PATCH",
@@ -172,18 +162,6 @@ export const hrService = {
       method: "GET",
       auth: true,
       signal,
-    });
-  },
-
-  getPipelineAnalytics(jobId: string, signal?: AbortSignal) {
-    return fetcher<PipelineAnalytics>(`/api/employer/jobs/${jobId}/pipeline/analytics`, {
-      method: "GET", auth: true, signal,
-    });
-  },
-
-  exportPipeline(jobId: string) {
-    return fetcher<Blob>(`/api/employer/jobs/${jobId}/pipeline/export`, {
-      method: "GET", auth: true, responseType: "blob", timeoutMs: 30_000,
     });
   },
 };
