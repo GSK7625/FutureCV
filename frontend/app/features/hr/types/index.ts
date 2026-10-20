@@ -48,7 +48,7 @@ export interface CompanyProfile {
 
 export interface CompanyProfileInput {
   name: string;
-  taxCode: string;
+  taxCode?: string;
   scale: string;
   industry: string;
   websiteUrl: string;
@@ -225,18 +225,6 @@ export interface RecruiterApplicationDetail extends RecruiterApplicationSummary 
   timeline: ApplicationTimelineItem[];
 }
 
-export interface EvaluationFormValues {
-  rating: string;
-  evaluationLabel: string;
-  privateNotes: string;
-}
-
-export interface EvaluateApplicationRequest {
-  rating: number;
-  evaluationLabel: string | null;
-  privateNotes: string | null;
-}
-
 export interface UpdateApplicationStatusRequest {
   newStatus: UpdatableApplicationStatus;
   reason: string | null;
@@ -268,31 +256,4 @@ export interface RecruitmentPipeline {
   jobTitle: string;
   totalCandidates: number;
   stages: PipelineStage[];
-}
-
-export interface PipelineAnalytics {
-  jobId: string;
-  jobTitle: string;
-  totalApplications: number;
-  activeApplications: number;
-  hiredCount: number;
-  rejectedCount: number;
-  withdrawnCount: number;
-  averageTimeToHireDays: number | null;
-  overallConversionRate: number;
-  stageConversionRates: {
-    fromStage: UpdatableApplicationStatus;
-    toStage: UpdatableApplicationStatus;
-    fromCount: number;
-    toCount: number;
-    conversionRate: number;
-  }[];
-  stageAverageDurations: {
-    stage: UpdatableApplicationStatus;
-    averageDays: number;
-    candidateCount: number;
-    overdueCount: number;
-  }[];
-  bottleneckStage: UpdatableApplicationStatus | null;
-  overdueCandidatesCount: number;
 }
