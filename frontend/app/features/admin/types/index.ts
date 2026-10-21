@@ -114,3 +114,54 @@ export interface ApproveJobRequest {
   rejectionReason?: string;
   note?: string;
 }
+
+export interface AdminUserStatsDto {
+  totalUsers: number;
+  totalCandidates: number;
+  totalEmployers: number;
+  lockedUsersCount: number;
+  newUsersLast30Days: number;
+}
+
+export interface AdminCompanyStatsDto {
+  totalCompanies: number;
+  verifiedCompaniesCount: number;
+  pendingVerificationCount: number;
+  rejectedCompaniesCount: number;
+}
+
+export interface AdminJobStatsDto {
+  totalJobs: number;
+  activeJobsCount: number;
+  pendingApprovalCount: number;
+  rejectedJobsCount: number;
+  bannedJobsCount: number;
+  expiredJobsCount: number;
+}
+
+export interface AdminApplicationStatsDto {
+  totalApplications: number;
+  appliedCount: number;
+  screeningCount: number;
+  interviewCount: number;
+  offerCount: number;
+  hiredCount: number;
+  rejectedCount: number;
+  withdrawnCount: number;
+}
+
+export interface MonthlyTrendDto {
+  month: string;
+  newUsers: number;
+  newJobs: number;
+  newApplications: number;
+}
+
+export interface AdminDashboardStatsResponse {
+  users: AdminUserStatsDto;
+  companies: AdminCompanyStatsDto;
+  jobs: AdminJobStatsDto;
+  applications: AdminApplicationStatsDto;
+  pendingReportsCount: number;
+  monthlyTrends: MonthlyTrendDto[];
+}
