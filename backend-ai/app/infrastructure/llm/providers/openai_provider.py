@@ -323,3 +323,16 @@ class OpenAiProvider(LlmPort):
                 "AI model generated output that does not match required contract",
                 provider="openai",
             ) from exc
+
+    async def extract_text_from_document(
+        self,
+        document_bytes: bytes,
+        mime_type: str = "application/pdf",
+        instruction: str | None = None,
+    ) -> str:
+        """Extract readable text from document bytes."""
+        raise ProviderError(
+            "Direct document vision OCR is currently supported via Gemini provider",
+            provider="openai",
+        )
+

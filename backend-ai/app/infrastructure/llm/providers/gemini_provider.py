@@ -148,7 +148,7 @@ class GeminiLlmProvider(LlmPort):
 
     async def _execute_generate_content(
         self,
-        contents: str,
+        contents: Any,
         config: types.GenerateContentConfig,
     ) -> Any:
         """Execute async generate_content with timeout and bounded retries for transient errors."""
@@ -358,3 +358,41 @@ class GeminiLlmProvider(LlmPort):
                     "validation_errors": exc.errors(include_url=False),
                 },
             ) from exc
+
+    async def extract_text_from_document(
+        self,
+        document_bytes: bytes,
+        mime_type: str = "application/pdf",
+        instruction: str | None = None,
+    ) -> str:
+        """Extract all readable text from raw document bytes using Gemini Multimodal Vision."""
+        prompt = (
+            instruction
+            or (
+                "Trích xuất nguyên văn toàn bộ nội dung văn bản từ tài liệu này mà không tóm tắt, "
+                "không chỉnh sửa và không bỏ sót bất kỳ thông tin nào. "
+                "Giữ nguyên cấu trúc tự nhiên, thông tin liên hệ, tiêu đề, ngày tháng, các gạch đầu dòng, "
+                "kinh nghiệm làm việc, học vấn, kỹ năng, dự án và chứng chỉ. "
+                "Chỉ trả về nội dung văn bản đã trích xuất, không thêm lời bình luận mở đầu hay kết thúc."
+            )
+        )
+
+        part = types.Part.from_bytes(data=document_bytes, mime_type=mime_type)
+        config = types.GenerateContentConfig(
+            temperature=0.0,
+        )
+
+        response = await self._execute_generate_content(
+            contents=[prompt, part],
+            config=config,
+        )
+
+        raw_text = getattr(response, "text", None)
+        if not raw_text or not str(raw_text).strip():
+            raise ProviderError(
+                "Gemini vision OCR returned empty text from document",
+                provider="gemini",
+            )
+
+        return str(raw_text).strip()
+

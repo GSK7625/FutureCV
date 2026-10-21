@@ -116,8 +116,49 @@ class CvAnalyzerService:
         self.settings = settings or get_settings()
 
     async def analyze_pdf(self, file_bytes: bytes) -> CvAnalysisResponse:
-        """Parse raw PDF document and perform end-to-end CV analysis."""
-        raw_text = await self.parser.parse_pdf(file_bytes)
+        """Parse raw PDF document and perform end-to-end CV analysis with multimodal OCR fallback."""
+        raw_text = ""
+        is_scanned_pdf = False
+
+        try:
+            raw_text = await self.parser.parse_pdf(file_bytes)
+        except DocumentParsingError as exc:
+            if exc.details and exc.details.get("reason") == "empty_or_scanned_pdf":
+                is_scanned_pdf = True
+            else:
+                raise
+
+        enable_ocr = getattr(self.settings, "enable_ocr_fallback", True)
+        char_threshold = getattr(self.settings, "ocr_min_char_threshold", 50)
+
+        # Trigger OCR fallback if PDF has no extractable text layer or suspiciously few characters
+        if enable_ocr and (is_scanned_pdf or len(raw_text.strip()) < char_threshold):
+            logger.info(
+                "PDF has insufficient text (%d chars). Attempting multimodal OCR fallback...",
+                len(raw_text.strip()),
+            )
+            try:
+                ocr_text = await self.llm.extract_text_from_document(
+                    document_bytes=file_bytes,
+                    mime_type="application/pdf",
+                )
+                if ocr_text and len(ocr_text.strip()) > len(raw_text.strip()):
+                    raw_text = ocr_text.strip()
+                    logger.info("Multimodal OCR fallback succeeded (extracted %d chars)", len(raw_text))
+            except Exception as ocr_exc:
+                logger.warning("Multimodal OCR fallback failed or not supported: %s", ocr_exc)
+                if not raw_text.strip():
+                    raise DocumentParsingError(
+                        "PDF document contains no extractable text and OCR fallback could not read the document",
+                        details={"reason": "empty_or_scanned_pdf", "ocr_error": str(ocr_exc)},
+                    ) from ocr_exc
+
+        if not raw_text.strip():
+            raise DocumentParsingError(
+                "PDF document contains no extractable text (it may be a scanned image)",
+                details={"reason": "empty_or_scanned_pdf"},
+            )
+
         return await self.analyze_text(raw_text)
 
     async def analyze_text(self, raw_text: str) -> CvAnalysisResponse:

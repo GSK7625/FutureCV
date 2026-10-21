@@ -44,6 +44,21 @@ class LlmPort(ABC):
         """Generate validated, structured output conforming to a Pydantic model."""
         raise NotImplementedError
 
+    async def extract_text_from_document(
+        self,
+        document_bytes: bytes,
+        mime_type: str = "application/pdf",
+        instruction: str | None = None,
+    ) -> str:
+        """
+        Extract readable text from a document using multimodal vision capabilities.
+
+        Raises:
+            ProviderError: If the provider does not support document extraction or extraction fails.
+            NotImplementedError: If not implemented by the underlying provider.
+        """
+        raise NotImplementedError("Multimodal document extraction is not supported by this provider")
+
     async def aclose(self) -> None:
         """Asynchronously close network sessions or underlying clients."""
         return
