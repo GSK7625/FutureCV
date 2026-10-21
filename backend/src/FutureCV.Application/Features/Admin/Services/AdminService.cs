@@ -413,9 +413,10 @@ public class AdminService : IAdminService
 
         // 6. Monthly trend (last 6 months)
         var monthlyTrends = new List<MonthlyTrendDto>();
+        var nowUtc = DateTime.UtcNow;
         for (int i = 5; i >= 0; i--)
         {
-            var monthStart = new DateTime(now.Year, now.Month, 1).AddMonths(-i);
+            var monthStart = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-i);
             var monthEnd = monthStart.AddMonths(1);
             var monthLabel = monthStart.ToString("yyyy-MM");
 
