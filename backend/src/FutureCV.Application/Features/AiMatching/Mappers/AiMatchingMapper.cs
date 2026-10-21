@@ -202,9 +202,11 @@ public static class AiMatchingMapper
 
     private static List<string> ParseTechnologies(string? techString)
     {
-        if (string.IsNullOrWhiteSpace(techString)) return [];
+        if (string.IsNullOrWhiteSpace(techString))
+            return [];
+
         return techString
-            .Split([',', ';', '|'], StringSplitOptions.RemoveEmptyEntries)
+            .Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(t => t.Trim())
             .Where(t => !string.IsNullOrEmpty(t))
             .Distinct(StringComparer.OrdinalIgnoreCase)

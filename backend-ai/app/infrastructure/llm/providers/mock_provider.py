@@ -10,7 +10,6 @@ from app.ports.llm import LlmPort
 T = TypeVar("T", bound=BaseModel)
 
 
-
 class MockLlmProvider(LlmPort):
     """Mock LLM implementation that generates realistic deterministic responses without network calls."""
 
@@ -56,21 +55,26 @@ class MockLlmProvider(LlmPort):
                     f"Ứng viên hoàn toàn tự tin để ứng tuyển và có triển vọng cao vượt qua vòng sơ loại."
                 )
 
-            elif score >= 50:
-                missing_part = f"còn thiếu các kỹ năng trọng yếu ({missing})" if missing != "Không có" else "cần củng cố thêm kinh nghiệm chuyên sâu"
+            if score >= 50:
+                missing_part = (
+                    f"còn thiếu các kỹ năng trọng yếu ({missing})"
+                    if missing != "Không có"
+                    else "cần củng cố thêm kinh nghiệm chuyên sâu"
+                )
                 return (
                     f"Ứng viên có tiềm năng với vị trí {job_title} (Độ phù hợp: {score}%). "
                     f"Đã đáp ứng một số kỹ năng yêu cầu ({matched}), tuy nhiên {missing_part}. "
                     f"{exp_cmp} "
                     f"Khuyến nghị ứng viên làm nổi bật thêm các dự án thực tế liên quan để tăng sức cạnh tranh."
                 )
-            else:
-                return (
-                    f"Hồ sơ hiện tại có độ tương thích chưa cao ({score}%) so với yêu cầu của vị trí {job_title}. "
-                    f"Ứng viên còn thiếu các kỹ năng bắt buộc cốt lõi ({missing}). "
-                    f"{exp_cmp} "
-                    f"Khuyến nghị ứng viên bổ sung các dự án thực chiến hoặc trau dồi thêm các kỹ năng còn thiếu trước khi nộp hồ sơ."
-                )
+
+            return (
+                f"Hồ sơ hiện tại có độ tương thích chưa cao ({score}%) so với yêu cầu của vị trí {job_title}. "
+                f"Ứng viên còn thiếu các kỹ năng bắt buộc cốt lõi ({missing}). "
+                f"{exp_cmp} "
+                f"Khuyến nghị ứng viên bổ sung các dự án thực chiến hoặc trau dồi thêm các kỹ năng "
+                f"còn thiếu trước khi nộp hồ sơ."
+            )
 
         if "CV Review" in prompt or "phản hồi" in prompt or "đánh giá" in prompt.lower():
             return "Ứng viên có nền tảng vững chắc về kỹ năng công nghệ và dự án thực tế."
@@ -82,7 +86,6 @@ class MockLlmProvider(LlmPort):
         return (
             "Chào bạn, tôi là FutureCV Career Assistant. Tôi sẵn sàng hỗ trợ giải đáp mọi thắc mắc sự nghiệp của bạn."
         )
-
 
     async def generate_structured(
         self,
@@ -122,6 +125,58 @@ class MockLlmProvider(LlmPort):
                 }
             )
 
+        if response_model.__name__ == "MatchExplanation":
+            import re
+            m_matched = re.search(r"Matched skills:\s*\n([^\n]+)", prompt)
+            m_missing = re.search(r"Missing required skills:\s*\n([^\n]+)", prompt)
+            matched_str = m_matched.group(1).strip() if m_matched else ""
+            missing_str = m_missing.group(1).strip() if m_missing else ""
+
+            matched_list = [s.strip() for s in matched_str.split(",") if s.strip() and s.strip() != "Không có"]
+            missing_list = [s.strip() for s in missing_str.split(",") if s.strip() and s.strip() != "Không có"]
+
+            summary = "Mức độ phù hợp tốt. Ứng viên đáp ứng phần lớn các kỹ năng và yêu cầu của vị trí tuyển dụng."
+            if "Mức độ phù hợp thấp" in prompt or "Score band: low" in prompt:
+                summary = "Mức độ phù hợp thấp. Ứng viên chưa đáp ứng một số kỹ năng bắt buộc của vị trí."
+            elif "Phù hợp một phần" in prompt or "Score band: partial" in prompt:
+                summary = (
+                    "Phù hợp một phần. Ứng viên đáp ứng một số tiêu chí "
+                    "nhưng vẫn còn thiếu hụt các yêu cầu cốt lõi của vị trí."
+                )
+            elif "Mức độ phù hợp cao" in prompt or "Score band: strong" in prompt:
+                summary = (
+                    "Mức độ phù hợp cao theo các tiêu chí đã được hệ thống đánh giá. "
+                    "Vẫn cần xác minh các yêu cầu chưa có đủ bằng chứng trong CV."
+                )
+
+            strengths = []
+            for s in matched_list[:3]:
+                clean_s = re.sub(r"\s*\((?:preferred|ưu tiên)\)", "", s, flags=re.IGNORECASE).strip()
+                strengths.append({
+                    "item": clean_s,
+                    "statement": f"CV có đề cập kỹ năng {clean_s}.",
+                    "evidence_source": "cv.skills",
+                    "evidence_text": clean_s,
+                })
+            gaps = []
+            for s in missing_list[:3]:
+                clean_s = re.sub(r"\s*\((?:preferred|ưu tiên)\)", "", s, flags=re.IGNORECASE).strip()
+                gaps.append({
+                    "requirement": clean_s,
+                    "statement": f"Chưa đủ bằng chứng về kỹ năng bắt buộc {clean_s}.",
+                })
+
+            return response_model.model_validate(
+                {
+                    "summary": summary,
+                    "strengths": strengths,
+                    "gaps": gaps,
+                    "recommendations": [
+                        "Tiếp tục hoàn thiện các kỹ năng chuyên môn cốt lõi."
+                    ],
+                }
+            )
+
         mock_data: dict[str, Any] = {}
         for field_name, field_info in response_model.model_fields.items():
             annotation = field_info.annotation
@@ -145,3 +200,27 @@ class MockLlmProvider(LlmPort):
                 mock_data[field_name] = None
 
         return response_model.model_validate(mock_data)
+
+    async def extract_text_from_document(
+        self,
+        document_bytes: bytes,
+        mime_type: str = "application/pdf",
+        instruction: str | None = None,
+    ) -> str:
+        """Mock multimodal document text extraction."""
+        return (
+            "Nguyễn Văn An\n"
+            "Email: nguyenvanan@example.com | Điện thoại: 0912345678\n\n"
+            "TÓM TẮT NGHỀ NGHIỆP\n"
+            "Kỹ sư phần mềm Fullstack với hơn 3 năm kinh nghiệm phát triển hệ thống web quy mô lớn.\n\n"
+            "KINH NGHIỆM LÀM VIỆC\n"
+            "Công ty Công nghệ ABC - Senior Backend Developer (2022 - 2024)\n"
+            "- Thiết kế và tối ưu kiến trúc Microservices sử dụng Python FastAPI và .NET Core.\n"
+            "- Tối ưu hóa cơ sở dữ liệu PostgreSQL và Redis caching giảm 40% độ trễ hệ thống.\n\n"
+            "HỌC VẤN\n"
+            "Đại học Bách Khoa Hà Nội - Kỹ sư Công nghệ Thông tin (2018 - 2022)\n"
+            "- Tốt nghiệp loại Giỏi, GPA 3.6/4.0.\n\n"
+            "KỸ NĂNG CHUYÊN MÔN\n"
+            "Python, C#, FastAPI, .NET Core, Docker, PostgreSQL, React, TypeScript, Git, Redis."
+        )
+
