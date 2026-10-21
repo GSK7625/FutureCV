@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -53,7 +54,7 @@ public class AiCvHttpClient : IAiCvClient
 
         var timeoutSeconds = _options.TimeoutSeconds > 0
             ? _options.TimeoutSeconds
-            : (double.TryParse(_configuration["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 30.0);
+            : (double.TryParse(_configuration["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 90.0);
 
         if (_httpClient.Timeout == TimeSpan.FromSeconds(100))
         {
@@ -92,10 +93,12 @@ public class AiCvHttpClient : IAiCvClient
                 fileBytes.Length,
                 effectiveCorrelationId);
 
+            var stopwatch = Stopwatch.StartNew();
             using var response = await _httpClient.SendAsync(
                 httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            stopwatch.Stop();
 
-            return await HandleResponseAsync(response, requestUri, effectiveCorrelationId, cancellationToken);
+            return await HandleResponseAsync(response, requestUri, effectiveCorrelationId, stopwatch.ElapsedMilliseconds, cancellationToken);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -148,10 +151,12 @@ public class AiCvHttpClient : IAiCvClient
                 rawText.Length,
                 effectiveCorrelationId);
 
+            var stopwatch = Stopwatch.StartNew();
             using var response = await _httpClient.SendAsync(
                 httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            stopwatch.Stop();
 
-            return await HandleResponseAsync(response, requestUri, effectiveCorrelationId, cancellationToken);
+            return await HandleResponseAsync(response, requestUri, effectiveCorrelationId, stopwatch.ElapsedMilliseconds, cancellationToken);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -191,22 +196,42 @@ public class AiCvHttpClient : IAiCvClient
         HttpResponseMessage response,
         string endpoint,
         string correlationId,
+        long durationMs,
         CancellationToken cancellationToken)
     {
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
+            string? errorCode = null;
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(responseBody);
+                    if (doc.RootElement.TryGetProperty("code", out var codeProp))
+                    {
+                        errorCode = codeProp.GetString();
+                    }
+                }
+                catch
+                {
+                    // Ignore JSON parsing issues when inspecting error code
+                }
+            }
+
             _logger.LogWarning(
-                "AI CV Service responded with status {StatusCode} at {Endpoint}. Body: {Body} [CorrelationId: {CorrelationId}]",
-                response.StatusCode,
+                "AI CV Service returned HTTP {StatusCode}, ErrorCode={ErrorCode} in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
+                (int)response.StatusCode,
+                errorCode ?? "N/A",
+                durationMs,
                 endpoint,
-                responseBody,
                 correlationId);
 
             var errorType = response.StatusCode switch
             {
-                HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => ServiceErrorType.Forbidden,
+                HttpStatusCode.Unauthorized => ServiceErrorType.Unauthorized,
+                HttpStatusCode.Forbidden => ServiceErrorType.Forbidden,
                 HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity or HttpStatusCode.UnsupportedMediaType => ServiceErrorType.Validation,
                 HttpStatusCode.NotFound => ServiceErrorType.NotFound,
                 _ => ServiceErrorType.Infrastructure
@@ -221,15 +246,31 @@ public class AiCvHttpClient : IAiCvClient
             var result = JsonSerializer.Deserialize<FastApiCvAnalysisResponseDto>(responseBody, _jsonOptions);
             if (result is null)
             {
+                _logger.LogError(
+                    "AI CV Service returned null analysis data in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
+                    durationMs,
+                    endpoint,
+                    correlationId);
                 return ServiceResult.Failure<FastApiCvAnalysisResponseDto>(
                     "AI CV Service returned null analysis data.", ServiceErrorType.Infrastructure);
             }
+
+            _logger.LogInformation(
+                "AI CV Service succeeded in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
+                durationMs,
+                endpoint,
+                correlationId);
 
             return ServiceResult.Success(result);
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to deserialize AI CV response: {RawJson} [CorrelationId: {CorrelationId}]", responseBody, correlationId);
+            _logger.LogError(
+                ex,
+                "Failed to deserialize AI CV response in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
+                durationMs,
+                endpoint,
+                correlationId);
             return ServiceResult.Failure<FastApiCvAnalysisResponseDto>(
                 "Malformed response from AI CV Service.", ServiceErrorType.Infrastructure);
         }

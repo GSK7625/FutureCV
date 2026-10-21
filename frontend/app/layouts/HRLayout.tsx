@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import {
   IconBriefcase,
   IconBuilding,
-  IconCalendarEvent,
   IconLayoutDashboard,
   IconLogout,
   IconMenu2,
@@ -25,7 +24,6 @@ const navItems = [
   { to: "/hr", label: "Tổng quan", icon: IconLayoutDashboard, end: true },
   { to: "/hr/jobs", label: "Tin tuyển dụng", icon: IconBriefcase },
   { to: "/hr/pipeline", label: "Ứng viên", icon: IconUsers },
-  { to: "/hr/interviews", label: "Lịch phỏng vấn", icon: IconCalendarEvent },
   { to: "/hr/company", label: "Công ty", icon: IconBuilding },
   { to: "/hr/profile", label: "Hồ sơ cá nhân", icon: IconUserCircle },
 ];
@@ -90,13 +88,13 @@ export default function HRLayout() {
         </NavLink>
         <div className="mt-8 flex-1">{navigation}</div>
         <div className="border-t border-white/10 pt-4">
-          <NavLink to="/hr/profile" className="flex items-center gap-3 rounded-default px-2 py-2 hover:bg-white/10">
+          <div className="flex items-center gap-3 px-2 py-2">
             <Avatar name={user?.fullName || user?.email || "HR"} size="md" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-label font-semibold">{user?.fullName || "Nhà tuyển dụng"}</p>
               <p className="truncate text-label-sm text-white/55">{user?.email}</p>
             </div>
-          </NavLink>
+          </div>
           <button
             type="button"
             onClick={handleLogout}

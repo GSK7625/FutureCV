@@ -69,14 +69,16 @@ async def get_embedding_provider_dep(
     settings: Settings = Depends(get_settings_dep),
 ) -> AsyncIterator[EmbeddingPort | None]:
     """Provide configured EmbeddingPort implementation with lifecycle cleanup when enabled."""
-    if settings.matching_algorithm == MATCHING_V1_ALGORITHM_VERSION:
+    if settings.semantic_mode == "disabled":
+        yield None
+    elif settings.matching_algorithm == MATCHING_V1_ALGORITHM_VERSION or settings.semantic_mode == "advisory":
         provider = get_embedding_provider(settings=settings)
         try:
             yield provider
         finally:
             await provider.aclose()
     else:
-        # For matching-v0: do not construct any embedding provider or network client
+        # For matching-v0 with non-advisory mode: do not construct any embedding provider or network client
         yield None
 
 
@@ -99,6 +101,7 @@ def get_matching_service(
         llm=llm,
         embedding_provider=embedding_provider,
         matching_algorithm=settings.matching_algorithm,
+        semantic_mode=settings.semantic_mode,
     )
 
 

@@ -4,7 +4,7 @@
  * @architecture Tuân thủ Single Responsibility Principle (SRP): Chỉ đảm nhiệm hiển thị thanh điều hướng đầu trang và quản lý popup menu.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 
 import { Link, useNavigate } from "react-router";
 import {
@@ -24,7 +24,7 @@ import { CandidateProfileMenu } from "~/features/candidate/components/CandidateP
 import { authService } from "~/features/auth/services/authService";
 import { queryClient } from "~/lib/queryClient";
 
-export function PublicHeader() {
+export const PublicHeader = memo(function PublicHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [jobDropdownOpen, setJobDropdownOpen] = useState(false);
   const [cvDropdownOpen, setCvDropdownOpen] = useState(false);
@@ -248,4 +248,4 @@ export function PublicHeader() {
       />
     </header>
   );
-}
+});

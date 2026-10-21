@@ -158,10 +158,6 @@ export function CvAnalysisPanel({ cvId }: CvAnalysisPanelProps) {
           <h3 className="text-base font-bold text-ink leading-tight">
             Điểm chất lượng hồ sơ
           </h3>
-          <p className="mt-1 text-xs text-ink-muted leading-relaxed">
-            Đánh giá theo quy chuẩn cấu trúc v{analysis.modelVersion}.
-            Đây là điểm cấu trúc CV, không phải điểm khớp với tin tuyển dụng.
-          </p>
           <button
             type="button"
             onClick={() => analyzeMutation.mutate()}

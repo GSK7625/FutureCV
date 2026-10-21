@@ -33,19 +33,33 @@ async def readiness_probe() -> JSONResponse:
     checks: dict[str, Any] = {
         "configuration": "ok",
         "llm_provider": settings.llm_provider,
+        "embedding_provider": settings.embedding_provider,
         "environment": settings.env,
     }
 
-    # Structural check for provider API key
+    # Structural check for LLM provider API key
     if settings.llm_provider == "openai":
         has_key = bool(settings.openai_api_key)
+        checks["provider_key_configured"] = has_key
+    elif settings.llm_provider == "gemini":
+        has_key = bool(settings.get_effective_gemini_llm_key())
         checks["provider_key_configured"] = has_key
     else:
         # Mock provider requires no external API key
         checks["provider_key_configured"] = True
 
+    # Structural check for embedding provider API key when active
+    if settings.matching_algorithm == "matching-v1-experimental" or settings.semantic_mode == "advisory":
+        if settings.embedding_provider == "openai":
+            checks["embedding_key_configured"] = bool(settings.openai_api_key)
+        elif settings.embedding_provider == "gemini":
+            checks["embedding_key_configured"] = bool(settings.get_effective_gemini_embedding_key())
+        else:
+            checks["embedding_key_configured"] = True
+
     # In production, if required provider key is missing, report not ready (503)
-    if settings.is_production and not checks.get("provider_key_configured", False):
+    keys_ok = checks.get("provider_key_configured", False) and checks.get("embedding_key_configured", True)
+    if settings.is_production and not keys_ok:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "not_ready", "checks": checks},

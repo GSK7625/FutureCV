@@ -17,9 +17,9 @@ export default function AuthLayout() {
 
   useEffect(() => {
     if (user) {
-      // Cho phép user đã đăng nhập truy cập tất cả login routes (/login, /login-employer, /login-admin)
-      // để chuyển đổi tài khoản giữa các vai trò khác nhau.
-      if (isLoginRoute(location.pathname)) {
+      // Cho phép user truy cập tất cả login routes (/login, /login-employer, /login-admin)
+      // hoặc trang /reset-password để đặt lại mật khẩu.
+      if (isLoginRoute(location.pathname) || location.pathname.startsWith("/reset-password")) {
         return;
       }
 

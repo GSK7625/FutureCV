@@ -1,3 +1,4 @@
+import datetime
 import re
 
 from app.contracts.cv import EducationItem, ProjectItem, StructuredCv, WorkExperienceItem
@@ -242,7 +243,7 @@ def extract_skills_heuristically(raw_text: str, skills_section: str = "") -> lis
     # 2. Check for known keywords:
     # If skills_section is present and produced valid skills, scan inside skills_section.
     # Otherwise, scan raw_text, but strictly filter out lines indicating lack of experience or low-match notes.
-    NEGATION_INDICATORS = [
+    negation_indicators = [
         "no experience",
         "no professional experience",
         "not familiar",
@@ -260,8 +261,7 @@ def extract_skills_heuristically(raw_text: str, skills_section: str = "") -> lis
 
     search_target = skills_section if (skills_section and len(found_skills) > 0) else raw_text
     filtered_lines = [
-        l for l in search_target.split("\n")
-        if not any(neg in l.lower() for neg in NEGATION_INDICATORS)
+        line for line in search_target.split("\n") if not any(neg in line.lower() for neg in negation_indicators)
     ]
     clean_search_text = "\n".join(filtered_lines)
 
@@ -271,28 +271,46 @@ def extract_skills_heuristically(raw_text: str, skills_section: str = "") -> lis
         if re.search(pattern, clean_search_text, re.IGNORECASE):
             add_skill(kw)
 
-    # If nothing was found, return default mock items to preserve compatibility
-    if not found_skills:
-        return ["Mock skills item 1", "Mock skills item 2"]
-
     return found_skills[:100]
 
 
+def _calculate_role_years(start_date: str | None, end_date: str | None) -> float:
+    """Calculate duration in years from start and end dates (YYYY or YYYY-MM).
+
+    Returns 0.0 if start_date is absent or dates cannot be parsed.
+    """
+    if not start_date:
+        return 0.0
+
+    try:
+        if "-" in start_date:
+            y_s, m_s = map(int, start_date.split("-")[:2])
+        else:
+            y_s, m_s = int(start_date), 1
+
+        if end_date:
+            if "-" in end_date:
+                y_e, m_e = map(int, end_date.split("-")[:2])
+            else:
+                y_e, m_e = int(end_date), 12
+        else:
+            now = datetime.datetime.now(datetime.UTC)
+            y_e, m_e = now.year, now.month
+
+        months = (y_e - y_s) * 12 + (m_e - m_s)
+        if months <= 0:
+            return 0.0
+        return min(round(months / 12.0, 1), 60.0)
+    except (ValueError, TypeError):
+        return 0.0
+
 
 def extract_work_experience(
-    raw_text: str, experience_section: str = "", header_text: str = ""
+    raw_text: str = "", experience_section: str = "", header_text: str = ""
 ) -> list[WorkExperienceItem]:
     """Extract work experience items or construct a sensible representation."""
+    _ = raw_text
     items: list[WorkExperienceItem] = []
-
-    # Estimate overall years of experience from text if present (e.g. "6+ years of experience")
-    years_est = 0.0
-    m_years = re.search(r"(\d+(?:\.\d+)?)\s*\+?\s*years?(?:\s+of)?\s+experience", raw_text, re.IGNORECASE)
-    if m_years:
-        try:
-            years_est = float(m_years.group(1))
-        except ValueError:
-            years_est = 0.0
 
     # Look for candidate's primary job title in header (e.g. "Senior .NET Backend Engineer")
     primary_title = None
@@ -306,24 +324,27 @@ def extract_work_experience(
                 break
 
     if experience_section:
-        # Split by blank lines or job headers
-        split_pattern = r"\n\s*\n|(?<=\n)(?=[^\n|]+\|\s*[^\n|]+\n)"
+        # Split by blank lines or job headers (not starting with a digit/date)
+        split_pattern = r"\n\s*\n|(?<=\n)(?=[^\d\n|]+\|\s*[^\n|]+\n)"
         blocks = [b.strip() for b in re.split(split_pattern, experience_section) if b.strip()]
         for block in blocks:
             lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
             if not lines:
                 continue
             first_line = lines[0]
-            title = primary_title or "Software Engineer"
-            company = "Company"
+            title = None
+            company = ""
 
             if "|" in first_line:
                 parts = [p.strip() for p in first_line.split("|")]
-                title = parts[0]
+                title = parts[0] if parts[0] else None
                 if len(parts) > 1:
                     company = parts[1]
             else:
-                title = first_line
+                title = first_line if first_line else None
+
+            if not title:
+                title = primary_title or None
 
             duration = ""
             start_date = None
@@ -352,6 +373,7 @@ def extract_work_experience(
                     break
 
             desc = "\n".join(lines[2:]) if len(lines) > 2 else block
+            years_calc = _calculate_role_years(start_date, end_date)
             items.append(
                 WorkExperienceItem(
                     job_title=title,
@@ -359,21 +381,10 @@ def extract_work_experience(
                     duration=duration,
                     start_date=start_date,
                     end_date=end_date,
-                    years_of_experience=min(years_est if len(items) == 0 else 2.0, 60.0),
+                    years_of_experience=years_calc,
                     description=desc[:2000],
                 )
             )
-
-    if not items and (primary_title or years_est > 0):
-        items.append(
-            WorkExperienceItem(
-                job_title=primary_title or "Senior Engineer",
-                company="Enterprise Technology",
-                duration=f"{int(years_est)}+ years" if years_est > 0 else "3+ years",
-                years_of_experience=years_est if years_est > 0 else 3.0,
-                description=raw_text[:500],
-            )
-        )
 
     return items
 
@@ -387,8 +398,8 @@ def extract_education(education_section: str = "") -> list[EducationItem]:
     lines = [ln.strip() for ln in education_section.split("\n") if ln.strip()]
     for line in lines:
         degree = None
-        institution = "University"
-        field_of_study = "Information Technology"
+        institution = ""
+        field_of_study = ""
         grad_year = None
 
         if re.search(r"\b(?:bachelor|master|engineer|kỹ sư|cử nhân|tiến sĩ|phd)\b", line, re.IGNORECASE):
@@ -402,10 +413,10 @@ def extract_education(education_section: str = "") -> list[EducationItem]:
         if y_match:
             grad_year = y_match.group(1)
 
-        if degree or institution != "University":
+        if degree or institution:
             items.append(
                 EducationItem(
-                    degree=degree or "Bachelor of Computer Science",
+                    degree=degree,
                     institution=institution,
                     field_of_study=field_of_study,
                     graduation_year=grad_year,
@@ -427,6 +438,8 @@ def extract_projects(projects_section: str = "", skills: list[str] | None = None
         if not lines:
             continue
         name = lines[0].strip(" -•*")
+        if not name:
+            continue
         desc = "\n".join(lines[1:]) if len(lines) > 1 else lines[0]
         # Match technologies in this block
         proj_techs = [s for s in (skills or []) if s.lower() in block.lower()]
@@ -454,7 +467,7 @@ def extract_structured_cv_heuristically(raw_text: str) -> StructuredCv:
     edu_sec = sections.get("education", "")
     proj_sec = sections.get("projects", "")
 
-    full_name = extract_full_name(raw_text, header) or "Mock full_name"
+    full_name = extract_full_name(raw_text, header)
     email = extract_email(raw_text)
     phone = extract_phone(raw_text)
     skills = extract_skills_heuristically(raw_text, skills_sec)

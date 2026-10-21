@@ -4,11 +4,12 @@
  * @architecture Tuân thủ SRP (Chỉ quản lý UI chân trang) & OCP (Nạp dữ liệu từ FOOTER_SECTIONS trong navConfig).
  */
 
+import { memo } from "react";
 import { Link } from "react-router";
 
 import { FOOTER_SECTIONS } from "./navConfig";
 
-export function PublicFooter() {
+export const PublicFooter = memo(function PublicFooter() {
   return (
     <footer className="mt-auto border-t border-border-subtle bg-navy text-white">
       <div className="container-page mx-auto max-w-6xl px-4 py-14 sm:px-6">
@@ -54,4 +55,4 @@ export function PublicFooter() {
       </div>
     </footer>
   );
-}
+});

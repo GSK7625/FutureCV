@@ -273,17 +273,84 @@ export function MatchPreviewSection({
             </div>
 
             {/* AI Explanation & Recommendations */}
-            {preview.explanation && (
+            {preview.explanationDetails ? (
+              <div className="bg-surface-low/90 p-4 rounded-xl border border-navy/10 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-navy">
+                  <IconSparkles size={14} className="text-amber-600" />
+                  <span>Đánh giá chuyên sâu & Lời khuyên từ AI:</span>
+                </div>
+                <p className="text-xs text-ink leading-relaxed font-medium">
+                  {preview.explanationDetails.summary}
+                </p>
+
+                {preview.explanationDetails.strengths && preview.explanationDetails.strengths.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-800 block">
+                      Điểm mạnh có bằng chứng xác thực:
+                    </span>
+                    <div className="space-y-1">
+                      {preview.explanationDetails.strengths.map((st, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-xs text-ink-variant">
+                          <span className="text-emerald-600 mt-0.5">•</span>
+                          <span>
+                            <strong className="text-navy">{st.item}</strong>: {st.statement}{" "}
+                            {st.evidence_source && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {st.evidence_source}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {preview.explanationDetails.gaps && preview.explanationDetails.gaps.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-amber-800 block">
+                      Khoảng cách yêu cầu & rủi ro:
+                    </span>
+                    <div className="space-y-1">
+                      {preview.explanationDetails.gaps.map((gap, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-xs text-ink-variant">
+                          <span className="text-amber-600 mt-0.5">•</span>
+                          <span>
+                            <strong className="text-navy">{gap.requirement}</strong>: {gap.statement}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {preview.explanationDetails.recommendations && preview.explanationDetails.recommendations.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-navy block">
+                      Khuyến nghị cải thiện hồ sơ:
+                    </span>
+                    <div className="space-y-1">
+                      {preview.explanationDetails.recommendations.map((rec, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-xs text-ink-variant">
+                          <span className="text-navy mt-0.5 font-semibold">{idx + 1}.</span>
+                          <span>{rec}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : preview.explanation ? (
               <div className="bg-surface-low/90 p-4 rounded-xl border border-navy/10 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-navy">
                   <IconSparkles size={14} className="text-amber-600" />
                   <span>Đánh giá chuyên sâu & Lời khuyên từ AI:</span>
                 </div>
-                <p className="text-xs text-ink-variant leading-relaxed">
+                <p className="text-xs text-ink-variant leading-relaxed whitespace-pre-line">
                   {preview.explanation}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         ) : (
           <p className="text-xs text-ink-muted italic py-1">

@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.contracts.validators import (
     validate_date_order,
@@ -15,6 +15,8 @@ from app.contracts.validators import (
 
 class WorkExperienceItem(BaseModel):
     """Work experience entry in structured CV."""
+
+    model_config = ConfigDict(extra="forbid")
 
     job_title: str | None = Field(default=None, max_length=300, description="Job title or role")
     company: str = Field(default="", max_length=200, description="Company or organization name")
@@ -56,6 +58,8 @@ class WorkExperienceItem(BaseModel):
 class EducationItem(BaseModel):
     """Education entry in structured CV."""
 
+    model_config = ConfigDict(extra="forbid")
+
     degree: str | None = Field(
         default=None,
         max_length=200,
@@ -79,6 +83,8 @@ class EducationItem(BaseModel):
 class ProjectItem(BaseModel):
     """Project entry in structured CV."""
 
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(max_length=300, description="Project title or name")
     description: str = Field(default="", max_length=8000, description="Project overview and role")
     technologies: list[Annotated[str, Field(max_length=200)]] = Field(
@@ -100,6 +106,8 @@ class ProjectItem(BaseModel):
 
 class StructuredCv(BaseModel):
     """Normalized, structured representation of a candidate's CV."""
+
+    model_config = ConfigDict(extra="forbid")
 
     full_name: str | None = Field(default=None, max_length=200, description="Candidate full name")
     email: str | None = Field(default=None, max_length=256, description="Candidate email address")
