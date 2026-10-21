@@ -89,7 +89,7 @@ export default function HRLayout() {
         <div className="mt-8 flex-1">{navigation}</div>
         <div className="border-t border-white/10 pt-4">
           <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar name={user?.fullName || user?.email || "HR"} size="md" />
+            <Avatar name={user?.fullName || user?.email || "Nhà tuyển dụng"} size="md" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-label font-semibold">{user?.fullName || "Nhà tuyển dụng"}</p>
               <p className="truncate text-label-sm text-white/55">{user?.email}</p>
@@ -111,7 +111,7 @@ export default function HRLayout() {
         <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border-subtle bg-surface/95 px-margin-mobile backdrop-blur lg:hidden">
           <NavLink to="/hr" className="flex items-center gap-2 font-bold text-navy">
             <img src="/Logo-icon.png" alt="" className="h-9 w-9 object-contain" />
-            FutureCV HR
+            FutureCV Tuyển dụng
           </NavLink>
           <button
             type="button"
