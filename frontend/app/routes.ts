@@ -21,6 +21,7 @@ export default [
     route("login-admin", "routes/auth/login-admin.tsx"),
     route("register", "routes/auth/register.tsx"),
     route("forgot-password", "routes/auth/forgot-password.tsx"),
+    route("reset-password", "routes/auth/reset-password.tsx"),
   ]),
 
   // ── Candidate Protected Routes ─────────────────────────────
@@ -44,7 +45,6 @@ export default [
       index("routes/hr/dashboard.tsx"),
       route("jobs", "routes/hr/job-management.tsx"),
       route("pipeline", "routes/hr/candidate-pipeline.tsx"),
-      route("interviews", "routes/hr/interview.tsx"),
       route("company", "routes/hr/company-profile.tsx"),
       route("profile", "routes/hr/recruiter-profile.tsx"),
     ]),

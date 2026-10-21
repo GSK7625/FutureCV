@@ -1,14 +1,49 @@
 """Contracts for Job Matching and Candidate/Job Ranking features."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.job import StructuredJob
 
 MATCH_RESULT_CONTRACT_VERSION: str = "match-result-v1"
+
+ShortText = Annotated[str, Field(min_length=1, max_length=500)]
+
+
+class MatchStrength(BaseModel):
+    """Grounded strength item backed by verifiable CV evidence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item: ShortText
+    statement: ShortText
+    evidence_source: Literal["cv.skills", "cv.technologies", "cv.projects"] = Field(
+        description="Nguồn bằng chứng xác thực trong CV: cv.skills, cv.technologies hoặc cv.projects",
+    )
+    evidence_text: str | None = Field(default=None, max_length=500)
+
+
+class MatchGap(BaseModel):
+    """Missing requirement gap identified during matching."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    requirement: ShortText
+    statement: ShortText
+
+
+class MatchExplanation(BaseModel):
+    """Structured, verified candidate-job match explanation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str = Field(min_length=1, max_length=1000)
+    strengths: list[MatchStrength] = Field(default_factory=list, max_length=5)
+    gaps: list[MatchGap] = Field(default_factory=list, max_length=10)
+    recommendations: list[ShortText] = Field(default_factory=list, max_length=5)
 
 
 class MatchRequest(BaseModel):
@@ -59,6 +94,19 @@ class MatchResult(BaseModel):
         max_length=10000,
         description=("Natural language match explanation (optional; None or deterministic summary when unrequested)"),
     )
+    explanation_details: MatchExplanation | None = Field(
+        default=None,
+        description="Structured explanation components adhering to 4-layer defense constraints",
+    )
+    status: str | None = Field(
+        default=None,
+        description="Operational status indicator (e.g. 'insufficient_job_data')",
+    )
+    warning: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Warning message when job requirements are insufficient for confident matching",
+    )
     meta: ResponseMeta = Field(
         default_factory=lambda: ResponseMeta(contract_version=MATCH_RESULT_CONTRACT_VERSION),
         description="Execution metadata",
@@ -70,6 +118,26 @@ class MatchResult(BaseModel):
         if self.meta.contract_version is None:
             self.meta.contract_version = MATCH_RESULT_CONTRACT_VERSION
         return self
+
+    @property
+    def semantic_similarity(self) -> float | None:
+        """Convenience accessor for semantic similarity score from meta."""
+        return self.meta.semantic_similarity
+
+    @property
+    def semantic_score(self) -> int | None:
+        """Convenience accessor for semantic score from meta."""
+        return self.meta.semantic_score
+
+    @property
+    def semantic_mode(self) -> str | None:
+        """Convenience accessor for semantic matching mode from meta."""
+        return self.meta.semantic_mode
+
+    @property
+    def semantic_available(self) -> bool | None:
+        """Convenience accessor for semantic availability from meta."""
+        return self.meta.semantic_available
 
 
 class CandidateItem(BaseModel):

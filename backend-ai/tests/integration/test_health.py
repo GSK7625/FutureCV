@@ -41,3 +41,20 @@ def test_correlation_id_in_response_header():
     response_auto = client.get("/health")
     assert "X-Correlation-Id" in response_auto.headers
     assert len(response_auto.headers["X-Correlation-Id"]) > 0
+
+
+def test_readiness_probe_gemini_provider(monkeypatch):
+    """Verify /ready probe correctly reflects gemini provider configuration."""
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSyTestKey123")
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ready"
+    assert data["checks"]["llm_provider"] == "gemini"
+    assert data["checks"]["provider_key_configured"] is True
+    get_settings.cache_clear()

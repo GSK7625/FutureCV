@@ -92,7 +92,7 @@ public static class DependencyInjection
 
             var timeoutSec = options.TimeoutSeconds > 0
                 ? options.TimeoutSeconds
-                : (double.TryParse(config["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 30.0);
+                : (double.TryParse(config["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 90.0);
 
             client.Timeout = TimeSpan.FromSeconds(timeoutSec);
         });
@@ -111,7 +111,7 @@ public static class DependencyInjection
 
             var timeoutSec = options.TimeoutSeconds > 0
                 ? options.TimeoutSeconds
-                : (double.TryParse(config["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 30.0);
+                : (double.TryParse(config["AiService:TimeoutSeconds"], out var t) && t > 0 ? t : 90.0);
 
             client.Timeout = TimeSpan.FromSeconds(timeoutSec);
         });

@@ -15,6 +15,14 @@ test("translates exact auth error messages", () => {
     translateErrorMessage("ACCOUNT_ALREADY_EXISTS"),
     "Email này đã được đăng ký trên hệ thống.",
   );
+  assert.equal(
+    translateErrorMessage("A valid email address is required."),
+    "Địa chỉ email không đúng định dạng.",
+  );
+  assert.equal(
+    translateErrorMessage("Email is required."),
+    "Vui lòng nhập địa chỉ email.",
+  );
 });
 
 test("translates ASP.NET Identity password requirements", () => {

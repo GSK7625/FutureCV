@@ -2,8 +2,6 @@ import type {
   CompanyProfileInput,
   EmployerJobFilters,
   EmployerProfileInput,
-  EvaluateApplicationRequest,
-  EvaluationFormValues,
   JobFormValues,
   JobRequest,
   RecruiterApplicationFilters,
@@ -26,19 +24,10 @@ export function buildEmployerJobsQuery(filters: EmployerJobFilters): string {
 export function buildRecruiterApplicationsQuery(filters: RecruiterApplicationFilters): string {
   const params = new URLSearchParams();
   if (filters.status) params.set("Status", filters.status);
-  if (filters.minRating !== undefined) params.set("MinRating", String(filters.minRating));
   if (filters.keyword?.trim()) params.set("Keyword", filters.keyword.trim());
   params.set("PageIndex", String(filters.pageIndex ?? 1));
   params.set("PageSize", String(filters.pageSize ?? 10));
   return `?${params.toString()}`;
-}
-
-export function toEvaluationRequest(values: EvaluationFormValues): EvaluateApplicationRequest {
-  return {
-    rating: Number(values.rating),
-    evaluationLabel: optionalText(values.evaluationLabel),
-    privateNotes: optionalText(values.privateNotes),
-  };
 }
 
 export function toStatusUpdateRequest(
@@ -46,17 +35,6 @@ export function toStatusUpdateRequest(
   reason: string,
 ): UpdateApplicationStatusRequest {
   return { newStatus, reason: optionalText(reason) };
-}
-
-export function validateEvaluationForm(values: EvaluationFormValues): FieldErrors<EvaluationFormValues> {
-  const errors: FieldErrors<EvaluationFormValues> = {};
-  const rating = Number(values.rating);
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) errors.rating = "Đánh giá phải từ 1 đến 5 sao.";
-  if (values.evaluationLabel.trim().length > 100) {
-    errors.evaluationLabel = "Nhãn đánh giá không được vượt quá 100 ký tự.";
-  }
-  if (values.privateNotes.trim().length > 2000) errors.privateNotes = "Ghi chú không được vượt quá 2.000 ký tự.";
-  return errors;
 }
 
 export function validateStatusReason(reason: string): string | undefined {
@@ -155,7 +133,6 @@ export function validateCompanyProfile(
   const errors: FieldErrors<CompanyProfileInput> = {};
   if (!values.name.trim()) errors.name = "Tên công ty là bắt buộc.";
   else if (values.name.trim().length > 300) errors.name = "Tên công ty không được vượt quá 300 ký tự.";
-  if (mode === "create" && !values.taxCode.trim()) errors.taxCode = "Mã số thuế là bắt buộc.";
   if (values.scale.trim().length > 100) errors.scale = "Quy mô không được vượt quá 100 ký tự.";
   if (values.industry.trim().length > 100) errors.industry = "Ngành nghề không được vượt quá 100 ký tự.";
   if (values.websiteUrl.trim()) {
