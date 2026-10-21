@@ -31,7 +31,7 @@ export function RecruitmentPipelinePage() {
 
   return (
     <section aria-labelledby="pipeline-title">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-label font-semibold text-gold">ỨNG VIÊN</p><h1 id="pipeline-title" className="mt-1 text-headline text-navy">Recruitment Pipeline</h1><p className="mt-2 text-ink-variant">Theo dõi và cập nhật ứng viên theo từng tin tuyển dụng.</p></div><div className="flex rounded-default border border-border-strong bg-surface p-1"><ViewButton active={view === "pipeline"} onClick={() => setView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Pipeline</ViewButton><ViewButton active={view === "list"} onClick={() => setView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton></div></div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-label font-semibold text-gold">ỨNG VIÊN</p><h1 id="pipeline-title" className="mt-1 text-headline text-navy">Quy trình tuyển dụng</h1><p className="mt-2 text-ink-variant">Theo dõi và cập nhật ứng viên theo từng tin tuyển dụng.</p></div><div className="flex rounded-default border border-border-strong bg-surface p-1"><ViewButton active={view === "pipeline"} onClick={() => setView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Quy trình</ViewButton><ViewButton active={view === "list"} onClick={() => setView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton></div></div>
 
       <QueryBoundary isLoading={jobsQuery.isLoading} error={jobsQuery.error} onRetry={() => jobsQuery.refetch()} skeleton={<Skeleton className="mt-6 h-20" />}>
         {jobs.length === 0 ? <EmptyState className="mt-6" icon={<IconUsers size={42} aria-hidden="true" />} title="Chưa có tin tuyển dụng" description="Tạo tin tuyển dụng trước khi quản lý ứng viên." /> : <>
@@ -50,7 +50,7 @@ function ViewButton({ active, onClick, icon, children }: { active: boolean; onCl
 
 function PipelineView({ query, onOpen }: { query: ReturnType<typeof useRecruitmentPipeline>; onOpen: (id: string) => void }) {
   return <QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-56" />)}</div>}>
-    {query.data && <><p className="mt-5 text-label text-ink-muted">{query.data.totalCandidates} ứng viên trong pipeline</p><div className="mt-3 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">{query.data.stages.map((stage) => <Card key={stage.stage}><CardContent className="p-4"><div className="flex items-center justify-between"><h2 className="font-semibold text-navy">{applicationStatusLabels[stage.stage]}</h2><span className="rounded-full bg-navy/10 px-2.5 py-1 text-label-sm font-semibold text-navy">{stage.count}</span></div><div className="mt-4 space-y-3">{stage.candidates.length ? stage.candidates.map((candidate) => <PipelineCandidateCard key={candidate.applicationId} candidate={candidate} onOpen={onOpen} />) : <p className="rounded-default border border-dashed border-border-subtle p-4 text-center text-label text-ink-muted">Chưa có ứng viên</p>}</div></CardContent></Card>)}</div></>}
+    {query.data && <><p className="mt-5 text-label text-ink-muted">{query.data.totalCandidates} ứng viên trong quy trình</p><div className="mt-3 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">{query.data.stages.map((stage) => <Card key={stage.stage}><CardContent className="p-4"><div className="flex items-center justify-between"><h2 className="font-semibold text-navy">{applicationStatusLabels[stage.stage]}</h2><span className="rounded-full bg-navy/10 px-2.5 py-1 text-label-sm font-semibold text-navy">{stage.count}</span></div><div className="mt-4 space-y-3">{stage.candidates.length ? stage.candidates.map((candidate) => <PipelineCandidateCard key={candidate.applicationId} candidate={candidate} onOpen={onOpen} />) : <p className="rounded-default border border-dashed border-border-subtle p-4 text-center text-label text-ink-muted">Chưa có ứng viên</p>}</div></CardContent></Card>)}</div></>}
   </QueryBoundary>;
 }
 
@@ -68,5 +68,61 @@ function PipelineCandidateCard({ candidate, onOpen }: { candidate: PipelineCandi
 
 function ApplicationListView({ search, setSearch, filters, setFilters, query, onOpen }: { search: string; setSearch: (value: string) => void; filters: RecruiterApplicationFilters; setFilters: React.Dispatch<React.SetStateAction<RecruiterApplicationFilters>>; query: ReturnType<typeof useRecruiterApplications>; onOpen: (id: string) => void }) {
   const applications = query.data?.items ?? [];
-  return <div className="mt-5"><div className="grid gap-3 rounded-default border border-border-subtle bg-surface p-4 md:grid-cols-[minmax(0,1fr)_14rem]"><Input aria-label="Tìm ứng viên" icon={<IconSearch size={18} aria-hidden="true" />} placeholder="Tên ứng viên" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Lọc trạng thái" value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as ApplicationStatus | "", pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5"><option value="">Mọi trạng thái</option>{[...updatableApplicationStatuses, "Withdrawn" as const].map((status) => <option key={status} value={status}>{applicationStatusLabels[status]}</option>)}</select></div><QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<Skeleton className="mt-4 h-72" />}>{applications.length ? <><div className="mt-4 grid gap-3">{applications.map((application) => <button key={application.id} type="button" onClick={() => onOpen(application.id)} className="grid min-h-20 w-full gap-3 rounded-default border border-border-subtle bg-surface p-4 text-left shadow-surface hover:border-gold sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><span className="flex min-w-0 items-center gap-3"><Avatar src={application.candidateAvatarUrl ?? undefined} name={application.candidateFullName} /><span className="min-w-0"><span className="block truncate font-semibold text-navy">{application.candidateFullName}</span><span className="block truncate text-label text-ink-muted">{application.candidatePhone ?? application.cvTitle ?? "CV ứng tuyển"}</span></span></span><ApplicationStatusBadge status={application.status} /></button>)}</div><div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-label text-ink-muted">{query.data?.totalCount ?? 0} ứng viên · Trang {query.data?.pageIndex ?? 1}/{Math.max(query.data?.totalPages ?? 1, 1)}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!query.data?.hasPreviousPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: Math.max(1, (current.pageIndex ?? 1) - 1) }))}>Trang trước</Button><Button variant="secondary" size="sm" disabled={!query.data?.hasNextPage} onClick={() => setFilters((current) => ({ ...current, pageIndex: (current.pageIndex ?? 1) + 1 }))}>Trang sau</Button></div></div></> : <EmptyState className="mt-4" icon={<IconUsers size={40} aria-hidden="true" />} title="Chưa có ứng viên" description="Không tìm thấy Application phù hợp với bộ lọc hiện tại." />}</QueryBoundary></div>;
+  return <div className="mt-5"><div className="grid gap-3 rounded-default border border-border-subtle bg-surface p-4 md:grid-cols-[minmax(0,1fr)_14rem]"><Input aria-label="Tìm ứng viên" icon={<IconSearch size={18} aria-hidden="true" />} placeholder="Tên ứng viên" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Lọc trạng thái" value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as ApplicationStatus | "", pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5"><option value="">Mọi trạng thái</option>{[...updatableApplicationStatuses, "Withdrawn" as const].map((status) => <option key={status} value={status}>{applicationStatusLabels[status]}</option>)}</select></div>    <QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<Skeleton className="mt-4 h-72" />}>
+      {applications.length ? (
+        <>
+          <div className="mt-4 grid gap-3">
+            {applications.map((application) => (
+              <button
+                key={application.id}
+                type="button"
+                onClick={() => onOpen(application.id)}
+                className="grid min-h-20 w-full gap-3 rounded-default border border-border-subtle bg-surface p-4 text-left shadow-surface hover:border-gold sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <Avatar src={application.candidateAvatarUrl ?? undefined} name={application.candidateFullName} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-navy">{application.candidateFullName}</span>
+                    <span className="block truncate text-label text-ink-muted">
+                      {application.candidatePhone ?? application.cvTitle ?? "CV ứng tuyển"}
+                    </span>
+                  </span>
+                </span>
+                <ApplicationStatusBadge status={application.status} />
+              </button>
+            ))}
+          </div>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-label text-ink-muted">
+              {query.data?.totalCount ?? 0} ứng viên · Trang {query.data?.pageIndex ?? 1}/{Math.max(query.data?.totalPages ?? 1, 1)}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!query.data?.hasPreviousPage}
+                onClick={() => setFilters((current) => ({ ...current, pageIndex: Math.max(1, (current.pageIndex ?? 1) - 1) }))}
+              >
+                Trang trước
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!query.data?.hasNextPage}
+                onClick={() => setFilters((current) => ({ ...current, pageIndex: (current.pageIndex ?? 1) + 1 }))}
+              >
+                Trang sau
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <EmptyState
+          className="mt-4"
+          icon={<IconUsers size={40} aria-hidden="true" />}
+          title="Chưa có ứng viên"
+          description="Không tìm thấy ứng viên phù hợp với bộ lọc hiện tại."
+        />
+      )}
+    </QueryBoundary></div>;
 }
