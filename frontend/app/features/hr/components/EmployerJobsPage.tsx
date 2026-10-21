@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { IconBriefcase, IconChevronLeft, IconChevronRight, IconEdit, IconEye, IconPlus, IconPower, IconSearch, IconTrash } from "@tabler/icons-react";
-import { Badge, Button, EmptyState, Input, Skeleton } from "~/components/ui";
+import { IconAlertTriangle, IconBriefcase, IconChevronLeft, IconChevronRight, IconEdit, IconEye, IconPlus, IconPower, IconSearch, IconTrash } from "@tabler/icons-react";
+import { Badge, Button, EmptyState, Input, Modal, Skeleton } from "~/components/ui";
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
 import { useDebounce } from "~/hooks/useDebounce";
 import { useUIStore } from "~/stores/useUIStore";
@@ -29,6 +29,7 @@ export function EmployerJobsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<JobSummary | null>(null);
   const showToast = useUIStore((state) => state.showToast);
   const effectiveFilters = useMemo(() => ({ ...filters, keyword: debouncedSearch }), [filters, debouncedSearch]);
   const jobsQuery = useEmployerJobs(effectiveFilters);
@@ -45,10 +46,14 @@ export function EmployerJobsPage() {
     catch (error) { showToast(error instanceof Error ? error.message : "Không thể đổi trạng thái tin", "error"); }
   };
 
-  const handleDelete = async (job: JobSummary) => {
-    if (!window.confirm(`Xóa tin “${job.title}”? Thao tác này không thể hoàn tác.`)) return;
-    try { await deleteJob.mutateAsync(job.id); }
-    catch (error) { showToast(error instanceof Error ? error.message : "Không thể xóa tin tuyển dụng", "error"); }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteJob.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không thể xóa tin tuyển dụng", "error");
+    }
   };
 
   const jobs = jobsQuery.data?.items ?? [];
@@ -79,7 +84,7 @@ export function EmployerJobsPage() {
                     <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><ApprovalBadge status={job.approvalStatus} /><Badge variant={job.isActive ? "navy" : "neutral"}>{job.isActive ? "Đang mở" : "Đã đóng"}</Badge></div></td>
                     <td className="px-4 py-4 text-label font-medium tabular-nums text-ink">{formatSalary(job)}</td>
                     <td className="px-4 py-4 text-label tabular-nums text-ink-variant">{job.deadline ? new Date(job.deadline).toLocaleDateString("vi-VN") : "Không giới hạn"}</td>
-                    <td className="px-4 py-4"><JobActions job={job} busy={toggleJob.isPending || deleteJob.isPending} onView={() => setDetailsId(job.id)} onEdit={() => setEditId(job.id)} onToggle={() => void handleToggle(job)} onDelete={() => void handleDelete(job)} /></td>
+                    <td className="px-4 py-4"><JobActions job={job} busy={toggleJob.isPending || deleteJob.isPending} onView={() => setDetailsId(job.id)} onEdit={() => setEditId(job.id)} onToggle={() => void handleToggle(job)} onDelete={() => setDeleteTarget(job)} /></td>
                   </tr>)}
                 </tbody>
               </table>
@@ -90,7 +95,7 @@ export function EmployerJobsPage() {
                 <div className="flex flex-wrap gap-2"><ApprovalBadge status={job.approvalStatus} /><Badge variant={job.isActive ? "navy" : "neutral"}>{job.isActive ? "Đang mở" : "Đã đóng"}</Badge></div>
                 <button type="button" onClick={() => setDetailsId(job.id)} className="mt-3 text-left text-body-lg font-semibold text-navy">{job.title}</button>
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-label"><div><dt className="text-ink-muted">Địa điểm</dt><dd className="mt-1 text-ink">{job.locationName ?? "Chưa cập nhật"}</dd></div><div><dt className="text-ink-muted">Mức lương</dt><dd className="mt-1 break-words text-ink">{formatSalary(job)}</dd></div></dl>
-                <div className="mt-4 border-t border-border-subtle pt-3"><JobActions job={job} busy={toggleJob.isPending || deleteJob.isPending} onView={() => setDetailsId(job.id)} onEdit={() => setEditId(job.id)} onToggle={() => void handleToggle(job)} onDelete={() => void handleDelete(job)} /></div>
+                <div className="mt-4 border-t border-border-subtle pt-3"><JobActions job={job} busy={toggleJob.isPending || deleteJob.isPending} onView={() => setDetailsId(job.id)} onEdit={() => setEditId(job.id)} onToggle={() => void handleToggle(job)} onDelete={() => setDeleteTarget(job)} /></div>
               </article>)}
             </div>
 
@@ -102,6 +107,47 @@ export function EmployerJobsPage() {
       <JobFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
       <JobDetailsModal jobId={detailsId} onClose={() => setDetailsId(null)} onEdit={() => { setEditId(detailsId); setDetailsId(null); }} />
       {editJobQuery.data && <JobFormModal open={Boolean(editId)} onClose={() => setEditId(null)} job={editJobQuery.data} />}
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!deleteJob.isPending) setDeleteTarget(null);
+        }}
+        title="Xác nhận xóa tin tuyển dụng"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleteJob.isPending}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => void handleConfirmDelete()}
+              disabled={deleteJob.isPending}
+            >
+              {deleteJob.isPending ? "Đang xóa..." : "Xác nhận xóa"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">
+            <IconAlertTriangle size={22} aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-body text-ink">
+              Bạn có chắc chắn muốn xóa tin tuyển dụng{" "}
+              <strong className="font-semibold text-navy">“{deleteTarget?.title}”</strong> không?
+            </p>
+            <p className="mt-1 text-label text-ink-muted">
+              Thao tác này không thể hoàn tác. Mọi thông tin ứng tuyển của tin này có thể bị ảnh hưởng.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }
