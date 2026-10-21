@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { IconExternalLink } from "@tabler/icons-react";
-import { Button, Card, CardContent, Field, Modal, Skeleton } from "~/components/ui";
+import { IconExternalLink, IconFileText, IconHistory } from "@tabler/icons-react";
+import { Avatar, Button, Modal, Skeleton } from "~/components/ui";
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
 import { useUIStore } from "~/stores/useUIStore";
 import {
@@ -50,27 +50,171 @@ export function ApplicationDetailsModal({ applicationId, onClose }: { applicatio
   const application = applicationQuery.data;
   const cvUrl = toSafeDocumentUrl(application?.cvFileUrl);
   return (
-    <Modal open={Boolean(applicationId)} onClose={onClose} title="Chi tiết ứng viên" className="max-h-[94dvh] max-w-5xl overflow-y-auto">
-      <QueryBoundary isLoading={applicationQuery.isLoading} error={applicationQuery.error} onRetry={() => applicationQuery.refetch()} skeleton={<div className="space-y-4"><Skeleton className="h-24" /><Skeleton className="h-52" /><Skeleton className="h-40" /></div>}>
+    <Modal open={Boolean(applicationId)} onClose={onClose} title="Chi tiết ứng viên" className="max-w-xl">
+      <QueryBoundary isLoading={applicationQuery.isLoading} error={applicationQuery.error} onRetry={() => applicationQuery.refetch()} skeleton={<div className="space-y-3"><Skeleton className="h-16" /><Skeleton className="h-28" /><Skeleton className="h-28" /></div>}>
         {application && (
-          <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h3 className="text-headline-md text-navy">{application.candidateFullName}</h3>
-                <p className="mt-1 break-words text-ink-variant">{application.candidatePhone ?? "Chưa có số điện thoại"}</p>
-                <p className="mt-1 text-label text-ink-muted">Ứng tuyển {application.jobTitle} ngày {new Date(application.appliedAt).toLocaleDateString("vi-VN")}</p>
+          <div className="space-y-4">
+            {/* Header: Candidate Info & Badge */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-border-subtle">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar src={application.candidateAvatarUrl ?? undefined} name={application.candidateFullName} size="md" />
+                <div className="min-w-0">
+                  <h3 className="font-bold text-base text-navy truncate">{application.candidateFullName}</h3>
+                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-ink-variant mt-0.5">
+                    <span>{application.candidatePhone ?? "Chưa có số điện thoại"}</span>
+                    {application.candidateEmail && (
+                      <>
+                        <span className="text-ink-muted">•</span>
+                        <span className="text-ink-muted truncate">{application.candidateEmail}</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xs text-ink-muted mt-0.5 truncate">
+                    Ứng tuyển <span className="font-medium text-navy">{application.jobTitle}</span> · {new Date(application.appliedAt).toLocaleDateString("vi-VN")}
+                  </p>
+                </div>
               </div>
-              <ApplicationStatusBadge status={application.status} />
+              <div className="shrink-0 pt-0.5">
+                <ApplicationStatusBadge status={application.status} />
+              </div>
             </div>
 
-            <Card><CardContent className="p-5"><h4 className="font-semibold text-navy">CV và thư ứng tuyển</h4><p className="mt-3 text-label text-ink-muted">{application.cvTitle ?? "CV ứng tuyển"}</p>{cvUrl ? <a href={cvUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-2 font-semibold text-navy hover:text-gold">Mở CV<IconExternalLink size={18} aria-hidden="true" /></a> : <p className="mt-3 text-ink-variant">Không tìm thấy liên kết CV hợp lệ.</p>}<p className="mt-4 whitespace-pre-wrap text-ink-variant">{application.coverLetter || "Ứng viên không gửi thư ứng tuyển."}</p></CardContent></Card>
+            {/* CV & Cover Letter */}
+            <div className="rounded-default border border-border-subtle bg-surface-low/60 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-default bg-navy/10 text-navy">
+                    <IconFileText size={18} aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-navy">
+                      {application.cvTitle ?? "CV ứng tuyển"}
+                    </p>
+                    <p className="text-[11px] text-ink-muted">Tài liệu hồ sơ</p>
+                  </div>
+                </div>
+                {cvUrl ? (
+                  <a
+                    href={cvUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-default border border-border-strong bg-white px-2.5 py-1 text-xs font-semibold text-navy shadow-xs hover:border-gold hover:text-gold transition-colors"
+                  >
+                    <span>Mở CV</span>
+                    <IconExternalLink size={14} aria-hidden="true" />
+                  </a>
+                ) : (
+                  <span className="text-xs text-ink-muted italic">Không tìm thấy file CV</span>
+                )}
+              </div>
 
-            <form onSubmit={saveStatus} className="rounded-default border border-border-subtle bg-surface p-5">
-              <h4 className="font-semibold text-navy">Trạng thái tuyển dụng</h4>
-              {application.status === "Withdrawn" ? <p className="mt-4 text-ink-variant">Ứng viên đã rút hồ sơ nên không thể cập nhật trạng thái.</p> : <div className="mt-4 space-y-4"><Field label="Trạng thái mới" htmlFor="application-status"><select id="application-status" value={status} onChange={(event) => setStatus(event.target.value as UpdatableApplicationStatus)} className="h-11 w-full rounded-default border border-border-strong bg-white px-3.5 focus:border-gold">{updatableApplicationStatuses.map((value) => <option key={value} value={value}>{applicationStatusLabels[value]}</option>)}</select></Field><Field label="Lý do" htmlFor="application-reason" error={reasonError} hint="Không bắt buộc, tối đa 500 ký tự."><textarea id="application-reason" rows={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} className="w-full rounded-default border border-border-strong px-3.5 py-3 focus:border-gold" /></Field><Button type="submit" disabled={updateStatus.isPending}>{updateStatus.isPending ? "Đang cập nhật..." : "Cập nhật trạng thái"}</Button></div>}
+              {application.coverLetter?.trim() ? (
+                <div className="mt-2.5 border-t border-border-subtle pt-2">
+                  <p className="text-[11px] font-medium text-ink-muted mb-1">Thư ứng tuyển:</p>
+                  <p className="max-h-24 overflow-y-auto rounded bg-white p-2 text-xs leading-relaxed text-ink-variant border border-border-subtle/60 whitespace-pre-wrap">
+                    {application.coverLetter}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 border-t border-border-subtle pt-1.5 text-[11px] text-ink-muted italic">
+                  Ứng viên không gửi thư ứng tuyển.
+                </p>
+              )}
+            </div>
+
+            {/* Status Update Form */}
+            <form onSubmit={saveStatus} className="rounded-default border border-border-subtle bg-surface p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-navy uppercase tracking-wider">Cập nhật trạng thái</h4>
+                {application.status === "Withdrawn" && (
+                  <span className="text-xs text-rose-500 font-medium">Đã rút hồ sơ</span>
+                )}
+              </div>
+
+              {application.status === "Withdrawn" ? (
+                <p className="text-xs text-ink-muted">Ứng viên đã rút hồ sơ nên không thể cập nhật trạng thái.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label htmlFor="application-status" className="block text-[11px] font-medium text-ink mb-1">
+                        Trạng thái mới
+                      </label>
+                      <select
+                        id="application-status"
+                        value={status}
+                        onChange={(event) => setStatus(event.target.value as UpdatableApplicationStatus)}
+                        className="h-9 w-full rounded-default border border-border-strong bg-white px-2.5 text-xs text-ink focus:border-gold outline-none"
+                      >
+                        {updatableApplicationStatuses.map((value) => (
+                          <option key={value} value={value}>
+                            {applicationStatusLabels[value]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="application-reason" className="block text-[11px] font-medium text-ink mb-1">
+                        Lý do / ghi chú <span className="text-ink-muted">(tùy chọn)</span>
+                      </label>
+                      <input
+                        id="application-reason"
+                        type="text"
+                        maxLength={500}
+                        placeholder="Nhập lý do thay đổi..."
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        className="h-9 w-full rounded-default border border-border-strong bg-white px-2.5 text-xs text-ink focus:border-gold outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {reasonError && (
+                    <p role="alert" className="text-xs text-danger">{reasonError}</p>
+                  )}
+
+                  <div className="flex justify-end pt-0.5">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={updateStatus.isPending}
+                      className="text-white"
+                    >
+                      {updateStatus.isPending ? "Đang cập nhật..." : "Cập nhật trạng thái"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </form>
 
-            <div><h4 className="font-semibold text-navy">Lịch sử trạng thái</h4>{application.timeline.length ? <ol className="mt-4 space-y-3 border-l-2 border-border-subtle pl-5">{application.timeline.map((item, index) => { const reason = formatTimelineReason(item.reason); return <li key={`${item.changedAt}-${index}`}><div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-navy">{applicationStatusLabels[item.toStatus]}</span><span className="text-label text-ink-muted">{new Date(item.changedAt).toLocaleString("vi-VN")}</span></div>{reason && <p className="mt-1 text-label text-ink-variant">{reason}</p>}</li>; })}</ol> : <p className="mt-3 text-ink-muted">Chưa có lịch sử thay đổi.</p>}</div>
+            {/* Timeline */}
+            <div className="pt-1">
+              <div className="flex items-center gap-1.5 mb-2">
+                <IconHistory size={15} className="text-ink-muted" aria-hidden="true" />
+                <h4 className="text-xs font-bold text-navy uppercase tracking-wider">Lịch sử trạng thái</h4>
+              </div>
+
+              {application.timeline.length ? (
+                <ol className="max-h-36 overflow-y-auto space-y-2 border-l border-border-subtle pl-3 ml-1.5 text-xs">
+                  {application.timeline.map((item, index) => {
+                    const reason = formatTimelineReason(item.reason);
+                    return (
+                      <li key={`${item.changedAt}-${index}`} className="relative">
+                        <span className="absolute -left-[15px] top-1.5 h-1.5 w-1.5 rounded-full bg-navy/40" />
+                        <div className="flex flex-wrap items-center gap-x-2">
+                          <span className="font-semibold text-navy">{applicationStatusLabels[item.toStatus]}</span>
+                          <span className="text-[11px] text-ink-muted">{new Date(item.changedAt).toLocaleString("vi-VN")}</span>
+                        </div>
+                        {reason && <p className="text-[11px] text-ink-variant mt-0.5">{reason}</p>}
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : (
+                <p className="text-xs text-ink-muted italic pl-1">Chưa có lịch sử thay đổi.</p>
+              )}
+            </div>
           </div>
         )}
       </QueryBoundary>
