@@ -122,3 +122,4 @@ export function useAnalyzeCv(cvId: string) {
     },
   });
 }
+
