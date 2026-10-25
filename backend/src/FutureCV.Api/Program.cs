@@ -2,7 +2,7 @@ using System.Text;
 using FutureCV.Api.Middlewares;
 using FutureCV.Application;
 using FutureCV.Infrastructure;
-using FutureCV.Infrastructure.Identity;
+using FutureCV.Infrastructure.Persistence.Seeders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -105,8 +105,8 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-// Seed roles (Candidate, Employer, Admin)
-await RoleSeeder.SeedAsync(app.Services);
+// Seed database on startup (Roles, SuperAdmin, Master Reference Data)
+await DatabaseSeeder.SeedAsync(app.Services);
 
 if (app.Environment.IsDevelopment())
 {
