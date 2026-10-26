@@ -1,0 +1,8 @@
+workflow-aggregator
+git
+docker-workflow
+credentials-binding
+pipeline-stage-view
+junit
+mstest
+timestamper

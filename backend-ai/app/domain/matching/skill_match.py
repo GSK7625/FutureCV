@@ -20,9 +20,7 @@ class SkillMatchResult:
 
     @property
     def matched_skills(self) -> list[str]:
-        return list(self.matched_required_skills) + [
-            f"{s} (Preferred)" for s in self.matched_preferred_skills
-        ]
+        return list(self.matched_required_skills) + [f"{s} (Preferred)" for s in self.matched_preferred_skills]
 
     @property
     def missing_skills(self) -> list[str]:

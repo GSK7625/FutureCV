@@ -344,9 +344,7 @@ class MatchingService:
         all_matched = skill_res.matched_required_skills + skill_res.matched_preferred_skills
         all_missing = skill_res.missing_required_skills + skill_res.missing_preferred_skills
         clean_evidence = (
-            "CV skills: " + ", ".join(all_matched)
-            if all_matched
-            else "Chưa đủ bằng chứng trong CV để xác nhận."
+            "CV skills: " + ", ".join(all_matched) if all_matched else "Chưa đủ bằng chứng trong CV để xác nhận."
         )
 
         semantic_section = ""
