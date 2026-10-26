@@ -335,4 +335,3 @@ class OpenAiProvider(LlmPort):
             "Direct document vision OCR is currently supported via Gemini provider",
             provider="openai",
         )
-

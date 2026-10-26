@@ -1,0 +1,18 @@
+// Optional standalone job. No real database or provider credentials required.
+pipeline {
+    agent { label 'docker' }
+    options {
+        skipDefaultCheckout(true)
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        timeout(time: 30, unit: 'MINUTES')
+    }
+    stages {
+        stage('Checkout') { steps { deleteDir(); checkout scm } }
+        stage('Backend CI') {
+            steps { script { (load 'jenkins/ci.groovy').backend() } }
+        }
+    }
+    post { always { deleteDir() } }
+}

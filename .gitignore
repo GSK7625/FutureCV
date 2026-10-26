@@ -81,6 +81,18 @@ ios/DerivedData/
 .env*.local
 
 # ==========================================
+# Jenkins Setup / CI Secrets
+# ==========================================
+.jenkins-setup/secrets/
+.jenkins-setup/kubeconfig/
+.jenkins-setup/*.png
+.ci-cache/
+.ci-results/
+**/test-results*/
+**/test-results*.xml
+**/.venv-ci/
+
+# ==========================================
 # General Logs & OS Files
 # ==========================================
 *.log
@@ -109,3 +121,6 @@ htmlcov/
 
 # Documentation / Local docs
 DOCS/
+!docs/
+docs/*
+!docs/runbook-cicd.md
