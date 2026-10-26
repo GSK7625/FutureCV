@@ -109,3 +109,8 @@ htmlcov/
 
 # Documentation / Local docs
 DOCS/
+
+# Local CI tools and generated test reports
+.ci-cache/
+.ci-results/
+.deploy/

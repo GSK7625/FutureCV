@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace FutureCV.Infrastructure.Persistence.Seeders;
 
@@ -25,7 +26,10 @@ public static class DatabaseSeeder
             await ReferenceDataSeeder.SeedAsync(serviceProvider);
 
             // 3. Seed Realistic Demo Presentation Data (Companies, Recruiter, Candidates, Jobs, CV, Application, MatchResult)
-            await DemoDataSeeder.SeedAsync(serviceProvider);
+            if (scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("Seed:DemoData", false))
+            {
+                await DemoDataSeeder.SeedAsync(serviceProvider);
+            }
 
             logger?.LogInformation("Database seeding pipeline completed successfully.");
         }
