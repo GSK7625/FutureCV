@@ -24,7 +24,7 @@ export function JobDetailSimilarJobs({ jobId, categoryId }: JobDetailSimilarJobs
   if (isLoading) {
     return (
       <div className="rounded-xl border border-border-subtle bg-surface p-6 shadow-surface">
-        <h3 className="text-title font-bold text-navy mb-4">Việc làm tương tự</h3>
+        <h3 className="text-headline-md font-bold text-navy mb-4">Việc làm tương tự</h3>
         <div className="flex flex-col gap-3">
           <div className="h-16 rounded bg-surface-low animate-pulse" />
           <div className="h-16 rounded bg-surface-low animate-pulse" />
@@ -42,7 +42,7 @@ export function JobDetailSimilarJobs({ jobId, categoryId }: JobDetailSimilarJobs
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <IconSparkles size={18} stroke={1.8} className="text-gold" />
-          <h3 className="text-title font-bold text-navy">Việc làm tương tự</h3>
+          <h3 className="text-headline-md font-bold text-navy">Việc làm tương tự</h3>
         </div>
       </div>
 

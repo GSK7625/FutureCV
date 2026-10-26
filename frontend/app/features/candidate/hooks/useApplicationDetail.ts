@@ -15,7 +15,7 @@ export function useApplicationDetail(id?: string) {
   return useQuery({
     queryKey: candidateQueryKeys.applications.detail(id ?? ""),
     queryFn: ({ signal }) => {
-      if (!id) throw new Error("Application ID is required");
+      if (!id) throw new Error("Mã đơn ứng tuyển không được để trống.");
       return applicationsService.detail(id, signal);
     },
     enabled: Boolean(id) && !!user && user.role === "candidate",
