@@ -242,7 +242,10 @@ public class ApplicationService : IApplicationService
         var oldStatus = application.Status;
         application.Status = ApplicationStatus.Withdrawn;
 
-        application.StatusHistories.Add(new ApplicationStatusHistory
+        // Explicitly add via DbSet to ensure EF Core marks the entity as EntityState.Added.
+        // Adding via navigation collection (application.StatusHistories.Add) causes EF Core
+        // to infer EntityState.Modified because BaseEntity pre-assigns Id with Guid.NewGuid().
+        _context.ApplicationStatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
             FromStatus    = oldStatus.ToString(),
@@ -623,7 +626,9 @@ public class ApplicationService : IApplicationService
         var oldStatus = application.Status;
         application.Status = newStatusEnum;
 
-        application.StatusHistories.Add(new ApplicationStatusHistory
+        // Explicitly add via DbSet to ensure EF Core marks the entity as EntityState.Added.
+        // Adding via navigation collection causes EF Core to infer EntityState.Modified on pre-keyed entities.
+        _context.ApplicationStatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
             FromStatus    = oldStatus.ToString(),
