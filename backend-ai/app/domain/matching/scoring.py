@@ -47,12 +47,43 @@ def compute_overall_match_score(
     Compute weighted total match score (0-100) combining skills, experience, and education.
 
     Formula (matching-v0):
-    Score = (SkillScore * 0.50) + (ExperienceScore * 0.30) + (EducationScore * 0.20)
+    Base weights: Skill 0.50, Experience 0.30, Education 0.20.
+    Active Weight Normalization:
+    - Criteria without requirements in the job posting are inactive (is_active=False).
+    - If a criterion is inactive, its weight is excluded and remaining active weights
+      are normalized to sum to 1.0 (100%).
+    - If all criteria are inactive (insufficient job data), the score is 0.
     """
+    active_weights: dict[str, float] = {}
+    if getattr(skill_res, "is_active", True):
+        active_weights["skill"] = SKILL_WEIGHT
+    if getattr(exp_res, "is_active", True):
+        active_weights["experience"] = EXPERIENCE_WEIGHT
+    if getattr(edu_res, "is_active", True):
+        active_weights["education"] = EDUCATION_WEIGHT
+
+    total_active_weight = sum(active_weights.values())
+
+    if total_active_weight <= 0.0:
+        return OverallMatchScore(
+            final_score=0,
+            skill_score=skill_res.skill_score,
+            experience_score=exp_res.score,
+            education_score=edu_res.score,
+            algorithm_version=MATCHING_ALGORITHM_VERSION,
+            skill_weight=0.0,
+            experience_weight=0.0,
+            education_weight=0.0,
+        )
+
+    norm_skill_weight = active_weights.get("skill", 0.0) / total_active_weight
+    norm_exp_weight = active_weights.get("experience", 0.0) / total_active_weight
+    norm_edu_weight = active_weights.get("education", 0.0) / total_active_weight
+
     weighted_total = (
-        (skill_res.skill_score * SKILL_WEIGHT)
-        + (exp_res.score * EXPERIENCE_WEIGHT)
-        + (edu_res.score * EDUCATION_WEIGHT)
+        (skill_res.skill_score * norm_skill_weight)
+        + (exp_res.score * norm_exp_weight)
+        + (edu_res.score * norm_edu_weight)
     )
 
     final_score = round(max(0.0, min(100.0, weighted_total)))
@@ -63,6 +94,9 @@ def compute_overall_match_score(
         experience_score=exp_res.score,
         education_score=edu_res.score,
         algorithm_version=MATCHING_ALGORITHM_VERSION,
+        skill_weight=round(norm_skill_weight, 4),
+        experience_weight=round(norm_exp_weight, 4),
+        education_weight=round(norm_edu_weight, 4),
     )
 
 

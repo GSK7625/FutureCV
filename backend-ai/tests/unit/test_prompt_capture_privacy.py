@@ -214,7 +214,6 @@ async def test_match_explanation_captures_zero_contact_pii() -> None:
     raw_job_phone = "0912 345 678"
 
     cv = StructuredCv(
-        candidate_id="cand-match-001",
         full_name="Do Not Leak Me",
         email=raw_cand_email,
         phone=raw_cand_phone,
@@ -331,7 +330,6 @@ async def test_embedding_semantic_representations_contain_zero_raw_contact_pii()
     raw_job_phone = "0912-345-678"
 
     cv = StructuredCv(
-        candidate_id="cand-emb-01",
         full_name="Secret Candidate",
         email=raw_cand_email,
         phone=raw_cand_phone,
@@ -396,7 +394,6 @@ async def test_structured_contact_fields_never_leaked_into_non_extraction_llm_ca
     service = MatchingService(llm=spy_llm)
 
     cv = StructuredCv(
-        candidate_id="id-sensitive-12345",
         full_name="Nguyen Sensitive Name",
         email="very.sensitive@candidate.org",
         phone="+84 988 123 456",

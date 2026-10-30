@@ -91,6 +91,7 @@ class EducationMatchResult:
 
     score: float
     comparison_text: str
+    is_active: bool = True
 
 
 def _get_degree_rank(degree_str: str | None) -> int | None:
@@ -140,6 +141,7 @@ def calculate_education_match(
         return EducationMatchResult(
             score=100.0,
             comparison_text="Vị trí không đặt yêu cầu bắt buộc về bằng cấp học vấn.",
+            is_active=False,
         )
 
     req_str = required_education.strip()

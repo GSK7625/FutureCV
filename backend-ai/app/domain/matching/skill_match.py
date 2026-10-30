@@ -14,6 +14,7 @@ class SkillMatchResult:
     skill_score: float = 0.0
     matched_required_count: int = 0
     total_required_count: int = 0
+    is_active: bool = True
 
 
 def _deduplicate_canonical_skills(skills: list[str]) -> dict[str, str]:
@@ -83,15 +84,19 @@ def calculate_skill_match(
     if total_req > 0 and total_pref > 0:
         # CASE A: required (80%) + preferred (20%)
         total_skill_score = (matched_req_count / total_req * 80.0) + (matched_pref_count / total_pref * 20.0)
+        is_active = True
     elif total_req > 0 and total_pref == 0:
         # CASE B: required only (100%)
         total_skill_score = (matched_req_count / total_req) * 100.0
+        is_active = True
     elif total_req == 0 and total_pref > 0:
         # CASE C: preferred only (100%)
         total_skill_score = (matched_pref_count / total_pref) * 100.0
+        is_active = True
     else:
-        # CASE D: no skill requirements specified (neutral score 100)
+        # CASE D: no skill requirements specified (inactive criterion)
         total_skill_score = 100.0
+        is_active = False
 
     bounded_score = max(0.0, min(100.0, total_skill_score))
 
@@ -101,4 +106,5 @@ def calculate_skill_match(
         skill_score=round(bounded_score, 2),
         matched_required_count=matched_req_count,
         total_required_count=total_req,
+        is_active=is_active,
     )

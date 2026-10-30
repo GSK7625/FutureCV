@@ -163,7 +163,7 @@ async def test_v0_generate_explanation_llm_provider_error_fallback(sample_cv: St
     assert result.match_score == expected_score
     # Explanation fell back to deterministic summary
     assert "Điểm phù hợp:" in result.match_explanation
-    assert "Kỹ năng:" in result.match_explanation
+    assert "Kỹ năng đáp ứng:" in result.match_explanation
     # Provenance
     assert result.meta.algorithm_variant == "matching-v0"
     assert result.meta.prompt_version == "v1"

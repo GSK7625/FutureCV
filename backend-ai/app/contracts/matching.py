@@ -59,6 +59,15 @@ class MatchResult(BaseModel):
         max_length=10000,
         description=("Natural language match explanation (optional; None or deterministic summary when unrequested)"),
     )
+    status: str | None = Field(
+        default=None,
+        description="Operational status indicator (e.g. 'insufficient_job_data')",
+    )
+    warning: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Warning message when job requirements are insufficient for confident matching",
+    )
     meta: ResponseMeta = Field(
         default_factory=lambda: ResponseMeta(contract_version=MATCH_RESULT_CONTRACT_VERSION),
         description="Execution metadata",
@@ -70,6 +79,26 @@ class MatchResult(BaseModel):
         if self.meta.contract_version is None:
             self.meta.contract_version = MATCH_RESULT_CONTRACT_VERSION
         return self
+
+    @property
+    def semantic_similarity(self) -> float | None:
+        """Convenience accessor for semantic similarity score from meta."""
+        return self.meta.semantic_similarity
+
+    @property
+    def semantic_score(self) -> int | None:
+        """Convenience accessor for semantic score from meta."""
+        return self.meta.semantic_score
+
+    @property
+    def semantic_mode(self) -> str | None:
+        """Convenience accessor for semantic matching mode from meta."""
+        return self.meta.semantic_mode
+
+    @property
+    def semantic_available(self) -> bool | None:
+        """Convenience accessor for semantic availability from meta."""
+        return self.meta.semantic_available
 
 
 class CandidateItem(BaseModel):
