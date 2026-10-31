@@ -11,15 +11,32 @@ namespace FutureCV.Application.Features.JobApplication.Services;
 using FutureCV.Domain.Entities;
 using FutureCV.Domain.Enums;
 
+using FutureCV.Application.Features.AiMatching.Configurations;
+using FutureCV.Application.Features.AiMatching.Mappers;
+using FutureCV.Application.Features.Candidate.DTOs;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
 public class ApplicationService : IApplicationService
 {
     private readonly IApplicationDbContext _context;
     private readonly IIdentityService _identityService;
+    private readonly IAiMatchingClient _aiMatchingClient;
+    private readonly AiMatchingFeatureOptions _aiOptions;
+    private readonly ILogger<ApplicationService> _logger;
 
-    public ApplicationService(IApplicationDbContext context, IIdentityService identityService)
+    public ApplicationService(
+        IApplicationDbContext context,
+        IIdentityService identityService,
+        IAiMatchingClient aiMatchingClient,
+        IOptions<AiMatchingFeatureOptions>? aiOptions = null,
+        ILogger<ApplicationService>? logger = null)
     {
         _context = context;
         _identityService = identityService;
+        _aiMatchingClient = aiMatchingClient;
+        _aiOptions = aiOptions?.Value ?? new AiMatchingFeatureOptions();
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ApplicationService>.Instance;
     }
 
     // -------------------------------------------------------------------------
@@ -79,28 +96,28 @@ public class ApplicationService : IApplicationService
         // 6. Create JobApplication record
         var application = new JobApplication
         {
-            CandidateId        = candidate.Id,
-            JobId              = jobId,
-            CvId               = request.CvId,
-            CoverLetter        = request.CoverLetter,
-            Status             = ApplicationStatus.Applied,
-            AppliedAt          = DateTime.UtcNow,
-            MatchScore         = matchScore,
-            MatchExplanation   = explanation,
-            MatchedSkillsJson  = JsonSerializer.Serialize(matchedSkills),
-            MissingSkillsJson  = JsonSerializer.Serialize(missingSkills),
-            IsDeleted          = false
+            CandidateId = candidate.Id,
+            JobId = jobId,
+            CvId = request.CvId,
+            CoverLetter = request.CoverLetter,
+            Status = ApplicationStatus.Applied,
+            AppliedAt = DateTime.UtcNow,
+            MatchScore = matchScore,
+            MatchExplanation = explanation,
+            MatchedSkillsJson = JsonSerializer.Serialize(matchedSkills),
+            MissingSkillsJson = JsonSerializer.Serialize(missingSkills),
+            IsDeleted = false
         };
 
         // 7. Add initial status history record (P3-UC05 Step 7)
         application.StatusHistories.Add(new ApplicationStatusHistory
         {
-            Application  = application,
-            FromStatus   = null,
-            ToStatus     = ApplicationStatus.Applied.ToString(),
-            ChangedById  = userId,
-            Reason       = "Initial application submission",
-            ChangedAt    = DateTime.UtcNow
+            Application = application,
+            FromStatus = null,
+            ToStatus = ApplicationStatus.Applied.ToString(),
+            ChangedById = userId,
+            Reason = "Initial application submission",
+            ChangedAt = DateTime.UtcNow
         });
 
         _context.Applications.Add(application);
@@ -138,7 +155,7 @@ public class ApplicationService : IApplicationService
         var totalCount = await query.CountAsync(cancellationToken);
 
         var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
-        var pageSize  = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
+        var pageSize = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
 
         var items = await query
             .OrderByDescending(a => a.AppliedAt)
@@ -242,14 +259,17 @@ public class ApplicationService : IApplicationService
         var oldStatus = application.Status;
         application.Status = ApplicationStatus.Withdrawn;
 
-        application.StatusHistories.Add(new ApplicationStatusHistory
+        // Explicitly add via DbSet to ensure EF Core marks the entity as EntityState.Added.
+        // Adding via navigation collection (application.StatusHistories.Add) causes EF Core
+        // to infer EntityState.Modified because BaseEntity pre-assigns Id with Guid.NewGuid().
+        _context.ApplicationStatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
-            FromStatus    = oldStatus.ToString(),
-            ToStatus      = ApplicationStatus.Withdrawn.ToString(),
-            ChangedById   = userId,
-            Reason        = string.IsNullOrWhiteSpace(request.Reason) ? "Candidate withdrew application" : request.Reason.Trim(),
-            ChangedAt     = DateTime.UtcNow
+            FromStatus = oldStatus.ToString(),
+            ToStatus = ApplicationStatus.Withdrawn.ToString(),
+            ChangedById = userId,
+            Reason = string.IsNullOrWhiteSpace(request.Reason) ? "Candidate withdrew application" : request.Reason.Trim(),
+            ChangedAt = DateTime.UtcNow
         });
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -285,8 +305,8 @@ public class ApplicationService : IApplicationService
             _context.SavedJobs.Add(new SavedJob
             {
                 CandidateId = candidate.Id,
-                JobId       = jobId,
-                SavedAt     = DateTime.UtcNow
+                JobId = jobId,
+                SavedAt = DateTime.UtcNow
             });
             await _context.SaveChangesAsync(cancellationToken);
             return ServiceResult.Success(true); // true = saved
@@ -309,7 +329,7 @@ public class ApplicationService : IApplicationService
         var totalCount = await query.CountAsync(cancellationToken);
 
         var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
-        var pageSize  = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
+        var pageSize = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
 
         var items = await query
             .OrderByDescending(sj => sj.SavedAt)
@@ -378,8 +398,8 @@ public class ApplicationService : IApplicationService
             .ToList();
 
         var totalCount = scoredJobs.Count;
-        var pageIndex  = filter.PageIndex < 1 ? 1 : filter.PageIndex;
-        var pageSize   = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
+        var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
+        var pageSize = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
 
         var pagedItems = scoredJobs
             .Skip((pageIndex - 1) * pageSize)
@@ -423,6 +443,8 @@ public class ApplicationService : IApplicationService
             .AsNoTracking()
             .Include(j => j.JobSkills)
                 .ThenInclude(js => js.Skill)
+            .Include(j => j.Location)
+            .Include(j => j.EmploymentType)
             .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
 
         if (job is null)
@@ -459,7 +481,7 @@ public class ApplicationService : IApplicationService
             (candidate.DesiredSalaryMin.GetValueOrDefault(0) <= (job.SalaryMax ?? int.MaxValue) &&
              candidate.DesiredSalaryMax.Value >= job.SalaryMin.Value);
 
-        var response = new JobMatchPreviewResponse(
+        var legacyResponse = new JobMatchPreviewResponse(
             job.Id,
             job.Title,
             selectedCv.Id,
@@ -472,7 +494,244 @@ public class ApplicationService : IApplicationService
             salaryMatched
         );
 
-        return ServiceResult.Success(response);
+        // ---------------------------------------------------------------------
+        // AI Matching Preview Evaluation (AI-MATCH-DEMO-001)
+        // Priority:
+        // 1. PreviewAiEnabled == true: AI is authoritative with legacy fallback.
+        // 2. PreviewShadowEnabled == true: Legacy authoritative + AI shadow log.
+        // 3. Both false: Legacy only.
+        // If both are true, PreviewAiEnabled takes precedence.
+        // ---------------------------------------------------------------------
+        if (_aiOptions.PreviewAiEnabled)
+        {
+            var authoritativeResponse = await ExecuteAuthoritativeAiMatchingAsync(selectedCv.Id, job, legacyResponse, cancellationToken);
+            return ServiceResult.Success(authoritativeResponse);
+        }
+
+        if (_aiOptions.PreviewShadowEnabled)
+        {
+            await ExecuteShadowMatchingAsync(selectedCv.Id, job, legacyResponse.MatchScore, cancellationToken);
+        }
+
+        return ServiceResult.Success(legacyResponse);
+    }
+
+    private async Task<JobMatchPreviewResponse> ExecuteAuthoritativeAiMatchingAsync(
+        Guid cvId,
+        Job job,
+        JobMatchPreviewResponse legacyResponse,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var parser = await _context.CvParsers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.CvId == cvId, cancellationToken);
+
+            if (parser is null || string.IsNullOrWhiteSpace(parser.ParsedDataJson))
+            {
+                _logger.LogWarning(
+                    "AI preview unavailable; legacy fallback used. JobId={JobId}, CvId={CvId}, Reason={Reason}",
+                    job.Id,
+                    cvId,
+                    "Structured CV not ready");
+                return legacyResponse;
+            }
+
+            StructuredCvDataDto? structuredCvData;
+            try
+            {
+                structuredCvData = JsonSerializer.Deserialize<StructuredCvDataDto>(parser.ParsedDataJson);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "AI preview unavailable; legacy fallback used. JobId={JobId}, CvId={CvId}, Reason={Reason}",
+                    job.Id,
+                    cvId,
+                    "Malformed parsed CV JSON");
+                return legacyResponse;
+            }
+
+            if (structuredCvData is null)
+            {
+                _logger.LogWarning(
+                    "AI preview unavailable; legacy fallback used. JobId={JobId}, CvId={CvId}, Reason={Reason}",
+                    job.Id,
+                    cvId,
+                    "Structured CV data is null");
+                return legacyResponse;
+            }
+
+            var aiRequest = AiMatchingMapper.ToAiMatchRequest(structuredCvData, job);
+            var aiResult = await _aiMatchingClient.MatchAsync(aiRequest, cancellationToken: cancellationToken);
+
+            if (!aiResult.IsSuccess || aiResult.Data is null)
+            {
+                _logger.LogWarning(
+                    "AI preview unavailable; legacy fallback used. JobId={JobId}, CvId={CvId}, Reason={Reason}",
+                    job.Id,
+                    cvId,
+                    aiResult.ErrorMessage ?? "AI service returned failure or null data");
+                return legacyResponse;
+            }
+
+            var matchResult = aiResult.Data;
+
+            string aiExplanation;
+            if (!string.IsNullOrWhiteSpace(matchResult.MatchExplanation))
+            {
+                aiExplanation = matchResult.MatchExplanation;
+            }
+            else
+            {
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(matchResult.ExperienceComparison))
+                    parts.Add(matchResult.ExperienceComparison);
+                if (!string.IsNullOrWhiteSpace(matchResult.EducationComparison))
+                    parts.Add(matchResult.EducationComparison);
+                if (!string.IsNullOrWhiteSpace(matchResult.ProjectDomainRelevance))
+                    parts.Add(matchResult.ProjectDomainRelevance);
+
+                aiExplanation = parts.Count > 0 ? string.Join(" ", parts) : legacyResponse.Explanation;
+            }
+
+            _logger.LogInformation(
+                "AI preview completed. JobId={JobId}, CvId={CvId}, AiScore={AiScore}, AlgorithmVersion={AlgorithmVersion}, ContractVersion={ContractVersion}, CorrelationId={CorrelationId}",
+                job.Id,
+                cvId,
+                matchResult.MatchScore,
+                matchResult.Meta.AlgorithmVersion,
+                matchResult.Meta.ContractVersion,
+                matchResult.Meta.CorrelationId);
+
+            return new JobMatchPreviewResponse(
+                legacyResponse.JobId,
+                legacyResponse.JobTitle,
+                legacyResponse.CvId,
+                legacyResponse.CvTitle,
+                matchResult.MatchScore,
+                matchResult.MatchedSkills,
+                matchResult.MissingSkills,
+                aiExplanation,
+                legacyResponse.LocationMatched,
+                legacyResponse.SalaryMatched,
+                matchResult.ExperienceComparison,
+                matchResult.EducationComparison,
+                matchResult.ProjectDomainRelevance
+            );
+
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "AI preview unavailable; legacy fallback used. JobId={JobId}, CvId={CvId}, Reason={Reason}",
+                job.Id,
+                cvId,
+                "Unexpected exception");
+            return legacyResponse;
+        }
+    }
+
+    private async Task ExecuteShadowMatchingAsync(
+        Guid cvId,
+        Job job,
+        int legacyScore,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var parser = await _context.CvParsers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.CvId == cvId, cancellationToken);
+
+            if (parser is null || string.IsNullOrWhiteSpace(parser.ParsedDataJson))
+            {
+                _logger.LogInformation(
+                    "AI preview shadow skipped: structured CV not ready. JobId={JobId}, CvId={CvId}",
+                    job.Id,
+                    cvId);
+                return;
+            }
+
+            StructuredCvDataDto? structuredCvData;
+            try
+            {
+                structuredCvData = JsonSerializer.Deserialize<StructuredCvDataDto>(parser.ParsedDataJson);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "AI preview shadow skipped: malformed parsed CV JSON. JobId={JobId}, CvId={CvId}",
+                    job.Id,
+                    cvId);
+                return;
+            }
+
+            if (structuredCvData is null)
+            {
+                _logger.LogInformation(
+                    "AI preview shadow skipped: structured CV data is null. JobId={JobId}, CvId={CvId}",
+                    job.Id,
+                    cvId);
+                return;
+            }
+
+            var aiRequest = AiMatchingMapper.ToAiMatchRequest(structuredCvData, job);
+            var aiResult = await _aiMatchingClient.MatchAsync(aiRequest, cancellationToken: cancellationToken);
+
+            if (aiResult.IsSuccess && aiResult.Data is not null)
+            {
+                var matchResult = aiResult.Data;
+                var aiScore = matchResult.MatchScore;
+                var delta = aiScore - legacyScore;
+
+                _logger.LogInformation(
+                    "AI preview shadow completed. JobId={JobId}, CvId={CvId}, LegacyScore={LegacyScore}, AiScore={AiScore}, Delta={Delta}, Algorithm={AlgorithmVersion}, Contract={ContractVersion}, LlmInvoked={LlmInvoked}, ExplanationMode={ExplanationMode}, ProcessingTimeMs={ProcessingTimeMs}, CorrelationId={CorrelationId}",
+                    job.Id,
+                    cvId,
+                    legacyScore,
+                    aiScore,
+                    delta,
+                    matchResult.Meta.AlgorithmVersion,
+                    matchResult.Meta.ContractVersion,
+                    matchResult.Meta.LlmInvoked,
+                    matchResult.Meta.ExplanationMode,
+                    matchResult.Meta.ProcessingTimeMs,
+                    matchResult.Meta.CorrelationId);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "AI preview shadow failed: {ErrorMessage}. JobId={JobId}, CvId={CvId}",
+                    aiResult.ErrorMessage ?? "Unknown error",
+                    job.Id,
+                    cvId);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "AI preview shadow encountered an unexpected error. JobId={JobId}, CvId={CvId}",
+                job.Id,
+                cvId);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -524,7 +783,7 @@ public class ApplicationService : IApplicationService
         var totalCount = await query.CountAsync(cancellationToken);
 
         var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
-        var pageSize  = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
+        var pageSize = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
 
         var items = await query
             .OrderByDescending(a => a.AppliedAt)
@@ -600,9 +859,9 @@ public class ApplicationService : IApplicationService
         var (application, error) = await FindApplicationWithRecruiterOwnershipAsync(userId, applicationId, cancellationToken);
         if (error is not null) return ServiceResult.Failure<bool>(error.ErrorMessage ?? "Access denied.", error.ErrorType);
 
-        application!.Rating          = request.Rating;
-        application.EvaluationLabel  = request.EvaluationLabel;
-        application.PrivateNotes     = request.PrivateNotes;
+        application!.Rating = request.Rating;
+        application.EvaluationLabel = request.EvaluationLabel;
+        application.PrivateNotes = request.PrivateNotes;
 
         await _context.SaveChangesAsync(cancellationToken);
         return ServiceResult.Success(true);
@@ -623,14 +882,16 @@ public class ApplicationService : IApplicationService
         var oldStatus = application.Status;
         application.Status = newStatusEnum;
 
-        application.StatusHistories.Add(new ApplicationStatusHistory
+        // Explicitly add via DbSet to ensure EF Core marks the entity as EntityState.Added.
+        // Adding via navigation collection causes EF Core to infer EntityState.Modified on pre-keyed entities.
+        _context.ApplicationStatusHistories.Add(new ApplicationStatusHistory
         {
             ApplicationId = application.Id,
-            FromStatus    = oldStatus.ToString(),
-            ToStatus      = newStatusEnum.ToString(),
-            ChangedById   = userId,
-            Reason        = request.Reason,
-            ChangedAt     = DateTime.UtcNow
+            FromStatus = oldStatus.ToString(),
+            ToStatus = newStatusEnum.ToString(),
+            ChangedById = userId,
+            Reason = request.Reason,
+            ChangedAt = DateTime.UtcNow
         });
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -684,8 +945,8 @@ public class ApplicationService : IApplicationService
                     stageAlert = daysInStage switch
                     {
                         > 14 => "Critical",
-                        > 7  => "Warning",
-                        _    => "Normal"
+                        > 7 => "Warning",
+                        _ => "Normal"
                     };
                 }
 
@@ -908,8 +1169,8 @@ public class ApplicationService : IApplicationService
                 stageAlert = daysInStage switch
                 {
                     > 14 => "Critical",
-                    > 7  => "Warning",
-                    _    => "Normal"
+                    > 7 => "Warning",
+                    _ => "Normal"
                 };
             }
 
