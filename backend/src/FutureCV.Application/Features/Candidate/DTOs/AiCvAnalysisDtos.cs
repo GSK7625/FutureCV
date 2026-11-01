@@ -94,17 +94,33 @@ public static class FastApiCvMapper
         {
             foreach (var exp in source.WorkExperience)
             {
-                var isCurrent = string.IsNullOrWhiteSpace(exp.EndDate) ||
-                                exp.EndDate.Contains("present", StringComparison.OrdinalIgnoreCase) ||
-                                exp.EndDate.Contains("hiện tại", StringComparison.OrdinalIgnoreCase);
+                var parsedStartDate = ParseDateOnly(exp.StartDate);
+                if (!parsedStartDate.HasValue)
+                {
+                    // AI-DEMO-004: CvExperienceDto.StartDate hiện không nullable.
+                    // Bỏ qua experience chưa có ngày bắt đầu, không tự thêm hai năm kinh nghiệm.
+                    continue;
+                }
 
-                var startDate = ParseDateOnly(exp.StartDate) ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-2));
+                // AI-DEMO-004: Không tự kết luận đang làm hiện tại nếu không có từ khóa rõ ràng
+                var isCurrent = (!string.IsNullOrWhiteSpace(exp.EndDate) && (
+                                    exp.EndDate.Contains("present", StringComparison.OrdinalIgnoreCase) ||
+                                    exp.EndDate.Contains("hiện tại", StringComparison.OrdinalIgnoreCase) ||
+                                    exp.EndDate.Contains("nay", StringComparison.OrdinalIgnoreCase))) ||
+                                (!string.IsNullOrWhiteSpace(exp.Duration) && (
+                                    exp.Duration.Contains("present", StringComparison.OrdinalIgnoreCase) ||
+                                    exp.Duration.Contains("hiện tại", StringComparison.OrdinalIgnoreCase) ||
+                                    exp.Duration.Contains("nay", StringComparison.OrdinalIgnoreCase)));
+
                 var endDate = isCurrent ? null : ParseDateOnly(exp.EndDate);
 
+                var company = string.IsNullOrWhiteSpace(exp.Company) ? string.Empty : exp.Company.Trim();
+                var jobTitle = string.IsNullOrWhiteSpace(exp.JobTitle) ? null : exp.JobTitle.Trim();
+
                 experiences.Add(new CvExperienceDto(
-                    exp.Company ?? "Company",
-                    exp.JobTitle,
-                    startDate,
+                    company,
+                    jobTitle,
+                    parsedStartDate.Value,
                     endDate,
                     isCurrent,
                     exp.Description
@@ -118,6 +134,14 @@ public static class FastApiCvMapper
         {
             foreach (var edu in source.Education)
             {
+                var institution = string.IsNullOrWhiteSpace(edu.Institution) ? string.Empty : edu.Institution.Trim();
+                var degree = string.IsNullOrWhiteSpace(edu.Degree) ? null : edu.Degree.Trim();
+
+                if (string.IsNullOrEmpty(institution) && string.IsNullOrEmpty(degree))
+                {
+                    continue;
+                }
+
                 int? gradYear = null;
                 if (!string.IsNullOrWhiteSpace(edu.GraduationYear) &&
                     int.TryParse(edu.GraduationYear.Trim(), out var parsedYear))
@@ -126,8 +150,8 @@ public static class FastApiCvMapper
                 }
 
                 educations.Add(new CvEducationDto(
-                    edu.Institution ?? "University",
-                    edu.Degree,
+                    institution,
+                    degree,
                     edu.FieldOfStudy,
                     null,
                     gradYear,
@@ -142,12 +166,19 @@ public static class FastApiCvMapper
         {
             foreach (var proj in source.Projects)
             {
+                var name = proj.Name?.Trim();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    // AI-DEMO-004: Project không tên: Bỏ qua project, không tự đặt tên "Project"
+                    continue;
+                }
+
                 var techs = proj.Technologies != null && proj.Technologies.Count > 0
                     ? string.Join(", ", proj.Technologies)
                     : null;
 
                 projects.Add(new CvProjectDto(
-                    proj.Name ?? "Project",
+                    name,
                     null,
                     null,
                     null,

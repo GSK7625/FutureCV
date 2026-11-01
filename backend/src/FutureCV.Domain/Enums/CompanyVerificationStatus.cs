@@ -4,5 +4,6 @@ public enum CompanyVerificationStatus
 {
     Pending,
     Verified,
-    Rejected
+    Rejected,
+    Unverified
 }
