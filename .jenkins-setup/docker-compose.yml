@@ -1,0 +1,84 @@
+# Docker Compose for FutureCV Jenkins CI/CD
+# Usage: docker compose up -d (from this directory)
+#
+# Prerequisites:
+#   - Docker Desktop with Kubernetes enabled (kind mode)
+#   - Kubernetes cluster must be running before starting Jenkins
+#
+# After starting, run once:
+#   docker compose run --rm jenkins-helper
+#
+# If Docker Desktop restarts (K8s cluster restarts):
+#   docker compose restart jenkins
+#
+# Networks:
+#   kind      -> connects Jenkins to K8s API (desktop-control-plane at 172.19.0.2:6443)
+#   jenkins   -> internal network for Jenkins agents
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk25
+    container_name: jenkins
+    restart: on-failure
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - JENKINS_SLAVE_AGENT_PORT=50000
+      # Thư mục chứa file secret cho credential bootstrap script
+      - FUTURECV_SECRETS_DIR=/var/jenkins_home/futurecv-secrets
+      # Danh sách credential ID cần rotate (để trống = không rotate)
+      # vd: FUTURECV_ROTATE_IDS=internal-api-key docker compose up -d
+      - FUTURECV_ROTATE_IDS=${FUTURECV_ROTATE_IDS:-}
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Init script tạo credential tự động (idempotent) — mount read-only
+      - ./create-credentials.groovy:/var/jenkins_home/init.groovy.d/00-futurecv-credentials.groovy:ro
+      # File secret (KHÔNG commit — đã .gitignore) — mount read-only
+      - ./secrets:/var/jenkins_home/futurecv-secrets:ro
+      # Kubeconfig 3 env (dùng cho credential "Secret file") — path riêng,
+      # KHÔNG nest bên trong ./secrets (read-only parent không cho tạo mountpoint)
+      - ./kubeconfig:/var/jenkins_home/futurecv-kubeconfig:ro
+    networks:
+      - kind
+      - jenkins
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Helper container to test Kubernetes connectivity
+  jenkins-helper:
+    image: jenkins/jenkins:lts-jdk25
+    container_name: jenkins-helper
+    profiles:
+      - helper
+    networks:
+      - kind
+    volumes:
+      - jenkins_home:/var/jenkins_home:ro
+    command: >
+      bash -c "
+        echo '=== K8s connectivity test ===' &&
+        kubectl version --client &&
+        kubectl --kubeconfig=/var/jenkins_home/kubeconfigs/kubeconfig-dev.yaml get nodes &&
+        echo '=== All namespaces ===' &&
+        kubectl --kubeconfig=/var/jenkins_home/kubeconfigs/kubeconfig-dev.yaml get ns
+      "
+    # NOTE: Build kubectl and copy kubeconfigs via init script
+    # This is just for testing after everything is set up
+
+networks:
+  kind:
+    external: true
+    name: kind
+  jenkins:
+    external: true
+    name: jenkins
+
+volumes:
+  jenkins_home:
+    name: jenkins_home

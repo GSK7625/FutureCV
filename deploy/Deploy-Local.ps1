@@ -26,7 +26,7 @@ try {
     $candidate = Join-Path $directory "release-$releaseId.env"
     if ($BuildLocal) {
         $tag = "local-$releaseId"
-        Invoke-Docker build -f (Join-Path $repo 'backend/Dockerfile') -t "futurecv-backend:$tag" $repo
+        Invoke-Docker build -t "futurecv-backend:$tag" (Join-Path $repo 'backend')
         Invoke-Docker build -t "futurecv-ai:$tag" (Join-Path $repo 'backend-ai')
         Invoke-Docker build -t "futurecv-frontend:$tag" (Join-Path $repo 'frontend')
         @("BACKEND_IMAGE=futurecv-backend:$tag", "AI_IMAGE=futurecv-ai:$tag", "FRONTEND_IMAGE=futurecv-frontend:$tag") |
