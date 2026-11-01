@@ -1,0 +1,14 @@
+.git
+.ci-cache
+.ci-results
+.deploy
+.jenkins-setup
+**/node_modules
+**/bin
+**/obj
+**/__pycache__
+**/.env*
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/*.local.json
+**/*.log

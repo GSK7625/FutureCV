@@ -1,0 +1,130 @@
+name: FutureCV CI
+
+on:
+  push:
+    branches: [master, codex/github-actions-ci]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-check:
+    name: Frontend - typecheck, test, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24.20.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Check TypeScript
+        run: npm run typecheck
+      - name: Run tests
+        run: npm test
+      - name: Build frontend
+        run: npm run build
+
+  backend-check:
+    name: Backend - build, test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309 # v5.1.0
+        with:
+          dotnet-version: '8.0.4xx'
+      - name: Restore dependencies
+        run: dotnet restore FutureCV.sln
+      - name: Build backend
+        run: dotnet build FutureCV.sln --configuration Release --no-restore
+      - name: Run tests
+        run: dotnet test FutureCV.sln --configuration Release --no-build --logger "trx;LogFileName=backend.trx" --results-directory ../.ci-results/backend
+      - name: Upload test report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-test-results
+          path: .ci-results/backend/**/*.trx
+          retention-days: 14
+          if-no-files-found: warn
+
+  ai-check:
+    name: AI - test with mock providers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend-ai
+    env:
+      ENV: test
+      LLM_PROVIDER: mock
+      EMBEDDING_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: |
+            backend-ai/requirements.txt
+            backend-ai/requirements-dev.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run tests
+        run: python -m pytest tests --tb=short -q --junitxml=../.ci-results/ai/pytest.xml
+      - name: Upload test report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ai-test-results
+          path: .ci-results/ai/pytest.xml
+          retention-days: 14
+          if-no-files-found: warn
+
+  ci-required:
+    name: ci-required
+    if: ${{ always() }}
+    needs: [frontend-check, backend-check, ai-check]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every service to pass
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend-check.result }}
+          BACKEND_RESULT: ${{ needs.backend-check.result }}
+          AI_RESULT: ${{ needs.ai-check.result }}
+        run: |
+          for result in "$FRONTEND_RESULT" "$BACKEND_RESULT" "$AI_RESULT"; do
+            if [ "$result" != "success" ]; then
+              echo "A required service did not pass: $result"
+              exit 1
+            fi
+          done
+          echo "All three services passed."
