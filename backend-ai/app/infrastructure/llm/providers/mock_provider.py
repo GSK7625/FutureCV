@@ -127,6 +127,7 @@ class MockLlmProvider(LlmPort):
 
         if response_model.__name__ == "MatchExplanation":
             import re
+
             m_matched = re.search(r"Matched skills:\s*\n([^\n]+)", prompt)
             m_missing = re.search(r"Missing required skills:\s*\n([^\n]+)", prompt)
             matched_str = m_matched.group(1).strip() if m_matched else ""
@@ -152,28 +153,30 @@ class MockLlmProvider(LlmPort):
             strengths = []
             for s in matched_list[:3]:
                 clean_s = re.sub(r"\s*\((?:preferred|ưu tiên)\)", "", s, flags=re.IGNORECASE).strip()
-                strengths.append({
-                    "item": clean_s,
-                    "statement": f"CV có đề cập kỹ năng {clean_s}.",
-                    "evidence_source": "cv.skills",
-                    "evidence_text": clean_s,
-                })
+                strengths.append(
+                    {
+                        "item": clean_s,
+                        "statement": f"CV có đề cập kỹ năng {clean_s}.",
+                        "evidence_source": "cv.skills",
+                        "evidence_text": clean_s,
+                    }
+                )
             gaps = []
             for s in missing_list[:3]:
                 clean_s = re.sub(r"\s*\((?:preferred|ưu tiên)\)", "", s, flags=re.IGNORECASE).strip()
-                gaps.append({
-                    "requirement": clean_s,
-                    "statement": f"Chưa đủ bằng chứng về kỹ năng bắt buộc {clean_s}.",
-                })
+                gaps.append(
+                    {
+                        "requirement": clean_s,
+                        "statement": f"Chưa đủ bằng chứng về kỹ năng bắt buộc {clean_s}.",
+                    }
+                )
 
             return response_model.model_validate(
                 {
                     "summary": summary,
                     "strengths": strengths,
                     "gaps": gaps,
-                    "recommendations": [
-                        "Tiếp tục hoàn thiện các kỹ năng chuyên môn cốt lõi."
-                    ],
+                    "recommendations": ["Tiếp tục hoàn thiện các kỹ năng chuyên môn cốt lõi."],
                 }
             )
 
@@ -223,4 +226,3 @@ class MockLlmProvider(LlmPort):
             "KỸ NĂNG CHUYÊN MÔN\n"
             "Python, C#, FastAPI, .NET Core, Docker, PostgreSQL, React, TypeScript, Git, Redis."
         )
-
