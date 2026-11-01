@@ -110,7 +110,7 @@ export function EmployerProfilePage() {
                   <Input id="employer-full-name" value={values.fullName} onChange={(event) => setField("fullName", event.target.value)} error={errors.fullName} />
                 </Field>
                 <Field label="Chức danh" htmlFor="employer-position" error={errors.position}>
-                  <Input id="employer-position" value={values.position} onChange={(event) => setField("position", event.target.value)} error={errors.position} placeholder="Ví dụ: HR Manager" />
+                  <Input id="employer-position" value={values.position} onChange={(event) => setField("position", event.target.value)} error={errors.position} placeholder="Ví dụ: Quản lý tuyển dụng" />
                 </Field>
                 <Field label="Số điện thoại" htmlFor="employer-phone" error={errors.phone}>
                   <Input id="employer-phone" type="tel" value={values.phone} onChange={(event) => setField("phone", event.target.value)} error={errors.phone} placeholder="0912345678" />

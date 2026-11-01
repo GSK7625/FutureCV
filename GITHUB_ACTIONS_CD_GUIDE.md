@@ -200,3 +200,16 @@ Theo yêu cầu mới của bạn, đích push là `giao-dien-admin`, thay cho v
 8. Hoàn tất merge commit và đẩy `HEAD:refs/heads/giao-dien-admin` bằng push thông thường. Kết quả push được báo trong chat sau khi GitHub xác nhận. Không tự tạo PR hoặc merge master.
 
 Các hướng dẫn “chưa commit/push” ở mục trước ghi lại trạng thái tại mốc dựng local; khi xem bản đã push cần đọc thêm mục này. Workflow hiện kích hoạt CI khi PR vào master hoặc push các nhánh đã khai báo; chỉ push `giao-dien-admin` không tự chạy CD. CD vẫn chạy từ master và job runner vẫn chờ cấu hình quyền như mục 6.
+
+## 11. Merge các commit còn thiếu từ master vào nhánh admin — 01/11/2026
+
+Theo yêu cầu cập nhật nhánh admin với master mới nhất:
+
+1. Fetch lại origin. Đầu nhánh admin là `5e5bda3`; master là `1e2f0af`. Admin có 5 commit riêng và thiếu 4 commit so với master.
+2. Các commit được tích hợp: `9394b85` (Việt hóa HR), `78d107c` (merge master vào HR), `04cc463` (kéo thả pipeline và cải tiến giao diện HR), `1e2f0af` (merge PR #27).
+3. Chạy `git merge-tree --write-tree --messages origin/giao-dien-admin origin/master`: không có xung đột. Tiếp tục `git merge --no-commit origin/master` trên checkout đang khớp chính xác với đầu nhánh admin; Git merge tự động thành công.
+4. Mã thay đổi nằm trong 8 file frontend: modal chi tiết ứng viên, trang việc làm, hồ sơ employer, form việc làm, recruitment pipeline, HR layout/dashboard và hàm `cn`. Giữ nguyên các commit riêng CI/CD/admin đã có.
+5. Xác minh sau merge: `npm run typecheck`, `npm run test:ci` (**28/28 test đạt**) và `npm run build` đều thành công. Build vẫn có cảnh báo chunk lớn đã có trước. actionlint và kiểm tra whitespace cũng đạt. Không chạy lại backend/AI vì nội dung tích hợp chỉ thay frontend.
+6. Tạo merge commit rồi push thông thường tới `HEAD:refs/heads/giao-dien-admin`. Không force-push hoặc merge ngược vào master. Kết quả và mã commit cuối được báo trong chat sau khi GitHub xác nhận.
+
+File kế hoạch local `GITHUB_ACTIONS_CICD_PLAN.md` và secrets `.deploy/` không đưa vào commit này. Nhánh `giao-dien-admin` local cũ có commit Jenkins chưa push được giữ nguyên; checkout làm việc vẫn là `codex/github-actions-ci`, còn đích cập nhật trên GitHub được chỉ định rõ là `giao-dien-admin`.

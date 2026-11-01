@@ -224,7 +224,7 @@ export function JobFormModal({ open, onClose, job }: { open: boolean; onClose: (
           )}
         </div>
 
-        <Field label="Kỹ năng yêu cầu" htmlFor="job-skill-add" hint="Chọn kỹ năng để tối ưu kết quả matching ứng viên.">
+        <Field label="Kỹ năng yêu cầu" htmlFor="job-skill-add" hint="Chọn kỹ năng để tối ưu kết quả gợi ý ứng viên phù hợp.">
           <div className="flex gap-2">
             <select
               id="job-skill-add"
