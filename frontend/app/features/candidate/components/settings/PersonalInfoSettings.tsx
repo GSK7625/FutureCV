@@ -103,7 +103,10 @@ export function PersonalInfoSettings() {
       showToast("Cập nhật thông tin cá nhân thành công", "success");
     } catch (err) {
       let message = err instanceof Error ? err.message : "Cập nhật thông tin thất bại";
-      if (message.includes("Phone number must be a valid Vietnamese number")) {
+      if (
+        message.includes("Phone number must be a valid Vietnamese number") ||
+        message.includes("Số điện thoại không hợp lệ")
+      ) {
         message = "Số điện thoại không hợp lệ (cần đúng 10 số bắt đầu bằng 0, ví dụ: 0912345678)";
         setFieldErrors((prev) => ({ ...prev, phone: message }));
       }

@@ -6,12 +6,16 @@
  */
 
 import { useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router";
 import { IconCloudUpload, IconFileTypePdf, IconX } from "@tabler/icons-react";
 import { useUploadCandidateCv } from "../../hooks/useCandidateCvs";
 import { validateCvFile, cvTitleFromFile } from "~/utils";
+import { useAuthStore } from "~/stores/useAuthStore";
+import { useUIStore } from "~/stores/useUIStore";
+import type { CvResponse } from "../../types";
 
 interface CvUploadZoneProps {
-  onUploaded?: () => void;
+  onUploaded?: (cv?: CvResponse) => void;
 }
 
 export function CvUploadZone({ onUploaded }: CvUploadZoneProps) {
@@ -20,6 +24,8 @@ export function CvUploadZone({ onUploaded }: CvUploadZoneProps) {
   const [selected, setSelected] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const navigate = useNavigate();
+  const showToast = useUIStore((s) => s.showToast);
   const uploadMutation = useUploadCandidateCv();
 
   const handleFile = useCallback((file: File | null) => {
@@ -46,10 +52,27 @@ export function CvUploadZone({ onUploaded }: CvUploadZoneProps) {
 
   const handleUpload = async () => {
     if (!selected) return;
+
+    const user = useAuthStore.getState().user;
+    if (!user) {
+      showToast("Vui lòng đăng nhập tài khoản ứng viên để tải lên CV.", "info");
+      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+
+    if (user.role !== "candidate") {
+      showToast("Chỉ tài khoản Ứng viên mới có quyền tải lên CV ứng tuyển.", "error");
+      return;
+    }
+
     const title = cvTitleFromFile(selected.name);
-    await uploadMutation.mutateAsync({ file: selected, title });
-    setSelected(null);
-    onUploaded?.();
+    try {
+      const uploaded = await uploadMutation.mutateAsync({ file: selected, title });
+      setSelected(null);
+      onUploaded?.(uploaded);
+    } catch {
+      // Toast thông báo lỗi đã được useUploadCandidateCv quản lý
+    }
   };
 
   return (
@@ -89,7 +112,10 @@ export function CvUploadZone({ onUploaded }: CvUploadZoneProps) {
           type="file"
           accept=".pdf,application/pdf"
           className="sr-only"
-          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            handleFile(e.target.files?.[0] ?? null);
+            e.target.value = "";
+          }}
           aria-hidden="true"
         />
       </div>
