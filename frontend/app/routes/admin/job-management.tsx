@@ -25,7 +25,7 @@ export default function JobManagementPage() {
     queryFn: () =>
       adminService().getJobs({
         search: searchQuery || undefined,
-        status: selectedStatus === "all" ? undefined : selectedStatus,
+        approvalStatus: selectedStatus === "all" ? undefined : selectedStatus,
         pageIndex,
         pageSize: 10,
       }),
@@ -35,7 +35,8 @@ export default function JobManagementPage() {
     mutationFn: (params: { jobId: string; isApproved: boolean; note?: string }) =>
       adminService().moderateJob(params.jobId, {
         isApproved: params.isApproved,
-        note: params.note,
+        rejectionReason: params.isApproved ? undefined : params.note,
+        note: params.isApproved ? params.note : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-jobs"] });
@@ -153,9 +154,9 @@ export default function JobManagementPage() {
                 Chờ duyệt
               </button>
               <button
-                onClick={() => setSelectedStatus("Active")}
+                onClick={() => setSelectedStatus("Approved")}
                 className={`rounded-full px-4 py-2 text-label-sm font-semibold transition-colors ${
-                  selectedStatus === "Active"
+                  selectedStatus === "Approved"
                     ? "bg-navy text-white"
                     : "bg-surface-high text-ink-muted hover:bg-surface-low"
                 }`}
@@ -200,7 +201,7 @@ export default function JobManagementPage() {
                         <div>
                           <p className="font-medium text-ink">{job.title}</p>
                           <p className="mt-1 text-label-sm text-ink-muted">
-                            {job.location || "Chưa cập nhật"}
+                            {job.locationName || "Chưa cập nhật"}
                           </p>
                         </div>
                       </TD>
@@ -208,11 +209,11 @@ export default function JobManagementPage() {
                       <TD className="text-ink-muted">
                         {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
                       </TD>
-                      <TD>{getStatusBadge(job.status)}</TD>
+                      <TD>{getStatusBadge(job.approvalStatus)}</TD>
                       <TD className="text-ink-muted">{formatDate(job.createdAt)}</TD>
                       <TD>
                         <div className="flex items-center justify-end gap-2">
-                          {job.status === "Pending" && (
+                          {job.approvalStatus === "Pending" && (
                             <>
                               <button
                                 onClick={() => handleModerate(job, "approve")}

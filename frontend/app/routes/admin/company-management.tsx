@@ -15,10 +15,10 @@ export default function CompanyManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [pageIndex, setPageIndex] = useState(1);
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<CompanyProfileResponse | null>(null);
-  const [newStatus, setNewStatus] = useState<string>("");
-  const [statusNote, setStatusNote] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-companies", searchQuery, selectedStatus, pageIndex],
@@ -31,44 +31,56 @@ export default function CompanyManagementPage() {
       }),
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: (params: { companyId: string; status: string; note?: string }) =>
-      adminService().updateCompanyStatus(params.companyId, {
-        status: params.status,
-        note: params.note,
-      }),
+  const approveMutation = useMutation({
+    mutationFn: (companyId: string) => adminService().approveCompany(companyId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
-      setStatusModalOpen(false);
-      setStatusNote("");
+      setApproveModalOpen(false);
       setSelectedCompany(null);
-      setNewStatus("");
     },
   });
 
-  const handleUpdateStatus = (company: CompanyProfileResponse, status: string) => {
+  const rejectMutation = useMutation({
+    mutationFn: (params: { companyId: string; reason: string }) =>
+      adminService().rejectCompany(params.companyId, params.reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      setRejectModalOpen(false);
+      setRejectReason("");
+      setSelectedCompany(null);
+    },
+  });
+
+  const handleApprove = (company: CompanyProfileResponse) => {
     setSelectedCompany(company);
-    setNewStatus(status);
-    setStatusModalOpen(true);
+    setApproveModalOpen(true);
   };
 
-  const confirmUpdateStatus = () => {
-    if (!selectedCompany || !newStatus) return;
-    updateStatusMutation.mutate({
+  const handleReject = (company: CompanyProfileResponse) => {
+    setSelectedCompany(company);
+    setRejectModalOpen(true);
+  };
+
+  const confirmApprove = () => {
+    if (!selectedCompany) return;
+    approveMutation.mutate(selectedCompany.id);
+  };
+
+  const confirmReject = () => {
+    if (!selectedCompany || !rejectReason.trim()) return;
+    rejectMutation.mutate({
       companyId: selectedCompany.id,
-      status: newStatus,
-      note: statusNote || undefined,
+      reason: rejectReason,
     });
   };
 
   const getStatusBadge = (status: string) => {
-    const config: Record<string, { variant: "success" | "gold" | "danger" | "neutral"; label: string }> = {
-      Active: { variant: "success", label: "Đã xác thực" },
+    const config: Record<string, { variant: "success" | "gold" | "danger"; label: string }> = {
+      Verified: { variant: "success", label: "Đã xác thực" },
       Pending: { variant: "gold", label: "Chờ duyệt" },
       Rejected: { variant: "danger", label: "Từ chối" },
-      Inactive: { variant: "neutral", label: "Không hoạt động" },
     };
-    const { variant, label } = config[status] || { variant: "neutral" as const, label: status };
+    const { variant, label } = config[status] || { variant: "gold" as const, label: status };
     return <Badge variant={variant}>{label}</Badge>;
   };
 
@@ -92,15 +104,6 @@ export default function CompanyManagementPage() {
   const companies = data?.items || [];
   const totalCount = data?.totalCount || 0;
   const totalPages = data?.totalPages || 1;
-
-  const getStatusActionLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      Active: "Đã xác thực",
-      Rejected: "Từ chối",
-      Inactive: "Vô hiệu hóa",
-    };
-    return labels[status] || status;
-  };
 
   return (
     <div className="space-y-6">
@@ -151,9 +154,9 @@ export default function CompanyManagementPage() {
                 Chờ duyệt
               </button>
               <button
-                onClick={() => setSelectedStatus("Active")}
+                onClick={() => setSelectedStatus("Verified")}
                 className={`rounded-full px-4 py-2 text-label-sm font-semibold transition-colors ${
-                  selectedStatus === "Active"
+                  selectedStatus === "Verified"
                     ? "bg-navy text-white"
                     : "bg-surface-high text-ink-muted hover:bg-surface-low"
                 }`}
@@ -224,16 +227,16 @@ export default function CompanyManagementPage() {
                           {company.status === "Pending" && (
                             <>
                               <button
-                                onClick={() => handleUpdateStatus(company, "Active")}
-                                disabled={updateStatusMutation.isPending}
+                                onClick={() => handleApprove(company)}
+                                disabled={approveMutation.isPending || rejectMutation.isPending}
                                 className="rounded-default p-2 text-ink-muted transition-colors hover:bg-surface-low hover:text-success disabled:opacity-50"
-                                title="Xác thực công ty"
+                                title="Duyệt công ty"
                               >
                                 <IconCheck size={18} />
                               </button>
                               <button
-                                onClick={() => handleUpdateStatus(company, "Rejected")}
-                                disabled={updateStatusMutation.isPending}
+                                onClick={() => handleReject(company)}
+                                disabled={approveMutation.isPending || rejectMutation.isPending}
                                 className="rounded-default p-2 text-ink-muted transition-colors hover:bg-surface-low hover:text-danger disabled:opacity-50"
                                 title="Từ chối công ty"
                               >
@@ -291,29 +294,55 @@ export default function CompanyManagementPage() {
       </div>
 
       <Modal
-        open={statusModalOpen}
-        onClose={() => setStatusModalOpen(false)}
-        title={`Cập nhật trạng thái công ty`}
+        open={approveModalOpen}
+        onClose={() => setApproveModalOpen(false)}
+        title="Duyệt công ty"
       >
         <div className="space-y-4">
           <p className="text-body-md text-ink-muted">
-            Bạn có chắc chắn muốn cập nhật trạng thái công ty{" "}
-            <strong>{selectedCompany?.companyName}</strong> thành{" "}
-            <strong>{getStatusActionLabel(newStatus)}</strong>?
+            Bạn có chắc chắn muốn <strong className="text-success">duyệt</strong> công ty{" "}
+            <strong>{selectedCompany?.companyName}</strong>?
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setApproveModalOpen(false)}
+              disabled={approveMutation.isPending}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={confirmApprove}
+              disabled={approveMutation.isPending}
+            >
+              {approveMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={rejectModalOpen}
+        onClose={() => setRejectModalOpen(false)}
+        title="Từ chối công ty"
+      >
+        <div className="space-y-4">
+          <p className="text-body-md text-ink-muted">
+            Bạn có chắc chắn muốn <strong className="text-danger">từ chối</strong> công ty{" "}
+            <strong>{selectedCompany?.companyName}</strong>?
           </p>
           <div>
-            <label htmlFor="statusNote" className="mb-2 block text-label-sm font-semibold text-ink">
-              Ghi chú {newStatus === "Rejected" && <span className="text-danger">*</span>}
+            <label htmlFor="rejectReason" className="mb-2 block text-label-sm font-semibold text-ink">
+              Lý do từ chối <span className="text-danger">*</span>
             </label>
             <textarea
-              id="statusNote"
-              value={statusNote}
-              onChange={(e) => setStatusNote(e.target.value)}
-              placeholder={
-                newStatus === "Rejected"
-                  ? "Nhập lý do từ chối..."
-                  : "Nhập ghi chú (tùy chọn)..."
-              }
+              id="rejectReason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Nhập lý do từ chối..."
               className="min-h-24 w-full rounded-default border border-stroke bg-white px-3 py-2 text-body-md text-ink transition-colors focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
             />
           </div>
@@ -321,21 +350,18 @@ export default function CompanyManagementPage() {
             <Button
               variant="secondary"
               size="md"
-              onClick={() => setStatusModalOpen(false)}
-              disabled={updateStatusMutation.isPending}
+              onClick={() => setRejectModalOpen(false)}
+              disabled={rejectMutation.isPending}
             >
               Hủy
             </Button>
             <Button
-              variant={newStatus === "Active" ? "primary" : "danger"}
+              variant="danger"
               size="md"
-              onClick={confirmUpdateStatus}
-              disabled={
-                (newStatus === "Rejected" && !statusNote.trim()) ||
-                updateStatusMutation.isPending
-              }
+              onClick={confirmReject}
+              disabled={!rejectReason.trim() || rejectMutation.isPending}
             >
-              {updateStatusMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
+              {rejectMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
             </Button>
           </div>
         </div>

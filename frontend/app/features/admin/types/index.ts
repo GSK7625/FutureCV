@@ -78,20 +78,32 @@ export interface CompanyProfileResponse {
 
 export interface JobListResponse {
   id: string;
-  title: string;
+  companyId: string;
   companyName: string | null;
-  location: string | null;
+  companyLogoUrl: string | null;
+  title: string;
+  categoryName: string | null;
+  levelName: string | null;
+  employmentTypeName: string | null;
+  locationName: string | null;
   salaryMin: number | null;
   salaryMax: number | null;
-  salaryCurrency: string | null;
-  status: string;
+  salaryCurrency: string;
+  experienceYearsMin: number | null;
+  experienceYearsMax: number | null;
+  deadline: string | null;
+  positionsCount: number;
+  approvalStatus: string;
+  isActive: boolean;
+  isExpired: boolean;
+  viewCount: number;
   createdAt: string;
-  updatedAt: string;
+  requiredSkills: string[];
 }
 
 export interface AdminJobFilterRequest {
   search?: string;
-  status?: string;
+  approvalStatus?: string;
   companyId?: string;
   pageIndex?: number;
   pageSize?: number;
@@ -99,5 +111,6 @@ export interface AdminJobFilterRequest {
 
 export interface ApproveJobRequest {
   isApproved: boolean;
+  rejectionReason?: string;
   note?: string;
 }

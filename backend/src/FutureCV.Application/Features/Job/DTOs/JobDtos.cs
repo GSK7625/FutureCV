@@ -129,7 +129,8 @@ public sealed record AdminJobFilterRequest(
 
 public sealed record ApproveJobRequest(
     bool IsApproved,
-    string? RejectionReason = null);
+    string? RejectionReason = null,
+    string? Note = null);
 
 public sealed record CreateJobReportRequest(
     string Reason,
