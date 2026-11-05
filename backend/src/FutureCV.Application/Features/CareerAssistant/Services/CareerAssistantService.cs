@@ -23,7 +23,7 @@ public sealed class CareerAssistantService(
         if (!validation.IsValid)
             return ServiceResult.Failure<CareerChatResponse>("Cau hoi hoac lich su chat khong hop le.");
 
-        var candidate = await db.Candidates.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+        var candidate = await db.Candidates.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId && !x.IsDeleted, cancellationToken);
         if (candidate is null)
             return ServiceResult.NotFound<CareerChatResponse>("Khong tim thay ho so ung vien.");
 
