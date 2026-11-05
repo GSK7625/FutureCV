@@ -2,19 +2,19 @@ name: FutureCV CD
 
 on:
   push:
-    branches: [master]
+    branches: [master, giao-dien-admin]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: cd-local-staging
+  group: cd-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   ci:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/giao-dien-admin'
     uses: ./.github/workflows/ci.yml
 
   publish:
@@ -54,7 +54,7 @@ jobs:
             docker buildx build --platform linux/amd64 --file "$file" \
               --label "org.opencontainers.image.revision=$GITHUB_SHA" \
               --label "org.opencontainers.image.source=https://github.com/$REPOSITORY" \
-              --tag "$image:$GITHUB_SHA" --push --metadata-file "$service.json" "$context"
+              --tag "$image:$GITHUB_SHA" --tag "$image:${GITHUB_REF_NAME//\//-}" --push --metadata-file "$service.json" "$context"
             digest=$(jq -er '."containerimage.digest"' "$service.json")
             ref="$image@$digest"
             echo "$service=$ref" >> "$GITHUB_OUTPUT"
@@ -72,7 +72,7 @@ jobs:
 
   deploy-local:
     # Disabled until the repository owner prepares an isolated runner/environment.
-    if: github.ref == 'refs/heads/master' && vars.LOCAL_CD_ENABLED == 'true'
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/giao-dien-admin') && vars.LOCAL_CD_ENABLED == 'true'
     needs: publish
     runs-on: [self-hosted, Windows, X64, futurecv-deploy]
     timeout-minutes: 20
