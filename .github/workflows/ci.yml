@@ -2,9 +2,9 @@ name: FutureCV CI
 
 on:
   push:
-    branches: [master, codex/github-actions-ci]
+    branches: [master, codex/github-actions-ci, giao-dien-admin]
   pull_request:
-    branches: [master]
+    branches: [master, giao-dien-admin]
   workflow_dispatch:
   workflow_call:
 
