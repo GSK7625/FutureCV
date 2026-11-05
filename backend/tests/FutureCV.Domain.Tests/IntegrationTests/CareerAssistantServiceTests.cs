@@ -14,6 +14,35 @@ namespace FutureCV.Domain.Tests.IntegrationTests;
 
 public class CareerAssistantServiceTests
 {
+    [Fact]
+    public async Task RejectsDeletedCandidate()
+    {
+        using var db = Db();
+        var candidate = new Candidate { UserId = Guid.NewGuid(), FullName = "Candidate", IsDeleted = true };
+        db.Candidates.Add(candidate);
+        await db.SaveChangesAsync();
+        var client = new Client();
+        Assert.False((await Service(db, client).ChatAsync(candidate.UserId, new("Advice", []))).IsSuccess);
+        Assert.Null(client.Request);
+    }
+
+    [Theory]
+    [InlineData("not-json")]
+    [InlineData("null")]
+    public async Task RejectsMalformedCvWithoutCallingAi(string data)
+    {
+        using var db = Db();
+        var candidate = new Candidate { UserId = Guid.NewGuid(), FullName = "Candidate" };
+        var cv = new CandidateCv { CandidateId = candidate.Id, ParseStatus = "Parsed" };
+        db.Candidates.Add(candidate);
+        db.CandidateCvs.Add(cv);
+        db.CvParsers.Add(new CvParser { CvId = cv.Id, ParsedDataJson = data });
+        await db.SaveChangesAsync();
+        var client = new Client();
+        Assert.False((await Service(db, client).ChatAsync(candidate.UserId, new("Advice", [], cv.Id))).IsSuccess);
+        Assert.Null(client.Request);
+    }
+
     [Theory]
     [InlineData("public")]
     [InlineData("draft")]
