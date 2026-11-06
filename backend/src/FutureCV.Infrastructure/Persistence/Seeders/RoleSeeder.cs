@@ -35,9 +35,14 @@ public static class RoleSeeder
             }
         }
 
-        // 2. Seed Super Admin (Credentials loaded from configuration/env, with dev fallback)
-        var adminEmail = configuration?["SuperAdmin:Email"] ?? "admin@futurecv.com";
-        var adminPassword = configuration?["SuperAdmin:Password"] ?? "Admin@123456";
+        // 2. Seed Super Admin only when explicitly configured.
+        var adminEmail = configuration?["SuperAdmin:Email"];
+        var adminPassword = configuration?["SuperAdmin:Password"];
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+        {
+            logger?.LogInformation("SuperAdmin seeding skipped: credentials are not configured.");
+            return;
+        }
 
         var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
         if (existingAdmin == null)
@@ -59,7 +64,7 @@ public static class RoleSeeder
             }
             else
             {
-                logger?.LogWarning("Failed to seed SuperAdmin account: {Errors}",
+                throw new InvalidOperationException("Failed to seed SuperAdmin account: " +
                     string.Join(", ", createResult.Errors.Select(e => e.Description)));
             }
         }

@@ -11,32 +11,18 @@ public class AiMatchingContractTests
         PropertyNameCaseInsensitive = true
     };
 
-    private static string GetScenarioPath(string fileName)
+    private static string GetFixturePath(string relativePath)
     {
-        // Search relative to test output or source tree
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        var relativeCandidates = new[]
-        {
-            Path.Combine(baseDir, "..", "..", "..", "..", "..", "backend-ai", "tests", "fixtures", "contracts", "scenarios", fileName),
-            Path.Combine(baseDir, "..", "..", "..", "..", "backend-ai", "tests", "fixtures", "contracts", "scenarios", fileName),
-            Path.GetFullPath(Path.Combine(baseDir, "../../../../../backend-ai/tests/fixtures/contracts/scenarios", fileName))
-        };
+        // The test project copies shared JSON fixtures here via MSBuild LinkBase.
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Contracts", relativePath);
+        if (File.Exists(path)) return path;
 
-        foreach (var path in relativeCandidates)
-        {
-            if (File.Exists(path)) return Path.GetFullPath(path);
-        }
-
-        // Direct fallback
-        var direct = Path.GetFullPath(@"D:\My Project\CDTH\FutureCV\backend-ai\tests\fixtures\contracts\scenarios\" + fileName);
-        if (File.Exists(direct)) return direct;
-
-        throw new FileNotFoundException($"Scenario fixture not found: {fileName}");
+        throw new FileNotFoundException($"Shared contract fixture not found: {relativePath}", path);
     }
 
     private static string LoadScenarioJson(string fileName)
     {
-        var path = GetScenarioPath(fileName);
+        var path = GetFixturePath(Path.Combine("scenarios", fileName));
         return File.ReadAllText(path);
     }
 
@@ -194,8 +180,7 @@ public class AiMatchingContractTests
     [Fact]
     public void CanonicalFixture_WithExplanation_DeserializesAccurately()
     {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        var direct = Path.GetFullPath(@"D:\My Project\CDTH\FutureCV\backend-ai\tests\fixtures\contracts\match_result_v1_with_explanation.json");
+        var direct = GetFixturePath("match_result_v1_with_explanation.json");
         var json = File.ReadAllText(direct);
         var res = JsonSerializer.Deserialize<AiMatchResultDto>(json, JsonOptions);
 
@@ -211,7 +196,7 @@ public class AiMatchingContractTests
     [Fact]
     public void CanonicalFixture_NoExplanation_DeserializesAccurately()
     {
-        var direct = Path.GetFullPath(@"D:\My Project\CDTH\FutureCV\backend-ai\tests\fixtures\contracts\match_result_v1_no_explanation.json");
+        var direct = GetFixturePath("match_result_v1_no_explanation.json");
         var json = File.ReadAllText(direct);
         var res = JsonSerializer.Deserialize<AiMatchResultDto>(json, JsonOptions);
 

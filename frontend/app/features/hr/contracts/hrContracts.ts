@@ -25,6 +25,7 @@ export function buildRecruiterApplicationsQuery(filters: RecruiterApplicationFil
   const params = new URLSearchParams();
   if (filters.status) params.set("Status", filters.status);
   if (filters.keyword?.trim()) params.set("Keyword", filters.keyword.trim());
+  if (filters.sortBy) params.set("SortBy", filters.sortBy);
   params.set("PageIndex", String(filters.pageIndex ?? 1));
   params.set("PageSize", String(filters.pageSize ?? 10));
   return `?${params.toString()}`;

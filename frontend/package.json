@@ -6,7 +6,8 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "test": "node --test app/lib/requestBody.test.ts app/lib/errorMapper.test.ts app/features/hr/contracts/hrContracts.test.ts app/features/auth/constants.test.ts",
+    "test": "node --test app/lib/requestBody.test.ts app/lib/errorMapper.test.ts app/lib/apiResponse.test.ts app/guards/hrWorkspace.test.ts app/features/hr/contracts/hrContracts.test.ts app/features/auth/constants.test.ts",
+    "test:ci": "node --test --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=test-results.xml app/lib/requestBody.test.ts app/lib/errorMapper.test.ts app/lib/apiResponse.test.ts app/guards/hrWorkspace.test.ts app/features/hr/contracts/hrContracts.test.ts app/features/auth/constants.test.ts",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {

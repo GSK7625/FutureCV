@@ -17,6 +17,7 @@ import { cn } from "~/lib/cn";
 import { useQueryClient } from "@tanstack/react-query";
 import { authService } from "~/features/auth/services/authService";
 import { useUIStore } from "~/stores/useUIStore";
+import { useEmployerProfile } from "~/features/hr/hooks/useEmployerProfile";
 
 export const clientLoader = () => requireRole(["employer"]);
 
@@ -37,6 +38,10 @@ export default function HRLayout() {
   const queryClient = useQueryClient();
   const showToast = useUIStore((state) => state.showToast);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const profileQuery = useEmployerProfile();
+  const avatarUrl = profileQuery.data?.avatarUrl;
+  const displayName = profileQuery.data?.fullName || user?.fullName || "Nhà tuyển dụng";
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -88,13 +93,21 @@ export default function HRLayout() {
         </NavLink>
         <div className="mt-8 flex-1">{navigation}</div>
         <div className="border-t border-white/10 pt-4">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar name={user?.fullName || user?.email || "Nhà tuyển dụng"} size="md" />
+          <NavLink
+            to="/hr/profile"
+            className="flex items-center gap-3 rounded-default px-2 py-2 transition-colors hover:bg-white/10"
+          >
+            <Avatar
+              src={avatarUrl ?? undefined}
+              name={displayName}
+              size="md"
+              className="border-white/20 bg-white/10 text-white font-semibold"
+            />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-label font-semibold">{user?.fullName || "Nhà tuyển dụng"}</p>
+              <p className="truncate text-label font-semibold">{displayName}</p>
               <p className="truncate text-label-sm text-white/55">{user?.email}</p>
             </div>
-          </div>
+          </NavLink>
           <button
             type="button"
             onClick={handleLogout}
@@ -143,6 +156,24 @@ export default function HRLayout() {
                 </button>
               </div>
               <div className="flex-1">{navigation}</div>
+              <div className="border-t border-white/10 pt-4 mb-2">
+                <NavLink
+                  to="/hr/profile"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-2 py-2 rounded-default hover:bg-white/10"
+                >
+                  <Avatar
+                    src={avatarUrl ?? undefined}
+                    name={displayName}
+                    size="md"
+                    className="border-white/20 bg-white/10 text-white font-semibold"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-label font-semibold">{displayName}</p>
+                    <p className="truncate text-label-sm text-white/55">{user?.email}</p>
+                  </div>
+                </NavLink>
+              </div>
               <button
                 type="button"
                 onClick={handleLogout}

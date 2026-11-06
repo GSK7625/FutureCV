@@ -1,0 +1,71 @@
+name: futurecv-local-staging
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: futurecv
+      POSTGRES_USER: futurecv
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Initialize settings.env first}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    logging: *logging
+  ai:
+    image: ${AI_IMAGE:?Release file required}
+    restart: unless-stopped
+    environment:
+      ENV: staging
+      LLM_PROVIDER: mock
+      EMBEDDING_PROVIDER: mock
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Internal API key required}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+  backend:
+    image: ${BACKEND_IMAGE:?Release file required}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=futurecv;Username=futurecv;Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${JWT_KEY:?JWT key required}
+      Jwt__Issuer: FutureCV.LocalStaging
+      Jwt__Audience: FutureCV.LocalStaging
+      SuperAdmin__Email: ${ADMIN_EMAIL:?Admin email required}
+      SuperAdmin__Password: ${ADMIN_PASSWORD:?Admin password required}
+      AiService__BaseUrl: http://ai:8000
+      AiService__ApiKey: ${INTERNAL_API_KEY}
+      Seed__DemoData: 'false'
+      Http__RedirectToHttps: 'false'
+    depends_on:
+      db:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+    logging: *logging
+  frontend:
+    image: ${FRONTEND_IMAGE:?Release file required}
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${HTTP_PORT:-8080}:8080'
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  postgres-data:

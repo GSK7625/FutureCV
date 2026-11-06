@@ -13,5 +13,10 @@ public interface IAiMatchingClient
         AiMatchRequest request,
         string? correlationId = null,
         CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<AiCandidateRankResponse>> RankCandidatesAsync(
+        AiCandidateRankRequest request,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default);
 }
 

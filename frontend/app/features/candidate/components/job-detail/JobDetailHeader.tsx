@@ -14,6 +14,7 @@ import {
   IconShare,
 } from "@tabler/icons-react";
 import { formatSalary } from "~/utils";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import type { Job } from "../../types";
 
 interface JobDetailHeaderProps {
@@ -43,17 +44,14 @@ export function JobDetailHeader({
         {/* Left: Logo & Job Info */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border-subtle bg-surface-low p-2">
-            {job.companyLogo ? (
-              <img
-                src={job.companyLogo}
-                alt={job.company}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <span className="text-2xl font-bold text-navy">
-                {companyInitial}
-              </span>
-            )}
+            <CompanyLogo
+              src={job.companyLogo}
+              alt={job.company}
+              name={job.company}
+              className="h-full w-full object-contain"
+              fallbackType="initial"
+              fallbackClassName="text-2xl"
+            />
           </div>
 
           <div className="flex flex-col">

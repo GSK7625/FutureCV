@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { IconExternalLink, IconFileText, IconHistory } from "@tabler/icons-react";
+import { IconCheck, IconExternalLink, IconFileText, IconHistory, IconSparkles } from "@tabler/icons-react";
 import { Avatar, Button, Modal, Skeleton } from "~/components/ui";
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
 import { useUIStore } from "~/stores/useUIStore";
@@ -13,7 +13,8 @@ import {
   useUpdateApplicationStatus,
 } from "../hooks/useRecruiterApplications";
 import type { UpdatableApplicationStatus } from "../types";
-import { ApplicationStatusBadge, applicationStatusLabels, updatableApplicationStatuses } from "./ApplicationStatusBadge";
+import { ApplicationStatusBadge, applicationStatusLabels, statusThemeConfig, updatableApplicationStatuses } from "./ApplicationStatusBadge";
+import { cn } from "~/lib/cn";
 
 export function ApplicationDetailsModal({ applicationId, onClose }: { applicationId: string | null; onClose: () => void }) {
   const applicationQuery = useRecruiterApplication(applicationId);
@@ -78,6 +79,83 @@ export function ApplicationDetailsModal({ applicationId, onClose }: { applicatio
                 <ApplicationStatusBadge status={application.status} />
               </div>
             </div>
+
+            {/* AI Candidate Match Assessment */}
+            {(application.matchScore !== null || application.matchExplanation) && (
+              <div className="rounded-default border border-gold/40 bg-gold/[0.04] p-3.5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <IconSparkles size={16} className="text-gold shrink-0" aria-hidden="true" />
+                    <h4 className="text-xs font-bold text-navy uppercase tracking-wider">
+                      Đánh giá mức độ phù hợp từ AI
+                    </h4>
+                  </div>
+                  {application.matchScore !== null && (
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                        application.matchScore >= 80
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : application.matchScore >= 60
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200"
+                      }`}
+                    >
+                      {application.matchScore}% phù hợp
+                    </span>
+                  )}
+                </div>
+
+                {application.matchExplanation && (
+                  <p className="text-xs text-ink-variant leading-relaxed bg-white/80 rounded border border-border-subtle/80 p-2.5">
+                    {application.matchExplanation}
+                  </p>
+                )}
+
+                {/* Skills Breakdown */}
+                {((application.matchedSkills && application.matchedSkills.length > 0) ||
+                  (application.missingSkills && application.missingSkills.length > 0)) && (
+                  <div className="space-y-2 pt-1 border-t border-border-subtle/60 text-xs">
+                    {application.matchedSkills && application.matchedSkills.length > 0 && (
+                      <div>
+                        <span className="text-[11px] font-semibold text-emerald-700 block mb-1">
+                          Kỹ năng đáp ứng ({application.matchedSkills.length}):
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {application.matchedSkills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[11px] font-medium border border-emerald-200"
+                            >
+                              <IconCheck size={12} aria-hidden="true" />
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {application.missingSkills && application.missingSkills.length > 0 && (
+                      <div className="pt-1">
+                        <span className="text-[11px] font-semibold text-amber-700 block mb-1">
+                          Kỹ năng còn thiếu ({application.missingSkills.length}):
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {application.missingSkills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[11px] font-medium border border-amber-200"
+                            >
+                              <span>-</span>
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* CV & Cover Letter */}
             <div className="rounded-default border border-border-subtle bg-surface-low/60 p-3">
@@ -201,7 +279,7 @@ export function ApplicationDetailsModal({ applicationId, onClose }: { applicatio
                     const reason = formatTimelineReason(item.reason);
                     return (
                       <li key={`${item.changedAt}-${index}`} className="relative">
-                        <span className="absolute -left-[15px] top-1.5 h-1.5 w-1.5 rounded-full bg-navy/40" />
+                        <span className={cn("absolute -left-[15px] top-1.5 h-2 w-2 rounded-full ring-2 ring-white", (statusThemeConfig[item.toStatus] ?? statusThemeConfig.Applied).dotColor)} />
                         <div className="flex flex-wrap items-center gap-x-2">
                           <span className="font-semibold text-navy">{applicationStatusLabels[item.toStatus]}</span>
                           <span className="text-[11px] text-ink-muted">{new Date(item.changedAt).toLocaleString("vi-VN")}</span>

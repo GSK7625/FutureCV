@@ -2,7 +2,9 @@ using System.Text;
 using FutureCV.Api.Middlewares;
 using FutureCV.Application;
 using FutureCV.Infrastructure;
+using FutureCV.Infrastructure.Persistence;
 using FutureCV.Infrastructure.Persistence.Seeders;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -14,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Services ──────────────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHealthChecks();
 
 // Global Exception Handling & RFC 7807 ProblemDetails
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -103,6 +106,23 @@ builder.Services.AddCors(options =>
 // ── Pipeline ──────────────────────────────────────────────────
 var app = builder.Build();
 
+// One-shot migration container; no seeding or HTTP server.
+if (args.Contains("--migrate-only", StringComparer.Ordinal))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+    return;
+}
+
+// One-shot demo data seeder command.
+if (args.Contains("--seed-demo-data", StringComparer.Ordinal))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+    await DatabaseSeeder.SeedAsync(scope.ServiceProvider, forceDemoData: true);
+    return;
+}
+
 app.UseExceptionHandler();
 
 // Seed database on startup (Roles, SuperAdmin, Master Reference Data)
@@ -114,12 +134,26 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (builder.Configuration.GetValue("Http:RedirectToHttps", true))
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<BannedUserMiddleware>();
 app.MapControllers();
+app.MapGet("/health/live", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapGet("/health/ready", async (ApplicationDbContext db, CancellationToken cancellationToken) =>
+    await db.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok(new { status = "ready" })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable)).AllowAnonymous();
+app.MapHealthChecks("/health").AllowAnonymous();
+app.MapGet("/ready", async Task<IResult> (ApplicationDbContext db, CancellationToken cancellationToken) =>
+    await db.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok(new { status = "ready" })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable))
+    .AllowAnonymous();
 
 app.Run();
 

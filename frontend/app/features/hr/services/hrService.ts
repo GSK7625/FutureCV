@@ -7,6 +7,7 @@ import type {
   EmployerProfile,
   EmployerProfileInput,
   HrMasterData,
+  JobCandidateRankingResponse,
   JobDetail,
   JobRequest,
   JobSummary,
@@ -159,6 +160,15 @@ export const hrService = {
 
   getRecruitmentPipeline(jobId: string, signal?: AbortSignal) {
     return fetcher<RecruitmentPipeline>(`/api/employer/jobs/${jobId}/pipeline`, {
+      method: "GET",
+      auth: true,
+      signal,
+    });
+  },
+
+  getJobCandidateRanking(jobId: string, refresh = false, signal?: AbortSignal) {
+    const query = refresh ? "?refresh=true" : "";
+    return fetcher<JobCandidateRankingResponse>(`/api/employer/jobs/${jobId}/ranking${query}`, {
       method: "GET",
       auth: true,
       signal,
