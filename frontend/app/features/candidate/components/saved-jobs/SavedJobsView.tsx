@@ -20,6 +20,7 @@ import { EmptyState } from "~/components/ui/EmptyState";
 import { Modal } from "~/components/ui/Modal";
 import { Skeleton } from "~/components/ui/Skeleton";
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import { JobListPagination } from "../job-list/JobListPagination";
 import { useSavedJobs } from "../../hooks/useSavedJobs";
 import { useToggleSaveJob } from "../../hooks/useToggleSaveJob";
@@ -174,18 +175,15 @@ export function SavedJobsView() {
                     <div className="flex items-start gap-4 min-w-0 flex-1">
                       {/* Company Logo */}
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-navy/10 bg-navy/5">
-                        {job.companyLogo ? (
-                          <img
-                            src={job.companyLogo}
-                            alt={job.company}
-                            className="h-full w-full object-cover shadow-2xs"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span className="text-lg font-bold text-navy">
-                            {companyInitial}
-                          </span>
-                        )}
+                        <CompanyLogo
+                          src={job.companyLogo}
+                          alt={job.company}
+                          name={job.company}
+                          className="h-full w-full object-cover shadow-2xs"
+                          fallbackType="initial"
+                          fallbackClassName="text-lg"
+                          loading="lazy"
+                        />
                       </div>
 
                       <div className="min-w-0 space-y-1">

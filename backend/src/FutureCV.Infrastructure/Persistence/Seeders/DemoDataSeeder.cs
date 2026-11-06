@@ -44,13 +44,14 @@ public static class DemoDataSeeder
             // 1. Companies
             // -----------------------------------------------------------------
             var fptCompany = await context.Companies.FirstOrDefaultAsync(c => c.TaxCode == "0101778162");
+            const string fptLogoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/FPT_logo_2010.svg/1280px-FPT_logo_2010.svg.png";
             if (fptCompany == null)
             {
                 fptCompany = new Company
                 {
                     Name = "FPT Software",
                     TaxCode = "0101778162",
-                    LogoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/FPT_logo_2010.svg/1200px-FPT_logo_2010.svg.png",
+                    LogoUrl = fptLogoUrl,
                     Scale = "10000+ nhân viên",
                     Industry = "Công nghệ thông tin / Phần mềm",
                     WebsiteUrl = "https://fptsoftware.com",
@@ -62,15 +63,21 @@ public static class DemoDataSeeder
                 await context.Companies.AddAsync(fptCompany);
                 await context.SaveChangesAsync();
             }
+            else if (fptCompany.LogoUrl != fptLogoUrl)
+            {
+                fptCompany.LogoUrl = fptLogoUrl;
+                await context.SaveChangesAsync();
+            }
 
             var vngCompany = await context.Companies.FirstOrDefaultAsync(c => c.TaxCode == "0303538435");
+            const string vngLogoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/VNG_Corp._logo.svg/1280px-VNG_Corp._logo.svg.png";
             if (vngCompany == null)
             {
                 vngCompany = new Company
                 {
                     Name = "VNG Corporation",
                     TaxCode = "0303538435",
-                    LogoUrl = "https://upload.wikimedia.org/wikipedia/vi/thumb/9/91/VNG_Corporation_logo.svg/1200px-VNG_Corporation_logo.svg.png",
+                    LogoUrl = vngLogoUrl,
                     Scale = "1000 - 5000 nhân viên",
                     Industry = "Công nghệ thông tin / Game & Internet",
                     WebsiteUrl = "https://vng.com.vn",
@@ -80,6 +87,11 @@ public static class DemoDataSeeder
                     VerifiedAt = DateTimeOffset.UtcNow
                 };
                 await context.Companies.AddAsync(vngCompany);
+                await context.SaveChangesAsync();
+            }
+            else if (vngCompany.LogoUrl != vngLogoUrl)
+            {
+                vngCompany.LogoUrl = vngLogoUrl;
                 await context.SaveChangesAsync();
             }
 

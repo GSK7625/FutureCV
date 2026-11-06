@@ -19,6 +19,7 @@ import {
 import type { ApplicationListItem } from "../../types";
 import { CAN_WITHDRAW_STATUSES } from "../../types";
 import { StatusBadgeVn } from "./StatusBadgeVn";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import { formatSalary } from "~/utils";
 
 interface ApplicationRowProps {
@@ -37,17 +38,15 @@ export function ApplicationRow({ application, onViewDetail, onWithdraw }: Applic
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           {/* Main Info: Logo + Title + Company + Location */}
           <div className="flex items-start gap-4 min-w-0">
-            {application.companyLogo ? (
-              <img
+            <div className="w-14 h-14 rounded-2xl bg-navy/5 border border-navy/10 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+              <CompanyLogo
                 src={application.companyLogo}
                 alt={application.companyName}
-                className="w-14 h-14 rounded-2xl object-cover border border-navy/10 shrink-0 shadow-2xs"
+                name={application.companyName}
+                className="w-full h-full object-cover"
+                fallbackIconSize={26}
               />
-            ) : (
-              <div className="w-14 h-14 rounded-2xl bg-navy/5 border border-navy/10 flex items-center justify-center text-navy shrink-0">
-                <IconBuilding size={26} stroke={1.5} />
-              </div>
-            )}
+            </div>
 
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2.5 flex-wrap">

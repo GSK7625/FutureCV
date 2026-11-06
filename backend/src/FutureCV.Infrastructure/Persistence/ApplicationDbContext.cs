@@ -4,6 +4,7 @@ using FutureCV.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace FutureCV.Infrastructure.Persistence;
 
@@ -48,13 +49,47 @@ public class ApplicationDbContext
     public DbSet<JobReport> JobReports => Set<JobReport>();
 
 
+    public override int SaveChanges()
+    {
+        NormalizeAuditAndDateTimeProperties();
+        return base.SaveChanges();
+    }
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        NormalizeAuditAndDateTimeProperties();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void NormalizeAuditAndDateTimeProperties()
     {
         var now = DateTime.UtcNow;
         var nowOffset = DateTimeOffset.UtcNow;
 
         foreach (var entry in ChangeTracker.Entries())
         {
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+            {
+                foreach (var prop in entry.Properties)
+                {
+                    if (prop.CurrentValue is DateTime dt)
+                    {
+                        if (dt.Kind == DateTimeKind.Unspecified)
+                        {
+                            var utc = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                            prop.CurrentValue = utc;
+                            prop.Metadata.PropertyInfo?.SetValue(entry.Entity, utc);
+                        }
+                        else if (dt.Kind == DateTimeKind.Local)
+                        {
+                            var utc = dt.ToUniversalTime();
+                            prop.CurrentValue = utc;
+                            prop.Metadata.PropertyInfo?.SetValue(entry.Entity, utc);
+                        }
+                    }
+                }
+            }
+
             if (entry.Entity is FutureCV.Domain.Common.BaseEntity baseEntity)
             {
                 if (entry.State == EntityState.Added)
@@ -77,8 +112,6 @@ public class ApplicationDbContext
                 }
             }
         }
-
-        return base.SaveChangesAsync(cancellationToken);
     }
 
 
@@ -86,5 +119,29 @@ public class ApplicationDbContext
     {
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // Global ValueConverter to ensure all DateTime and DateTime? properties are treated as UTC for PostgreSQL timestamptz
+        var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
+            v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+        var nullableDateTimeConverter = new ValueConverter<DateTime?, DateTime?>(
+            v => !v.HasValue ? null : (v.Value.Kind == DateTimeKind.Utc ? v.Value : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc)),
+            v => !v.HasValue ? null : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));
+
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime))
+                {
+                    property.SetValueConverter(dateTimeConverter);
+                }
+                else if (property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(nullableDateTimeConverter);
+                }
+            }
+        }
     }
 }

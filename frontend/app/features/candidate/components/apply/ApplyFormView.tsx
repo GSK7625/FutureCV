@@ -28,6 +28,7 @@ import { MatchPreviewSection } from "./MatchPreviewSection";
 import { CoverLetterSection } from "./CoverLetterSection";
 import { ApplySuccess } from "./ApplySuccess";
 import { AlreadyAppliedModal } from "./AlreadyAppliedModal";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import { useAuthStore } from "~/stores/useAuthStore";
 import { useUIStore } from "~/stores/useUIStore";
 import { ApiError } from "~/lib/fetcher";
@@ -245,17 +246,15 @@ export function ApplyFormView({ jobId }: ApplyFormViewProps) {
           <div className="p-6 sm:p-8 bg-white rounded-[calc(2rem-0.375rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
-                {job.companyLogo ? (
-                  <img
+                <div className="w-16 h-16 rounded-2xl bg-navy/5 border border-navy/10 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                  <CompanyLogo
                     src={job.companyLogo}
                     alt={job.company}
-                    className="w-16 h-16 rounded-2xl object-cover border border-navy/10 shadow-xs"
+                    name={job.company}
+                    className="w-full h-full object-cover"
+                    fallbackIconSize={28}
                   />
-                ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-navy/5 border border-navy/10 flex items-center justify-center text-navy font-bold text-xl">
-                    <IconBuilding size={28} stroke={1.5} />
-                  </div>
-                )}
+                </div>
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 bg-navy/5 text-navy text-[10px] uppercase tracking-[0.15em] font-semibold mb-1">
                     Đang tuyển dụng

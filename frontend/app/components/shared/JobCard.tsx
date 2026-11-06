@@ -6,6 +6,7 @@ import type { Job } from "~/features/candidate/types";
 import { useSavedJobIds } from "~/features/candidate/hooks/useSavedJobIds";
 import { useToggleSaveJob } from "~/features/candidate/hooks/useToggleSaveJob";
 import { cn } from "~/lib/cn";
+import { CompanyLogo } from "./CompanyLogo";
 
 export interface JobCardProps {
   job: Job;
@@ -50,13 +51,14 @@ export const JobCard = memo(function JobCard({
     >
       {/* Company Logo Avatar */}
       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-subtle bg-surface-low p-1">
-        {job.companyLogo ? (
-          <img src={job.companyLogo} alt={job.company} className="h-full w-full object-contain" />
-        ) : (
-          <span className="text-base font-bold text-navy">
-            {job.company.charAt(0).toUpperCase()}
-          </span>
-        )}
+        <CompanyLogo
+          src={job.companyLogo}
+          alt={job.company}
+          name={job.company}
+          className="h-full w-full object-contain"
+          fallbackType="initial"
+          fallbackClassName="text-base"
+        />
       </div>
 
       {/* Content */}
