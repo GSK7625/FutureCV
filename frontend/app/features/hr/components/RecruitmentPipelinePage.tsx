@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { IconCheck, IconColumns, IconExternalLink, IconList, IconRefresh, IconSearch, IconSparkles, IconTrophy, IconUsers } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, Button, Card, CardContent, EmptyState, Input, Skeleton } from "~/components/ui";
@@ -22,22 +23,139 @@ import type {
   UpdatableApplicationStatus,
 } from "../types";
 import { ApplicationDetailsModal } from "./ApplicationDetailsModal";
-import { ApplicationStatusBadge, applicationStatusLabels, updatableApplicationStatuses } from "./ApplicationStatusBadge";
+import {
+  ApplicationStatusBadge,
+  applicationStatusLabels,
+  statusThemeConfig,
+  updatableApplicationStatuses,
+} from "./ApplicationStatusBadge";
 
 type ViewMode = "pipeline" | "list" | "ranking";
 
 export function RecruitmentPipelinePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const jobsQuery = useEmployerJobs({ pageIndex: 1, pageSize: 100 });
-  const [jobId, setJobId] = useState("");
-  const [view, setView] = useState<ViewMode>("pipeline");
+
+  const [jobId, setJobId] = useState<string>(() => {
+    const urlId = searchParams.get("jobId");
+    if (urlId) return urlId;
+    try {
+      return localStorage.getItem("futurecv_hr_pipeline_job_id") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [view, setView] = useState<ViewMode>(() => {
+    const urlView = searchParams.get("view");
+    if (urlView === "pipeline" || urlView === "list" || urlView === "ranking") return urlView;
+    try {
+      const savedView = localStorage.getItem("futurecv_hr_pipeline_view");
+      if (savedView === "pipeline" || savedView === "list" || savedView === "ranking") return savedView;
+    } catch {}
+    return "pipeline";
+  });
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [filters, setFilters] = useState<RecruiterApplicationFilters>({ pageIndex: 1, pageSize: 10 });
   const [applicationId, setApplicationId] = useState<string | null>(null);
 
+  const handleSelectJob = (newJobId: string) => {
+    setJobId(newJobId);
+    setFilters((current) => ({ ...current, pageIndex: 1 }));
+    try {
+      localStorage.setItem("futurecv_hr_pipeline_job_id", newJobId);
+    } catch {}
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("jobId", newJobId);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const handleSelectView = (newView: ViewMode) => {
+    setView(newView);
+    try {
+      localStorage.setItem("futurecv_hr_pipeline_view", newView);
+    } catch {}
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("view", newView);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
   useEffect(() => {
-    if (!jobId && jobsQuery.data?.items[0]) setJobId(jobsQuery.data.items[0].id);
-  }, [jobId, jobsQuery.data]);
+    if (!jobsQuery.data?.items.length) return;
+    const items = jobsQuery.data.items;
+
+    // If current jobId is valid among existing jobs, persist it and ensure URL reflects it
+    if (jobId && items.some((j) => j.id === jobId)) {
+      try {
+        localStorage.setItem("futurecv_hr_pipeline_job_id", jobId);
+      } catch {}
+      if (searchParams.get("jobId") !== jobId) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("jobId", jobId);
+            return next;
+          },
+          { replace: true },
+        );
+      }
+      return;
+    }
+
+    // 1. Check if URL has a valid jobId
+    const urlJobId = searchParams.get("jobId");
+    if (urlJobId && items.some((j) => j.id === urlJobId)) {
+      setJobId(urlJobId);
+      try {
+        localStorage.setItem("futurecv_hr_pipeline_job_id", urlJobId);
+      } catch {}
+      return;
+    }
+
+    // 2. Check if localStorage has a valid jobId
+    try {
+      const savedJobId = localStorage.getItem("futurecv_hr_pipeline_job_id");
+      if (savedJobId && items.some((j) => j.id === savedJobId)) {
+        setJobId(savedJobId);
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("jobId", savedJobId);
+            return next;
+          },
+          { replace: true },
+        );
+        return;
+      }
+    } catch {}
+
+    // 3. Fallback to first job
+    const defaultJobId = items[0].id;
+    setJobId(defaultJobId);
+    try {
+      localStorage.setItem("futurecv_hr_pipeline_job_id", defaultJobId);
+    } catch {}
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("jobId", defaultJobId);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [jobsQuery.data, jobId, searchParams, setSearchParams]);
 
   const effectiveFilters = useMemo(() => ({ ...filters, keyword: debouncedSearch }), [filters, debouncedSearch]);
   const pipelineQuery = useRecruitmentPipeline(view === "pipeline" ? jobId : "");
@@ -47,11 +165,32 @@ export function RecruitmentPipelinePage() {
 
   return (
     <section aria-labelledby="pipeline-title">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-label font-semibold text-gold">ỨNG VIÊN</p><h1 id="pipeline-title" className="mt-1 text-headline text-navy">Quy trình tuyển dụng</h1><p className="mt-2 text-ink-variant">Theo dõi và cập nhật ứng viên theo từng tin tuyển dụng.</p></div><div className="flex rounded-default border border-border-strong bg-surface p-1"><ViewButton active={view === "pipeline"} onClick={() => setView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Quy trình</ViewButton><ViewButton active={view === "list"} onClick={() => setView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton><ViewButton active={view === "ranking"} onClick={() => setView("ranking")} icon={<IconSparkles size={18} aria-hidden="true" />}>Xếp hạng AI</ViewButton></div></div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-label font-semibold text-gold">ỨNG VIÊN</p>
+          <h1 id="pipeline-title" className="mt-1 text-headline text-navy">Quy trình tuyển dụng</h1>
+          <p className="mt-2 text-ink-variant">Theo dõi và cập nhật ứng viên theo từng tin tuyển dụng.</p>
+        </div>
+        <div className="flex rounded-default border border-border-strong bg-surface p-1">
+          <ViewButton active={view === "pipeline"} onClick={() => handleSelectView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Quy trình</ViewButton>
+          <ViewButton active={view === "list"} onClick={() => handleSelectView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton>
+          <ViewButton active={view === "ranking"} onClick={() => handleSelectView("ranking")} icon={<IconSparkles size={18} aria-hidden="true" />}>Xếp hạng AI</ViewButton>
+        </div>
+      </div>
 
       <QueryBoundary isLoading={jobsQuery.isLoading} error={jobsQuery.error} onRetry={() => jobsQuery.refetch()} skeleton={<Skeleton className="mt-6 h-20" />}>
         {jobs.length === 0 ? <EmptyState className="mt-6" icon={<IconUsers size={42} aria-hidden="true" />} title="Chưa có tin tuyển dụng" description="Tạo tin tuyển dụng trước khi quản lý ứng viên." /> : <>
-          <div className="mt-6 rounded-default border border-border-subtle bg-surface p-4 shadow-surface"><label htmlFor="pipeline-job" className="mb-2 block text-label font-semibold text-ink">Tin tuyển dụng</label><select id="pipeline-job" value={jobId} onChange={(event) => { setJobId(event.target.value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} className="h-11 w-full rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold">{jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></div>
+          <div className="mt-6 rounded-default border border-border-subtle bg-surface p-4 shadow-surface">
+            <label htmlFor="pipeline-job" className="mb-2 block text-label font-semibold text-ink">Tin tuyển dụng</label>
+            <select
+              id="pipeline-job"
+              value={jobId}
+              onChange={(event) => handleSelectJob(event.target.value)}
+              className="h-11 w-full rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold"
+            >
+              {jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
+            </select>
+          </div>
           {view === "pipeline" ? (
             <PipelineView jobId={jobId} query={pipelineQuery} onOpen={setApplicationId} />
           ) : view === "list" ? (
@@ -209,6 +348,7 @@ function PipelineView({
           </p>
           <div className="mt-3 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {query.data.stages.map((stage) => {
+              const theme = statusThemeConfig[stage.stage] ?? statusThemeConfig.Applied;
               const isDropTarget =
                 activeDropStage === stage.stage && draggedItem?.fromStage !== stage.stage;
               const isCurrentSource = draggedItem?.fromStage === stage.stage;
@@ -234,32 +374,40 @@ function PipelineView({
                     }
                   }}
                   onDrop={(e) => handleDrop(e, stage.stage)}
-                  className={`transition-all duration-200 ${
+                  className={`overflow-hidden border-t-4 transition-all duration-200 shadow-surface ${theme.topBorder} ${
                     isDropTarget
-                      ? "border-gold ring-2 ring-gold/40 bg-gold/[0.04] shadow-md"
+                      ? `${theme.cardActiveRing} ring-2 ${theme.cardActiveBg} shadow-md`
                       : isCurrentSource
-                        ? "border-border-strong opacity-90"
-                        : ""
+                        ? "border-border-strong opacity-80"
+                        : theme.cardBorder
                   }`}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <h2 className="font-semibold text-navy">
-                        {applicationStatusLabels[stage.stage]}
-                      </h2>
+                    <div className="flex items-center justify-between pb-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full shrink-0 ${theme.dotColor}`}
+                          aria-hidden="true"
+                        />
+                        <h2 className="font-bold text-navy text-body">
+                          {applicationStatusLabels[stage.stage]}
+                        </h2>
+                      </div>
                       <span
-                        className={`rounded-full px-2.5 py-1 text-label-sm font-semibold transition-colors ${
+                        className={`rounded-full px-2.5 py-0.5 text-label-sm font-bold border transition-colors shadow-2xs ${
                           isDropTarget
-                            ? "bg-gold text-white"
-                            : "bg-navy/10 text-navy"
+                            ? "bg-navy text-white border-navy"
+                            : theme.countPill
                         }`}
                       >
                         {stage.count}
                       </span>
                     </div>
-                    <div className="mt-4 min-h-[5.5rem] space-y-3">
+                    <div className="mt-3.5 min-h-[5.5rem] space-y-2.5">
                       {isDropTarget && (
-                        <div className="flex items-center justify-center rounded-default border-2 border-dashed border-gold/70 bg-gold/10 p-3 text-center text-label-sm font-semibold text-gold animate-pulse">
+                        <div
+                          className={`flex items-center justify-center rounded-default border-2 border-dashed p-3 text-center text-label-sm font-semibold animate-pulse ${theme.dropZoneBorder} ${theme.dropZoneBg} ${theme.dropZoneText}`}
+                        >
                           Thả để chuyển sang {applicationStatusLabels[stage.stage]}
                         </div>
                       )}
