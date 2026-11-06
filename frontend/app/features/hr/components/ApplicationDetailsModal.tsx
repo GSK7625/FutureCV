@@ -13,7 +13,8 @@ import {
   useUpdateApplicationStatus,
 } from "../hooks/useRecruiterApplications";
 import type { UpdatableApplicationStatus } from "../types";
-import { ApplicationStatusBadge, applicationStatusLabels, updatableApplicationStatuses } from "./ApplicationStatusBadge";
+import { ApplicationStatusBadge, applicationStatusLabels, statusThemeConfig, updatableApplicationStatuses } from "./ApplicationStatusBadge";
+import { cn } from "~/lib/cn";
 
 export function ApplicationDetailsModal({ applicationId, onClose }: { applicationId: string | null; onClose: () => void }) {
   const applicationQuery = useRecruiterApplication(applicationId);
@@ -278,7 +279,7 @@ export function ApplicationDetailsModal({ applicationId, onClose }: { applicatio
                     const reason = formatTimelineReason(item.reason);
                     return (
                       <li key={`${item.changedAt}-${index}`} className="relative">
-                        <span className="absolute -left-[15px] top-1.5 h-1.5 w-1.5 rounded-full bg-navy/40" />
+                        <span className={cn("absolute -left-[15px] top-1.5 h-2 w-2 rounded-full ring-2 ring-white", (statusThemeConfig[item.toStatus] ?? statusThemeConfig.Applied).dotColor)} />
                         <div className="flex flex-wrap items-center gap-x-2">
                           <span className="font-semibold text-navy">{applicationStatusLabels[item.toStatus]}</span>
                           <span className="text-[11px] text-ink-muted">{new Date(item.changedAt).toLocaleString("vi-VN")}</span>
