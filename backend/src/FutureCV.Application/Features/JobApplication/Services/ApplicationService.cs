@@ -12,6 +12,7 @@ using FutureCV.Domain.Entities;
 using FutureCV.Domain.Enums;
 
 using FutureCV.Application.Features.AiMatching.Configurations;
+using FutureCV.Application.Features.AiMatching.DTOs;
 using FutureCV.Application.Features.AiMatching.Mappers;
 using FutureCV.Application.Features.Candidate.DTOs;
 using Microsoft.Extensions.Logging;
@@ -793,8 +794,11 @@ public class ApplicationService : IApplicationService
         var pageIndex = filter.PageIndex < 1 ? 1 : filter.PageIndex;
         var pageSize = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
 
-        var items = await query
-            .OrderByDescending(a => a.AppliedAt)
+        var orderedQuery = string.Equals(filter.SortBy, "match_score", StringComparison.OrdinalIgnoreCase)
+            ? query.OrderByDescending(a => a.MatchScore ?? 0).ThenByDescending(a => a.AppliedAt)
+            : query.OrderByDescending(a => a.AppliedAt);
+
+        var items = await orderedQuery
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
             .Select(a => new RecruiterApplicationListResponse(
@@ -1213,6 +1217,203 @@ public class ApplicationService : IApplicationService
         Buffer.BlockCopy(dataBytes, 0, fullBytes, preamble.Length, dataBytes.Length);
 
         return ServiceResult.Success(fullBytes);
+    }
+
+    public async Task<ServiceResult<JobCandidateRankingResponse>> GetJobCandidateRankingAsync(
+        Guid userId, Guid jobId, bool refreshWithAi = false, CancellationToken cancellationToken = default)
+    {
+        var employer = await _context.Employers
+            .FirstOrDefaultAsync(e => e.UserId == userId, cancellationToken);
+
+        if (employer is null)
+            return ServiceResult.NotFound<JobCandidateRankingResponse>("Employer profile not found.");
+
+        var job = await _context.Jobs
+            .Include(j => j.JobSkills)
+                .ThenInclude(js => js.Skill)
+            .Include(j => j.Location)
+            .Include(j => j.EmploymentType)
+            .FirstOrDefaultAsync(j => j.Id == jobId && !j.IsDeleted, cancellationToken);
+
+        if (job is null)
+            return ServiceResult.NotFound<JobCandidateRankingResponse>("Job not found.");
+
+        if (job.CompanyId != employer.CompanyId)
+            return ServiceResult.Forbidden<JobCandidateRankingResponse>("Access denied. You do not own this job.");
+
+        // Fetch applications for this job with candidate and CV
+        var applications = await _context.Applications
+            .Include(a => a.Candidate)
+                .ThenInclude(c => c.Skills)
+                    .ThenInclude(cs => cs.Skill)
+            .Include(a => a.Cv)
+            .Where(a => a.JobId == jobId && !a.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        if (applications.Count == 0)
+        {
+            return ServiceResult.Success(new JobCandidateRankingResponse(
+                job.Id,
+                job.Title,
+                0,
+                false,
+                Array.Empty<RankedCandidateDto>()
+            ));
+        }
+
+        bool aiEvaluated = false;
+        var needsAiScoring = refreshWithAi || applications.Any(a => !a.MatchScore.HasValue || a.MatchScore == 0);
+
+        if (needsAiScoring)
+        {
+            try
+            {
+                var cvIds = applications.Select(a => a.CvId).Distinct().ToList();
+                var parsers = await _context.CvParsers
+                    .AsNoTracking()
+                    .Where(p => cvIds.Contains(p.CvId))
+                    .ToDictionaryAsync(p => p.CvId, cancellationToken);
+
+                var structuredJob = AiMatchingMapper.ToAiStructuredJob(job);
+                var candidateItems = new List<AiCandidateItemDto>();
+
+                foreach (var app in applications)
+                {
+                    AiStructuredCvDto structuredCvDto;
+                    if (parsers.TryGetValue(app.CvId, out var parser) &&
+                        !string.IsNullOrWhiteSpace(parser.ParsedDataJson))
+                    {
+                        try
+                        {
+                            var structuredData = JsonSerializer.Deserialize<StructuredCvDataDto>(parser.ParsedDataJson);
+                            structuredCvDto = structuredData != null
+                                ? AiMatchingMapper.ToAiStructuredCv(structuredData)
+                                : BuildFallbackStructuredCv(app.Candidate);
+                        }
+                        catch
+                        {
+                            structuredCvDto = BuildFallbackStructuredCv(app.Candidate);
+                        }
+                    }
+                    else
+                    {
+                        structuredCvDto = BuildFallbackStructuredCv(app.Candidate);
+                    }
+
+                    candidateItems.Add(new AiCandidateItemDto(
+                        CandidateId: app.Id.ToString(),
+                        Cv: structuredCvDto
+                    ));
+                }
+
+                var rankRequest = new AiCandidateRankRequest(
+                    Job: structuredJob,
+                    Candidates: candidateItems
+                );
+
+                var aiResult = await _aiMatchingClient.RankCandidatesAsync(rankRequest, cancellationToken: cancellationToken);
+                if (aiResult.IsSuccess && aiResult.Data != null && aiResult.Data.RankedCandidates.Count > 0)
+                {
+                    var rankMap = aiResult.Data.RankedCandidates.ToDictionary(r => r.CandidateId);
+                    foreach (var app in applications)
+                    {
+                        if (rankMap.TryGetValue(app.Id.ToString(), out var rankedItem))
+                        {
+                            app.MatchScore = rankedItem.MatchResult.MatchScore;
+                            app.MatchExplanation = rankedItem.MatchResult.MatchExplanation;
+                            app.MatchedSkillsJson = JsonSerializer.Serialize(rankedItem.MatchResult.MatchedSkills);
+                            app.MissingSkillsJson = JsonSerializer.Serialize(rankedItem.MatchResult.MissingSkills);
+                        }
+                    }
+
+                    await _context.SaveChangesAsync(cancellationToken);
+                    aiEvaluated = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "AI Candidate Ranking invocation failed for JobId={JobId}, falling back to rule-based scores", jobId);
+            }
+        }
+
+        // Ensure every application has a score
+        foreach (var app in applications)
+        {
+            if (!app.MatchScore.HasValue)
+            {
+                var (score, exp, matched, missing) = CalculateMatchScore(app.Candidate, job);
+                app.MatchScore = score;
+                app.MatchExplanation = exp;
+                app.MatchedSkillsJson = JsonSerializer.Serialize(matched);
+                app.MissingSkillsJson = JsonSerializer.Serialize(missing);
+            }
+        }
+
+        var sortedApplications = applications
+            .OrderByDescending(a => a.MatchScore.GetValueOrDefault(0))
+            .ThenByDescending(a => a.AppliedAt)
+            .ToList();
+
+        var rankedList = new List<RankedCandidateDto>();
+        for (int i = 0; i < sortedApplications.Count; i++)
+        {
+            var app = sortedApplications[i];
+            var matchedSkills = DeserializeSkillList(app.MatchedSkillsJson);
+            var missingSkills = DeserializeSkillList(app.MissingSkillsJson);
+
+            rankedList.Add(new RankedCandidateDto(
+                Rank: i + 1,
+                ApplicationId: app.Id,
+                CandidateId: app.CandidateId,
+                CandidateFullName: app.Candidate.FullName,
+                CandidateAvatarUrl: app.Candidate.AvatarUrl,
+                CandidatePhone: app.Candidate.Phone,
+                CandidateEmail: null,
+                CvId: app.CvId,
+                CvTitle: app.Cv.Title,
+                CvFileUrl: app.Cv.FileUrl,
+                Status: app.Status.ToString(),
+                Rating: app.Rating,
+                EvaluationLabel: app.EvaluationLabel,
+                MatchScore: app.MatchScore.GetValueOrDefault(0),
+                MatchExplanation: app.MatchExplanation,
+                MatchedSkills: matchedSkills,
+                MissingSkills: missingSkills,
+                AppliedAt: app.AppliedAt
+            ));
+        }
+
+        return ServiceResult.Success(new JobCandidateRankingResponse(
+            job.Id,
+            job.Title,
+            rankedList.Count,
+            aiEvaluated,
+            rankedList
+        ));
+    }
+
+    private static AiStructuredCvDto BuildFallbackStructuredCv(Candidate candidate)
+    {
+        var skills = candidate.Skills != null
+            ? candidate.Skills
+                .Where(cs => cs.Skill != null && !string.IsNullOrWhiteSpace(cs.Skill.Name))
+                .Select(cs => cs.Skill.Name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : new List<string>();
+
+        return new AiStructuredCvDto(
+            FullName: candidate.FullName,
+            Email: null,
+            Phone: candidate.Phone,
+            CareerSummary: candidate.Summary,
+            Skills: skills,
+            WorkExperience: [],
+            Education: [],
+            Certificates: [],
+            Projects: [],
+            Technologies: []
+        );
     }
 
     // -------------------------------------------------------------------------

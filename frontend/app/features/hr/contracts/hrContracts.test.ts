@@ -114,10 +114,11 @@ test("builds recruiter application filters with backend parameter names", () => 
     buildRecruiterApplicationsQuery({
       keyword: " Nguyen Van A ",
       status: "Screening",
+      sortBy: "match_score",
       pageIndex: 2,
       pageSize: 20,
     }),
-    "?Status=Screening&Keyword=Nguyen+Van+A&PageIndex=2&PageSize=20",
+    "?Status=Screening&Keyword=Nguyen+Van+A&SortBy=match_score&PageIndex=2&PageSize=20",
   );
 });
 

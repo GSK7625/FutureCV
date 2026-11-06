@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { IconColumns, IconGripVertical, IconList, IconSearch, IconUsers } from "@tabler/icons-react";
+import { IconCheck, IconColumns, IconExternalLink, IconGripVertical, IconList, IconRefresh, IconSearch, IconSparkles, IconTrophy, IconUsers } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, Button, Card, CardContent, EmptyState, Input, Skeleton } from "~/components/ui";
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
@@ -8,9 +8,12 @@ import { useEmployerJobs } from "../hooks/useEmployerJobs";
 import {
   useRecruiterApplications,
   useRecruitmentPipeline,
+  useJobCandidateRanking,
+  useRefreshCandidateRanking,
   useUpdateApplicationStatus,
 } from "../hooks/useRecruiterApplications";
 import { hrQueryKeys } from "../queries/hrQueryKeys";
+import { toSafeDocumentUrl } from "../contracts/hrContracts";
 import type {
   ApplicationStatus,
   PipelineCandidate,
@@ -21,7 +24,7 @@ import type {
 import { ApplicationDetailsModal } from "./ApplicationDetailsModal";
 import { ApplicationStatusBadge, applicationStatusLabels, updatableApplicationStatuses } from "./ApplicationStatusBadge";
 
-type ViewMode = "pipeline" | "list";
+type ViewMode = "pipeline" | "list" | "ranking";
 
 export function RecruitmentPipelinePage() {
   const jobsQuery = useEmployerJobs({ pageIndex: 1, pageSize: 100 });
@@ -39,16 +42,23 @@ export function RecruitmentPipelinePage() {
   const effectiveFilters = useMemo(() => ({ ...filters, keyword: debouncedSearch }), [filters, debouncedSearch]);
   const pipelineQuery = useRecruitmentPipeline(view === "pipeline" ? jobId : "");
   const applicationsQuery = useRecruiterApplications(view === "list" ? jobId : "", effectiveFilters);
+  const rankingQuery = useJobCandidateRanking(view === "ranking" ? jobId : "");
   const jobs = jobsQuery.data?.items ?? [];
 
   return (
     <section aria-labelledby="pipeline-title">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-label font-semibold text-gold">ỨNG VIÊN</p><h1 id="pipeline-title" className="mt-1 text-headline text-navy">Quy trình tuyển dụng</h1><p className="mt-2 text-ink-variant">Theo dõi và cập nhật ứng viên theo từng tin tuyển dụng.</p></div><div className="flex rounded-default border border-border-strong bg-surface p-1"><ViewButton active={view === "pipeline"} onClick={() => setView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Quy trình</ViewButton><ViewButton active={view === "list"} onClick={() => setView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton></div></div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-label font-semibold text-gold">ỨNG VIÊN</p><h1 id="pipeline-title" className="mt-1 text-headline text-navy">Quy trình tuyển dụng</h1><p className="mt-2 text-ink-variant">Theo dõi và cập nhật ứng viên theo từng tin tuyển dụng.</p></div><div className="flex rounded-default border border-border-strong bg-surface p-1"><ViewButton active={view === "pipeline"} onClick={() => setView("pipeline")} icon={<IconColumns size={18} aria-hidden="true" />}>Quy trình</ViewButton><ViewButton active={view === "list"} onClick={() => setView("list")} icon={<IconList size={18} aria-hidden="true" />}>Danh sách</ViewButton><ViewButton active={view === "ranking"} onClick={() => setView("ranking")} icon={<IconSparkles size={18} aria-hidden="true" />}>Xếp hạng AI</ViewButton></div></div>
 
       <QueryBoundary isLoading={jobsQuery.isLoading} error={jobsQuery.error} onRetry={() => jobsQuery.refetch()} skeleton={<Skeleton className="mt-6 h-20" />}>
         {jobs.length === 0 ? <EmptyState className="mt-6" icon={<IconUsers size={42} aria-hidden="true" />} title="Chưa có tin tuyển dụng" description="Tạo tin tuyển dụng trước khi quản lý ứng viên." /> : <>
           <div className="mt-6 rounded-default border border-border-subtle bg-surface p-4 shadow-surface"><label htmlFor="pipeline-job" className="mb-2 block text-label font-semibold text-ink">Tin tuyển dụng</label><select id="pipeline-job" value={jobId} onChange={(event) => { setJobId(event.target.value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} className="h-11 w-full rounded-default border border-border-strong bg-white px-3.5 text-ink focus:border-gold">{jobs.map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></div>
-          {view === "pipeline" ? <PipelineView jobId={jobId} query={pipelineQuery} onOpen={setApplicationId} /> : <ApplicationListView search={search} setSearch={(value) => { setSearch(value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} filters={filters} setFilters={setFilters} query={applicationsQuery} onOpen={setApplicationId} />}
+          {view === "pipeline" ? (
+            <PipelineView jobId={jobId} query={pipelineQuery} onOpen={setApplicationId} />
+          ) : view === "list" ? (
+            <ApplicationListView search={search} setSearch={(value) => { setSearch(value); setFilters((current) => ({ ...current, pageIndex: 1 })); }} filters={filters} setFilters={setFilters} query={applicationsQuery} onOpen={setApplicationId} />
+          ) : (
+            <CandidateRankingView jobId={jobId} query={rankingQuery} onOpen={setApplicationId} />
+          )}
         </>}
       </QueryBoundary>
       <ApplicationDetailsModal applicationId={applicationId} onClose={() => setApplicationId(null)} />
@@ -325,8 +335,13 @@ function PipelineCandidateCard({
     >
       <Avatar src={candidate.candidateAvatarUrl ?? undefined} name={candidate.candidateFullName} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold text-ink group-hover:text-navy">
-          {candidate.candidateFullName}
+        <span className="flex items-center justify-between gap-1.5">
+          <span className="block truncate font-semibold text-ink group-hover:text-navy">
+            {candidate.candidateFullName}
+          </span>
+          {candidate.matchScore !== null && candidate.matchScore !== undefined && (
+            <MatchScoreBadge score={candidate.matchScore} />
+          )}
         </span>
         <span className="mt-1 block text-label text-ink-muted">
           Ứng tuyển {new Date(candidate.appliedAt).toLocaleDateString("vi-VN")}
@@ -343,30 +358,48 @@ function PipelineCandidateCard({
 
 function ApplicationListView({ search, setSearch, filters, setFilters, query, onOpen }: { search: string; setSearch: (value: string) => void; filters: RecruiterApplicationFilters; setFilters: React.Dispatch<React.SetStateAction<RecruiterApplicationFilters>>; query: ReturnType<typeof useRecruiterApplications>; onOpen: (id: string) => void }) {
   const applications = query.data?.items ?? [];
-  return <div className="mt-5"><div className="grid gap-3 rounded-default border border-border-subtle bg-surface p-4 md:grid-cols-[minmax(0,1fr)_14rem]"><Input aria-label="Tìm ứng viên" icon={<IconSearch size={18} aria-hidden="true" />} placeholder="Tên ứng viên" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Lọc trạng thái" value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as ApplicationStatus | "", pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5"><option value="">Mọi trạng thái</option>{[...updatableApplicationStatuses, "Withdrawn" as const].map((status) => <option key={status} value={status}>{applicationStatusLabels[status]}</option>)}</select></div>    <QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<Skeleton className="mt-4 h-72" />}>
-      {applications.length ? (
-        <>
-          <div className="mt-4 grid gap-3">
-            {applications.map((application) => (
-              <button
-                key={application.id}
-                type="button"
-                onClick={() => onOpen(application.id)}
-                className="grid min-h-20 w-full gap-3 rounded-default border border-border-subtle bg-surface p-4 text-left shadow-surface hover:border-gold sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <Avatar src={application.candidateAvatarUrl ?? undefined} name={application.candidateFullName} />
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold text-navy">{application.candidateFullName}</span>
-                    <span className="block truncate text-label text-ink-muted">
-                      {application.candidatePhone ?? application.cvTitle ?? "CV ứng tuyển"}
+  return (
+    <div className="mt-5">
+      <div className="grid gap-3 rounded-default border border-border-subtle bg-surface p-4 md:grid-cols-[minmax(0,1fr)_12rem_13rem]">
+        <Input aria-label="Tìm ứng viên" icon={<IconSearch size={18} aria-hidden="true" />} placeholder="Tên ứng viên" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <select aria-label="Lọc trạng thái" value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as ApplicationStatus | "", pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5 text-xs text-ink focus:border-gold">
+          <option value="">Mọi trạng thái</option>
+          {[...updatableApplicationStatuses, "Withdrawn" as const].map((status) => <option key={status} value={status}>{applicationStatusLabels[status]}</option>)}
+        </select>
+        <select aria-label="Sắp xếp" value={filters.sortBy ?? "applied_at"} onChange={(event) => setFilters((current) => ({ ...current, sortBy: event.target.value as "applied_at" | "match_score", pageIndex: 1 }))} className="h-11 rounded-default border border-border-strong bg-white px-3.5 text-xs text-ink focus:border-gold">
+          <option value="applied_at">Mới ứng tuyển nhất</option>
+          <option value="match_score">Độ phù hợp AI (Cao nhất)</option>
+        </select>
+      </div>
+      <QueryBoundary isLoading={query.isLoading} error={query.error} onRetry={() => query.refetch()} skeleton={<Skeleton className="mt-4 h-72" />}>
+        {applications.length ? (
+          <>
+            <div className="mt-4 grid gap-3">
+              {applications.map((application) => (
+                <button
+                  key={application.id}
+                  type="button"
+                  onClick={() => onOpen(application.id)}
+                  className="grid min-h-20 w-full gap-3 rounded-default border border-border-subtle bg-surface p-4 text-left shadow-surface hover:border-gold sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Avatar src={application.candidateAvatarUrl ?? undefined} name={application.candidateFullName} />
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-navy">{application.candidateFullName}</span>
+                      <span className="block truncate text-label text-ink-muted">
+                        {application.candidatePhone ?? application.cvTitle ?? "CV ứng tuyển"}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <ApplicationStatusBadge status={application.status} />
-              </button>
-            ))}
-          </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {application.matchScore !== null && application.matchScore !== undefined && (
+                      <MatchScoreBadge score={application.matchScore} />
+                    )}
+                    <ApplicationStatusBadge status={application.status} />
+                  </div>
+                </button>
+              ))}
+            </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-label text-ink-muted">
               {query.data?.totalCount ?? 0} ứng viên · Trang {query.data?.pageIndex ?? 1}/{Math.max(query.data?.totalPages ?? 1, 1)}
@@ -399,5 +432,279 @@ function ApplicationListView({ search, setSearch, filters, setFilters, query, on
           description="Không tìm thấy ứng viên phù hợp với bộ lọc hiện tại."
         />
       )}
-    </QueryBoundary></div>;
+    </QueryBoundary>
+    </div>
+  );
+}
+
+export function MatchScoreBadge({ score }: { score: number | null | undefined }) {
+  if (score === null || score === undefined) return null;
+  const colorClass =
+    score >= 80
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : score >= 60
+        ? "bg-amber-50 text-amber-700 border-amber-200"
+        : "bg-slate-50 text-slate-600 border-slate-200";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${colorClass}`}
+      title={`Điểm phù hợp AI: ${score}%`}
+    >
+      <IconSparkles size={11} className="shrink-0 text-gold" aria-hidden="true" />
+      <span>{score}%</span>
+    </span>
+  );
+}
+
+function CandidateRankingView({
+  jobId,
+  query,
+  onOpen,
+}: {
+  jobId: string;
+  query: ReturnType<typeof useJobCandidateRanking>;
+  onOpen: (id: string) => void;
+}) {
+  const refreshMutation = useRefreshCandidateRanking(jobId);
+  const data = query.data;
+  const candidates = data?.rankedCandidates ?? [];
+
+  return (
+    <div className="mt-5 space-y-4">
+      {/* AI Ranking Header Banner */}
+      <div className="flex flex-col gap-3 rounded-default border border-gold/40 bg-gradient-to-r from-gold/[0.08] via-surface to-surface p-4 sm:flex-row sm:items-center sm:justify-between shadow-xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold/20 text-gold">
+              <IconSparkles size={16} aria-hidden="true" />
+            </span>
+            <h2 className="text-base font-bold text-navy">Bảng xếp hạng ứng viên bằng AI</h2>
+            {data?.isAiEvaluated && (
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                Đã phân tích AI
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-ink-muted">
+            Hệ thống tự động so khớp kỹ năng, kinh nghiệm và hồ sơ với tiêu chuẩn của tin tuyển dụng để xếp hạng ứng viên từ cao xuống thấp.
+          </p>
+        </div>
+
+        <div className="shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={refreshMutation.isPending || query.isLoading}
+            onClick={() => refreshMutation.mutate()}
+            className="flex items-center gap-1.5 border-gold text-navy hover:bg-gold/10"
+          >
+            <IconRefresh
+              size={15}
+              className={refreshMutation.isPending ? "animate-spin text-gold" : "text-gold"}
+              aria-hidden="true"
+            />
+            <span>{refreshMutation.isPending ? "Đang phân tích..." : "Đánh giá lại bằng AI"}</span>
+          </Button>
+        </div>
+      </div>
+
+      <QueryBoundary
+        isLoading={query.isLoading}
+        error={query.error}
+        onRetry={() => query.refetch()}
+        skeleton={<Skeleton className="h-96" />}
+      >
+        {candidates.length === 0 ? (
+          <EmptyState
+            className="mt-4"
+            icon={<IconUsers size={40} aria-hidden="true" />}
+            title="Chưa có ứng viên nào"
+            description="Tin tuyển dụng này chưa nhận được đơn ứng tuyển để AI xếp hạng."
+          />
+        ) : (
+          <div className="space-y-3">
+            {candidates.map((candidate) => {
+              const isTop1 = candidate.rank === 1;
+              const isTop2 = candidate.rank === 2;
+              const isTop3 = candidate.rank === 3;
+
+              return (
+                <div
+                  key={candidate.applicationId}
+                  className={`relative rounded-default border bg-surface p-4 transition-all hover:border-gold hover:shadow-sm ${
+                    isTop1
+                      ? "border-amber-300 ring-1 ring-amber-300/40 bg-amber-50/[0.03]"
+                      : isTop2
+                        ? "border-slate-300"
+                        : isTop3
+                          ? "border-amber-200"
+                          : "border-border-subtle"
+                  }`}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    {/* Left: Rank & Candidate Information */}
+                    <div className="flex items-start gap-3 min-w-0">
+                      {/* Rank Badge */}
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-default font-bold text-sm shadow-xs ${
+                          isTop1
+                            ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white"
+                            : isTop2
+                              ? "bg-gradient-to-br from-slate-300 to-slate-500 text-white"
+                              : isTop3
+                                ? "bg-gradient-to-br from-amber-600 to-amber-800 text-white"
+                                : "bg-surface-low border border-border-strong text-ink font-semibold"
+                        }`}
+                      >
+                        {isTop1 ? (
+                          <div className="flex flex-col items-center leading-none">
+                            <IconTrophy size={14} className="mb-0.5" aria-hidden="true" />
+                            <span className="text-xs">#1</span>
+                          </div>
+                        ) : (
+                          `#${candidate.rank}`
+                        )}
+                      </div>
+
+                      <Avatar
+                        src={candidate.candidateAvatarUrl ?? undefined}
+                        name={candidate.candidateFullName}
+                        size="md"
+                      />
+
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => onOpen(candidate.applicationId)}
+                            className="font-bold text-base text-navy hover:text-gold cursor-pointer truncate"
+                          >
+                            {candidate.candidateFullName}
+                          </h3>
+                          <ApplicationStatusBadge status={candidate.status} />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-2 text-xs text-ink-muted mt-0.5">
+                          <span>{candidate.candidatePhone ?? "Chưa có SĐT"}</span>
+                          {candidate.candidateEmail && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">{candidate.candidateEmail}</span>
+                            </>
+                          )}
+                          <span>•</span>
+                          <span>Ứng tuyển {new Date(candidate.appliedAt).toLocaleDateString("vi-VN")}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Match Score Progress & Action */}
+                    <div className="flex items-center gap-4 sm:flex-col sm:items-end">
+                      <div className="text-right">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <IconSparkles size={14} className="text-gold" aria-hidden="true" />
+                          <span
+                            className={`text-lg font-extrabold ${
+                              candidate.matchScore >= 80
+                                ? "text-emerald-700"
+                                : candidate.matchScore >= 60
+                                  ? "text-amber-700"
+                                  : "text-ink"
+                            }`}
+                          >
+                            {candidate.matchScore}%
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-ink-muted block">Độ phù hợp AI</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => onOpen(candidate.applicationId)}
+                          className="text-xs"
+                        >
+                          Xem chi tiết
+                        </Button>
+                        {candidate.cvFileUrl && (
+                          <a
+                            href={toSafeDocumentUrl(candidate.cvFileUrl) ?? "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8 items-center gap-1 rounded-default border border-border-strong bg-white px-2.5 text-xs font-semibold text-navy hover:border-gold hover:text-gold"
+                          >
+                            <span>CV</span>
+                            <IconExternalLink size={13} aria-hidden="true" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Explanation & Skills Gap */}
+                  {(candidate.matchExplanation ||
+                    candidate.matchedSkills.length > 0 ||
+                    candidate.missingSkills.length > 0) && (
+                    <div className="mt-3 border-t border-border-subtle/70 pt-2.5 space-y-2">
+                      {candidate.matchExplanation && (
+                        <p className="text-xs text-ink-variant leading-relaxed bg-surface-low/70 rounded p-2 border border-border-subtle/50">
+                          <strong className="text-navy font-semibold">Lý do phù hợp: </strong>
+                          {candidate.matchExplanation}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+                        {candidate.matchedSkills.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="text-[11px] font-semibold text-emerald-700">Khớp ({candidate.matchedSkills.length}):</span>
+                            {candidate.matchedSkills.slice(0, 5).map((skill) => (
+                              <span
+                                key={skill}
+                                className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200"
+                              >
+                                <IconCheck size={10} aria-hidden="true" />
+                                {skill}
+                              </span>
+                            ))}
+                            {candidate.matchedSkills.length > 5 && (
+                              <span className="text-[10px] text-ink-muted">
+                                +{candidate.matchedSkills.length - 5}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {candidate.missingSkills.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="text-[11px] font-semibold text-amber-700">Thiếu ({candidate.missingSkills.length}):</span>
+                            {candidate.missingSkills.slice(0, 5).map((skill) => (
+                              <span
+                                key={skill}
+                                className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200"
+                              >
+                                <span>-</span>
+                                {skill}
+                              </span>
+                            ))}
+                            {candidate.missingSkills.length > 5 && (
+                              <span className="text-[10px] text-ink-muted">
+                                +{candidate.missingSkills.length - 5}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </QueryBoundary>
+    </div>
+  );
 }

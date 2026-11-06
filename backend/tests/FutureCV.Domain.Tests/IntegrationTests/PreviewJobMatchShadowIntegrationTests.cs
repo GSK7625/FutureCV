@@ -53,6 +53,22 @@ public class PreviewJobMatchShadowIntegrationTests
                 )
             ));
         }
+
+        public Task<ServiceResult<AiCandidateRankResponse>> RankCandidatesAsync(
+            AiCandidateRankRequest request,
+            string? correlationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(ServiceResult.Success(new AiCandidateRankResponse(
+                JobTitle: request.Job.Title,
+                TotalEvaluated: request.Candidates.Count,
+                RankedCandidates: request.Candidates.Select((c, idx) => new AiRankedCandidateItemDto(
+                    Rank: idx + 1,
+                    CandidateId: c.CandidateId,
+                    MatchResult: new AiMatchResultDto(MatchScore: 90)
+                )).ToList()
+            )));
+        }
     }
 
     private sealed class TestIdentityService : IIdentityService
