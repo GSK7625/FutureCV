@@ -11,6 +11,7 @@ import { useJobDetail } from "../../hooks/useJobDetail";
 import { useSavedJobIds } from "../../hooks/useSavedJobIds";
 import { useToggleSaveJob } from "../../hooks/useToggleSaveJob";
 import { useUIStore } from "~/stores/useUIStore";
+import { useAuthStore } from "~/stores/useAuthStore";
 import { QueryBoundary } from "~/components/shared";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { Button } from "~/components/ui/Button";
@@ -26,6 +27,7 @@ interface JobDetailViewProps {
 
 export function JobDetailView({ jobId }: JobDetailViewProps) {
   const query = useJobDetail(jobId);
+  const isCandidate = useAuthStore((state) => state.user?.role === "candidate");
   const showToast = useUIStore((s) => s.showToast);
   const { data: savedJobIds } = useSavedJobIds();
   const { toggleSave } = useToggleSaveJob();
@@ -102,6 +104,7 @@ export function JobDetailView({ jobId }: JobDetailViewProps) {
             />
 
             {/* Content & Sidebar Grid */}
+            {isCandidate && <Link to={`/candidate/career-assistant?jobId=${encodeURIComponent(jobId)}`} className="text-label font-semibold text-navy underline">Hỏi trợ lý AI về công việc này</Link>}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
               {/* Left Column: Overview + Detailed Description */}
               <div className="flex flex-col gap-6 lg:col-span-8">

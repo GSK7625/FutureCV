@@ -49,6 +49,7 @@ const SECTIONS = [
     icon: IconFileText,
     items: [
       { label: "CV của tôi", href: "/candidate/cvs" },
+      { label: "Trợ lý nghề nghiệp AI", href: "/candidate/career-assistant" },
     ],
   },
   {
