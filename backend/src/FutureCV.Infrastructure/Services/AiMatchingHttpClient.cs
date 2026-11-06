@@ -256,4 +256,175 @@ public class AiMatchingHttpClient : IAiMatchingClient
                 ServiceErrorType.Infrastructure);
         }
     }
+
+    public async Task<ServiceResult<AiCandidateRankResponse>> RankCandidatesAsync(
+        AiCandidateRankRequest request,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var effectiveCorrelationId = !string.IsNullOrWhiteSpace(correlationId)
+            ? correlationId
+            : Guid.NewGuid().ToString("N");
+
+        try
+        {
+            var requestUri = "api/v1/candidates/rank";
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri);
+
+            // 1. Attach Internal API Key
+            var apiKey = !string.IsNullOrWhiteSpace(_options.ApiKey)
+                ? _options.ApiKey
+                : _configuration["AiService:ApiKey"];
+
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                httpRequest.Headers.Add(InternalApiKeyHeader, apiKey);
+            }
+
+            // 2. Attach Correlation ID for distributed tracing
+            httpRequest.Headers.Add(CorrelationIdHeader, effectiveCorrelationId);
+
+            // 3. Serialize payload
+            var jsonPayload = JsonSerializer.Serialize(request, _jsonOptions);
+            httpRequest.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            _logger.LogInformation(
+                "Calling AI Ranking Service at {Endpoint} for {CandidateCount} candidates [CorrelationId: {CorrelationId}]",
+                requestUri,
+                request.Candidates.Count,
+                effectiveCorrelationId);
+
+            // 4. Execute HTTP Call with duration timing
+            var stopwatch = Stopwatch.StartNew();
+            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            stopwatch.Stop();
+            var durationMs = stopwatch.ElapsedMilliseconds;
+
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                if (string.IsNullOrWhiteSpace(responseBody))
+                {
+                    _logger.LogError(
+                        "AI Ranking Service returned empty response body in {DurationMs}ms [CorrelationId: {CorrelationId}]",
+                        durationMs,
+                        effectiveCorrelationId);
+                    return ServiceResult.Failure<AiCandidateRankResponse>(
+                        "AI ranking service returned an empty response.",
+                        ServiceErrorType.Infrastructure);
+                }
+
+                AiCandidateRankResponse? rankResult;
+                try
+                {
+                    rankResult = JsonSerializer.Deserialize<AiCandidateRankResponse>(responseBody, _jsonOptions);
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "AI Ranking Service returned malformed JSON body at {Endpoint} [CorrelationId: {CorrelationId}]",
+                        requestUri,
+                        effectiveCorrelationId);
+                    return ServiceResult.Failure<AiCandidateRankResponse>(
+                        "Failed to parse response from AI ranking service.",
+                        ServiceErrorType.Infrastructure);
+                }
+
+                if (rankResult == null)
+                {
+                    _logger.LogError(
+                        "AI Ranking Service returned null payload at {Endpoint} [CorrelationId: {CorrelationId}]",
+                        requestUri,
+                        effectiveCorrelationId);
+                    return ServiceResult.Failure<AiCandidateRankResponse>(
+                        "Failed to parse response from AI ranking service.",
+                        ServiceErrorType.Infrastructure);
+                }
+
+                _logger.LogInformation(
+                    "AI Ranking succeeded: Evaluated {TotalEvaluated} candidates in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
+                    rankResult.TotalEvaluated,
+                    durationMs,
+                    requestUri,
+                    effectiveCorrelationId);
+
+                return ServiceResult.Success(rankResult);
+            }
+
+            // 5. Handle Error Responses without logging response body to protect PII
+            string? errorCode = null;
+            string? errorMessage = null;
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+                try
+                {
+                    var errorObj = JsonSerializer.Deserialize<AiErrorResponseDto>(responseBody, _jsonOptions);
+                    errorCode = errorObj?.ErrorCode;
+                    errorMessage = errorObj?.Message;
+                }
+                catch
+                {
+                    // Fallback if error body is not standard AiErrorResponseDto
+                }
+            }
+
+            _logger.LogWarning(
+                "AI Ranking Service returned HTTP {StatusCode}, ErrorCode={ErrorCode} in {DurationMs}ms at {Endpoint} [CorrelationId: {CorrelationId}]",
+                (int)response.StatusCode,
+                errorCode ?? "N/A",
+                durationMs,
+                requestUri,
+                effectiveCorrelationId);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return ServiceResult.Failure<AiCandidateRankResponse>(
+                    "Internal authentication to AI service failed.",
+                    ServiceErrorType.Unauthorized);
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity ||
+                response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                return ServiceResult.Failure<AiCandidateRankResponse>(
+                    errorMessage ?? "Invalid ranking request parameters.",
+                    ServiceErrorType.Validation);
+            }
+
+            return ServiceResult.Failure<AiCandidateRankResponse>(
+                $"AI service returned error status ({response.StatusCode}).",
+                ServiceErrorType.Infrastructure);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogError(
+                "AI Ranking Service request timed out [CorrelationId: {CorrelationId}]",
+                effectiveCorrelationId);
+            return ServiceResult.Failure<AiCandidateRankResponse>(
+                "AI ranking service request timed out.",
+                ServiceErrorType.Infrastructure);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Network exception occurred while connecting to AI Ranking Service [CorrelationId: {CorrelationId}]",
+                effectiveCorrelationId);
+            return ServiceResult.Failure<AiCandidateRankResponse>(
+                "Unable to connect to AI ranking service.",
+                ServiceErrorType.Infrastructure);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Unexpected error during AI Ranking Service invocation [CorrelationId: {CorrelationId}]",
+                effectiveCorrelationId);
+            return ServiceResult.Failure<AiCandidateRankResponse>(
+                "An unexpected error occurred during AI ranking.",
+                ServiceErrorType.Infrastructure);
+        }
+    }
 }

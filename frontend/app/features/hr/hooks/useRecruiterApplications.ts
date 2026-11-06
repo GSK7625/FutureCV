@@ -49,3 +49,27 @@ export function useUpdateApplicationStatus() {
     },
   });
 }
+
+export function useJobCandidateRanking(jobId: string) {
+  return useQuery({
+    queryKey: hrQueryKeys.applications.ranking(jobId),
+    queryFn: ({ signal }) => hrService.getJobCandidateRanking(jobId, false, signal),
+    enabled: Boolean(jobId),
+  });
+}
+
+export function useRefreshCandidateRanking(jobId: string) {
+  const queryClient = useQueryClient();
+  const showToast = useUIStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: () => hrService.getJobCandidateRanking(jobId, true),
+    onSuccess: (data) => {
+      queryClient.setQueryData(hrQueryKeys.applications.ranking(jobId), data);
+      queryClient.invalidateQueries({ queryKey: hrQueryKeys.applications.all() });
+      showToast("Đã làm mới bảng xếp hạng AI cho tin tuyển dụng", "success");
+    },
+    onError: (err) => {
+      showToast(err instanceof Error ? err.message : "Không thể làm mới điểm AI", "error");
+    },
+  });
+}

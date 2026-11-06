@@ -116,6 +116,7 @@ public sealed record RecruiterApplicationFilterRequest(
     string? Status = null,
     int? MinRating = null,
     string? Keyword = null,
+    string? SortBy = null,
     int PageIndex = 1,
     int PageSize = 10);
 
@@ -193,6 +194,37 @@ public sealed record RecruitmentPipelineResponse(
     string JobTitle,
     int TotalCandidates,
     IReadOnlyList<PipelineStageResponse> Stages);
+
+// -----------------------------------------------------------------------------
+// AI Candidate Ranking DTOs (Nhóm 4 - AI Candidate Ranking)
+// -----------------------------------------------------------------------------
+
+public sealed record RankedCandidateDto(
+    int Rank,
+    Guid ApplicationId,
+    Guid CandidateId,
+    string CandidateFullName,
+    string? CandidateAvatarUrl,
+    string? CandidatePhone,
+    string? CandidateEmail,
+    Guid CvId,
+    string? CvTitle,
+    string? CvFileUrl,
+    string Status,
+    int? Rating,
+    string? EvaluationLabel,
+    int MatchScore,
+    string? MatchExplanation,
+    IReadOnlyList<string> MatchedSkills,
+    IReadOnlyList<string> MissingSkills,
+    DateTime AppliedAt);
+
+public sealed record JobCandidateRankingResponse(
+    Guid JobId,
+    string JobTitle,
+    int TotalCandidates,
+    bool IsAiEvaluated,
+    IReadOnlyList<RankedCandidateDto> RankedCandidates);
 
 // -----------------------------------------------------------------------------
 // Recruitment Pipeline Analytics & Export DTOs (P4-UC07)

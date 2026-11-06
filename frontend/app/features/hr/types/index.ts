@@ -185,6 +185,7 @@ export interface RecruiterApplicationFilters {
   status?: ApplicationStatus | "";
   minRating?: number;
   keyword?: string;
+  sortBy?: "applied_at" | "match_score";
   pageIndex?: number;
   pageSize?: number;
 }
@@ -256,4 +257,33 @@ export interface RecruitmentPipeline {
   jobTitle: string;
   totalCandidates: number;
   stages: PipelineStage[];
+}
+
+export interface RankedCandidate {
+  rank: number;
+  applicationId: string;
+  candidateId: string;
+  candidateFullName: string;
+  candidateAvatarUrl: string | null;
+  candidatePhone: string | null;
+  candidateEmail: string | null;
+  cvId: string;
+  cvTitle: string | null;
+  cvFileUrl: string | null;
+  status: ApplicationStatus;
+  rating: number | null;
+  evaluationLabel: string | null;
+  matchScore: number;
+  matchExplanation: string | null;
+  matchedSkills: string[];
+  missingSkills: string[];
+  appliedAt: string;
+}
+
+export interface JobCandidateRankingResponse {
+  jobId: string;
+  jobTitle: string;
+  totalCandidates: number;
+  isAiEvaluated: boolean;
+  rankedCandidates: RankedCandidate[];
 }
