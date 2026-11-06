@@ -60,7 +60,7 @@ public class JobService : IJobService
             SalaryCurrency     = string.IsNullOrWhiteSpace(request.SalaryCurrency) ? "VND" : request.SalaryCurrency.ToUpperInvariant(),
             ExperienceYearsMin = request.ExperienceYearsMin,
             ExperienceYearsMax = request.ExperienceYearsMax,
-            Deadline           = request.Deadline,
+            Deadline           = NormalizeUtc(request.Deadline),
             PositionsCount     = request.PositionsCount <= 0 ? 1 : request.PositionsCount,
             ApprovalStatus     = initialApprovalStatus,
             IsActive           = true,
@@ -117,7 +117,7 @@ public class JobService : IJobService
         job.SalaryCurrency      = string.IsNullOrWhiteSpace(request.SalaryCurrency) ? "VND" : request.SalaryCurrency.ToUpperInvariant();
         job.ExperienceYearsMin  = request.ExperienceYearsMin;
         job.ExperienceYearsMax  = request.ExperienceYearsMax;
-        job.Deadline            = request.Deadline;
+        job.Deadline            = NormalizeUtc(request.Deadline);
         job.PositionsCount      = request.PositionsCount <= 0 ? 1 : request.PositionsCount;
 
         // 3. Refresh job skills
@@ -642,4 +642,15 @@ public class JobService : IJobService
         js.Skill?.Category,
         js.IsRequired
     );
+
+    private static DateTime? NormalizeUtc(DateTime? dt)
+    {
+        if (!dt.HasValue) return null;
+        return dt.Value.Kind switch
+        {
+            DateTimeKind.Utc => dt.Value,
+            DateTimeKind.Local => dt.Value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc)
+        };
+    }
 }

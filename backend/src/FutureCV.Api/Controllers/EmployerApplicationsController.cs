@@ -32,6 +32,17 @@ public class EmployerApplicationsController : ApiControllerBase
         return ToHttpResult(result);
     }
 
+    [HttpGet("jobs/{jobId:guid}/ranking")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(JobCandidateRankingResponse))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetJobCandidateRanking(
+        Guid jobId, [FromQuery] bool refresh = false, CancellationToken cancellationToken = default)
+    {
+        var result = await _applicationService.GetJobCandidateRankingAsync(GetCurrentUserId(), jobId, refresh, cancellationToken);
+        return ToHttpResult(result);
+    }
+
     [HttpGet("applications/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RecruiterApplicationDetailResponse))]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

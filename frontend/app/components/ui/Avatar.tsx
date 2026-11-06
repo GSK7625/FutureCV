@@ -1,4 +1,4 @@
-import { forwardRef, type HTMLAttributes } from "react";
+import { forwardRef, useState, type HTMLAttributes } from "react";
 import { cn } from "~/lib/cn";
 
 export interface AvatarProps extends HTMLAttributes<HTMLDivElement> {
@@ -15,6 +15,14 @@ const sizes = {
 
 export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
   ({ src, name, size = "md", className, ...props }, ref) => {
+    const [hasError, setHasError] = useState(false);
+    const [lastSrc, setLastSrc] = useState(src);
+
+    if (src !== lastSrc) {
+      setLastSrc(src);
+      setHasError(false);
+    }
+
     const initials = name
       .split(" ")
       .filter(Boolean)
@@ -32,8 +40,13 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         )}
         {...props}
       >
-        {src ? (
-          <img src={src} alt={name} className="h-full w-full object-cover" />
+        {src && !hasError ? (
+          <img
+            src={src}
+            alt={name}
+            className="h-full w-full object-cover"
+            onError={() => setHasError(true)}
+          />
         ) : (
           <span aria-hidden>{initials}</span>
         )}

@@ -1,0 +1,117 @@
+name: FutureCV CD
+
+on:
+  push:
+    branches: [master, giao-dien-admin]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/giao-dien-admin'
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend: ${{ steps.images.outputs.backend }}
+      ai: ${{ steps.images.outputs.ai }}
+      frontend: ${{ steps.images.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Login to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+      - name: Build and publish immutable application images
+        id: images
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          namespace="ghcr.io/${REPOSITORY,,}"
+          docker buildx create --use --name futurecv-builder
+          : > release.env
+          for service in backend ai frontend; do
+            context="$service"
+            file="$service/Dockerfile"
+            if [ "$service" = ai ]; then context=backend-ai; file=backend-ai/Dockerfile; fi
+            image="$namespace-$service"
+            docker buildx build --platform linux/amd64 --file "$file" \
+              --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+              --label "org.opencontainers.image.source=https://github.com/$REPOSITORY" \
+              --tag "$image:$GITHUB_SHA" --tag "$image:${GITHUB_REF_NAME//\//-}" --push --metadata-file "$service.json" "$context"
+            digest=$(jq -er '."containerimage.digest"' "$service.json")
+            ref="$image@$digest"
+            echo "$service=$ref" >> "$GITHUB_OUTPUT"
+            echo "${service^^}_IMAGE=$ref" >> release.env
+          done
+      - name: Save release manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ github.sha }}
+          path: release.env
+          retention-days: 30
+      - name: Logout
+        if: ${{ always() }}
+        run: docker logout ghcr.io
+
+  deploy-local:
+    # Disabled until the repository owner prepares an isolated runner/environment.
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/giao-dien-admin') && vars.LOCAL_CD_ENABLED == 'true'
+    needs: publish
+    runs-on: [self-hosted, Windows, X64, futurecv-deploy]
+    timeout-minutes: 20
+    environment:
+      name: local-staging
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          clean: true
+      - name: Deploy the published digests
+        env:
+          BACKEND_IMAGE: ${{ needs.publish.outputs.backend }}
+          AI_IMAGE: ${{ needs.publish.outputs.ai }}
+          FRONTEND_IMAGE: ${{ needs.publish.outputs.frontend }}
+          DEPLOY_ROOT: ${{ vars.LOCAL_DEPLOY_ROOT }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:DEPLOY_ROOT)) { throw 'Set LOCAL_DEPLOY_ROOT first.' }
+          # Preserve Docker Desktop's engine endpoint before isolating registry credentials.
+          $endpoint = & docker context inspect --format '{{.Endpoints.docker.Host}}'
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($endpoint)) { throw 'Docker context unavailable.' }
+          $env:DOCKER_HOST = $endpoint.Trim()
+          $env:DOCKER_CONFIG = Join-Path $env:RUNNER_TEMP "futurecv-docker-$env:GITHUB_RUN_ID"
+          $release = Join-Path $env:RUNNER_TEMP "futurecv-release-$env:GITHUB_RUN_ID.env"
+          @("BACKEND_IMAGE=$env:BACKEND_IMAGE", "AI_IMAGE=$env:AI_IMAGE", "FRONTEND_IMAGE=$env:FRONTEND_IMAGE") |
+            Set-Content -LiteralPath $release -Encoding utf8NoBOM
+          try {
+            $env:GHCR_TOKEN | docker login ghcr.io -u $env:GHCR_USER --password-stdin
+            if ($LASTEXITCODE -ne 0) { throw 'GHCR login failed.' }
+            ./deploy/Deploy-Local.ps1 -DeployDirectory $env:DEPLOY_ROOT -ReleaseFile $release
+          } finally {
+            docker logout ghcr.io
+          }

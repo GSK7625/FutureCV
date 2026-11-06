@@ -5,7 +5,7 @@ from collections.abc import Callable, Coroutine
 import copy
 import json
 import re
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from google import genai
 from google.genai import errors, types
@@ -84,7 +84,7 @@ def _convert_to_gemini_schema(raw_schema: dict[str, Any]) -> dict[str, Any]:
             return [convert(x) for x in node]
         return node
 
-    return convert(schema)
+    return cast(dict[str, Any], convert(schema))
 
 
 class GeminiLlmProvider(LlmPort):
@@ -290,8 +290,7 @@ class GeminiLlmProvider(LlmPort):
         schema = _convert_to_gemini_schema(response_model.model_json_schema())
         schema_json = json.dumps(response_model.model_json_schema())
         instruction = (
-            (system_prompt or "")
-            + f"\nYou MUST output strictly valid JSON matching this JSON schema:\n{schema_json}"
+            (system_prompt or "") + f"\nYou MUST output strictly valid JSON matching this JSON schema:\n{schema_json}"
         ).strip()
 
         config = types.GenerateContentConfig(
@@ -366,15 +365,12 @@ class GeminiLlmProvider(LlmPort):
         instruction: str | None = None,
     ) -> str:
         """Extract all readable text from raw document bytes using Gemini Multimodal Vision."""
-        prompt = (
-            instruction
-            or (
-                "Trích xuất nguyên văn toàn bộ nội dung văn bản từ tài liệu này mà không tóm tắt, "
-                "không chỉnh sửa và không bỏ sót bất kỳ thông tin nào. "
-                "Giữ nguyên cấu trúc tự nhiên, thông tin liên hệ, tiêu đề, ngày tháng, các gạch đầu dòng, "
-                "kinh nghiệm làm việc, học vấn, kỹ năng, dự án và chứng chỉ. "
-                "Chỉ trả về nội dung văn bản đã trích xuất, không thêm lời bình luận mở đầu hay kết thúc."
-            )
+        prompt = instruction or (
+            "Trích xuất nguyên văn toàn bộ nội dung văn bản từ tài liệu này mà không tóm tắt, "
+            "không chỉnh sửa và không bỏ sót bất kỳ thông tin nào. "
+            "Giữ nguyên cấu trúc tự nhiên, thông tin liên hệ, tiêu đề, ngày tháng, các gạch đầu dòng, "
+            "kinh nghiệm làm việc, học vấn, kỹ năng, dự án và chứng chỉ. "
+            "Chỉ trả về nội dung văn bản đã trích xuất, không thêm lời bình luận mở đầu hay kết thúc."
         )
 
         part = types.Part.from_bytes(data=document_bytes, mime_type=mime_type)
@@ -395,4 +391,3 @@ class GeminiLlmProvider(LlmPort):
             )
 
         return str(raw_text).strip()
-

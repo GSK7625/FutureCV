@@ -166,6 +166,14 @@ public sealed record AiMatchRequest(
     [property: JsonPropertyName("cv")] AiStructuredCvDto Cv,
     [property: JsonPropertyName("job")] AiStructuredJobDto Job);
 
+public sealed record AiCandidateItemDto(
+    [property: JsonPropertyName("candidate_id")] string CandidateId,
+    [property: JsonPropertyName("cv")] AiStructuredCvDto Cv);
+
+public sealed record AiCandidateRankRequest(
+    [property: JsonPropertyName("job")] AiStructuredJobDto Job,
+    [property: JsonPropertyName("candidates")] List<AiCandidateItemDto> Candidates);
+
 // =============================================================================
 // AI Matching Engine Response Contracts (v1)
 // Aligned with Python FastAPI MatchResult / ResponseMeta / ErrorResponse
@@ -263,6 +271,41 @@ public sealed record AiMatchResultDto
         this.ExplanationDetails = ExplanationDetails;
         this.Status = Status;
         this.Warning = Warning;
+        this.Meta = Meta ?? new AiResponseMetaDto();
+    }
+}
+
+public sealed record AiRankedCandidateItemDto(
+    [property: JsonPropertyName("rank")] int Rank,
+    [property: JsonPropertyName("candidate_id")] string CandidateId,
+    [property: JsonPropertyName("match_result")] AiMatchResultDto MatchResult);
+
+public sealed record AiCandidateRankResponse
+{
+    [JsonPropertyName("job_title")]
+    public string JobTitle { get; init; } = string.Empty;
+
+    [JsonPropertyName("total_evaluated")]
+    public int TotalEvaluated { get; init; }
+
+    [JsonPropertyName("ranked_candidates")]
+    public List<AiRankedCandidateItemDto> RankedCandidates { get; init; } = [];
+
+    [JsonPropertyName("meta")]
+    public AiResponseMetaDto Meta { get; init; } = new();
+
+    public AiCandidateRankResponse() { }
+
+    [JsonConstructor]
+    public AiCandidateRankResponse(
+        string JobTitle,
+        int TotalEvaluated,
+        List<AiRankedCandidateItemDto>? RankedCandidates = null,
+        AiResponseMetaDto? Meta = null)
+    {
+        this.JobTitle = JobTitle;
+        this.TotalEvaluated = TotalEvaluated;
+        this.RankedCandidates = RankedCandidates ?? [];
         this.Meta = Meta ?? new AiResponseMetaDto();
     }
 }

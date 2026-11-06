@@ -52,6 +52,9 @@ public interface IApplicationService
     Task<ServiceResult<RecruitmentPipelineResponse>> GetRecruitmentPipelineAsync(
         Guid userId, Guid jobId, CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<JobCandidateRankingResponse>> GetJobCandidateRankingAsync(
+        Guid userId, Guid jobId, bool refreshWithAi = false, CancellationToken cancellationToken = default);
+
     Task<ServiceResult<PipelineAnalyticsResponse>> GetPipelineAnalyticsAsync(
         Guid userId, Guid jobId, CancellationToken cancellationToken = default);
 
