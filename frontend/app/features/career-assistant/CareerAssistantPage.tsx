@@ -78,6 +78,9 @@ export function CareerAssistantPage() {
           <div ref={bottom} />
         </div>
         <form className="mt-6 border-t border-border-subtle pt-4" onSubmit={submit}>
+          {!!chat.data?.suggestedFollowups.length && <div className="mb-4 flex flex-wrap gap-2" aria-label="Câu hỏi gợi ý">
+            {chat.data.suggestedFollowups.map((text, index) => <Button key={index} size="sm" variant="ghost" className="h-auto whitespace-normal text-left" disabled={chat.isPending} onClick={() => setQuestion(text)}>{text}</Button>)}
+          </div>}
           <label htmlFor="career-question" className="text-label font-semibold text-navy">Câu hỏi của bạn</label>
           <textarea id="career-question" rows={4} maxLength={4000} className={fieldClass} value={question} disabled={chat.isPending} onChange={(event) => setQuestion(event.target.value)} aria-describedby="career-question-help" />
           <p id="career-question-help" className="mt-1 text-label-sm text-ink-muted">{question.length}/4000 ký tự. Không nhập mật khẩu hoặc thông tin nhạy cảm.</p>
