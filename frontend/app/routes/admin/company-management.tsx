@@ -7,6 +7,7 @@ import { Table, THead, TBody, TR, TH, TD } from "~/components/ui/Table";
 import { Input } from "~/components/ui/Input";
 import { Button } from "~/components/ui/Button";
 import { Modal } from "~/components/ui/Modal";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import { adminService } from "~/features/admin/services/adminService";
 import type { CompanyProfileResponse } from "~/features/admin/types";
 
@@ -199,17 +200,16 @@ export default function CompanyManagementPage() {
                     <TR key={company.id}>
                       <TD>
                         <div className="flex items-center gap-3">
-                          {company.logoUrl ? (
-                            <img
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy/10 text-label-sm font-semibold text-navy">
+                            <CompanyLogo
                               src={company.logoUrl}
                               alt={company.companyName}
-                              className="h-10 w-10 rounded-full object-cover"
+                              name={company.companyName}
+                              className="h-full w-full rounded-full object-cover"
+                              fallbackType="initial"
+                              fallbackClassName="text-label-sm font-semibold text-navy"
                             />
-                          ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy/10 text-label-sm font-semibold text-navy">
-                              {company.companyName?.charAt(0).toUpperCase() || "C"}
-                            </div>
-                          )}
+                          </div>
                           <div>
                             <p className="font-medium text-ink">{company.companyName || "Chưa đặt tên"}</p>
                             {company.companySize && (

@@ -8,6 +8,7 @@ import { memo } from "react";
 import { Link } from "react-router";
 import { IconMapPin, IconClock, IconBriefcase, IconHeart, IconHeartFilled } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/Badge";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import { formatSalary, timeAgo } from "~/utils";
 import { useSavedJobIds } from "../../hooks/useSavedJobIds";
 import { useToggleSaveJob } from "../../hooks/useToggleSaveJob";
@@ -41,18 +42,15 @@ export const JobListItemRow = memo(function JobListItemRow({ job, saved, onToggl
       <div className="flex flex-col gap-4 sm:flex-row">
         {/* Company Logo / Fallback */}
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-default border border-border-subtle bg-surface-low sm:h-20 sm:w-20">
-          {job.companyLogo ? (
-            <img
-              src={job.companyLogo}
-              alt={job.company}
-              className="h-full w-full object-contain p-2"
-              loading="lazy"
-            />
-          ) : (
-            <span className="text-headline-md font-bold text-navy">
-              {companyInitial}
-            </span>
-          )}
+          <CompanyLogo
+            src={job.companyLogo}
+            alt={job.company}
+            name={job.company}
+            className="h-full w-full object-contain p-2"
+            fallbackType="initial"
+            fallbackClassName="text-headline-md"
+            loading="lazy"
+          />
         </div>
 
         {/* Info Column */}

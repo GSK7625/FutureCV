@@ -19,6 +19,7 @@ import {
 import { useApplicationDetail } from "../../hooks/useApplicationDetail";
 import { CAN_WITHDRAW_STATUSES } from "../../types";
 import { StatusBadgeVn } from "./StatusBadgeVn";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import { Modal, Skeleton } from "~/components/ui";
 
 interface ApplicationDetailModalProps {
@@ -95,17 +96,15 @@ export function ApplicationDetailModal({
           {/* Header info */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 rounded-2xl bg-surface-low/60 border border-navy/10">
             <div className="flex items-start gap-3.5">
-              {detail.companyLogoUrl ? (
-                <img
+              <div className="w-13 h-13 rounded-xl bg-navy/5 border border-navy/10 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                <CompanyLogo
                   src={detail.companyLogoUrl}
                   alt={detail.companyName}
-                  className="w-13 h-13 rounded-xl object-cover border border-navy/10 shadow-xs"
+                  name={detail.companyName}
+                  className="w-full h-full object-cover"
+                  fallbackIconSize={24}
                 />
-              ) : (
-                <div className="w-13 h-13 rounded-xl bg-navy/5 border border-navy/10 flex items-center justify-center text-navy">
-                  <IconBuilding size={24} />
-                </div>
-              )}
+              </div>
               <div>
                 <Link
                   to={`/jobs/${detail.jobId}`}

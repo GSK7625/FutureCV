@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { IconBuilding, IconPhoto, IconRosetteDiscountCheck } from "@tabler/icons-react";
 import { Badge, Button, Card, CardContent, Field, Input } from "~/components/ui";
 import { QueryBoundary, SkeletonCard } from "~/components/shared/QueryBoundary";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import { useUIStore } from "~/stores/useUIStore";
 import { validateCompanyProfile, type FieldErrors } from "../contracts/hrContracts";
 import {
@@ -92,11 +93,13 @@ export function CompanyProfilePage() {
           <CardContent className="p-5 md:p-7">
             <div className="mb-8 flex flex-col gap-5 border-b border-border-subtle pb-7 sm:flex-row sm:items-center">
               <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-default border border-border-subtle bg-surface-low">
-                {companyQuery.data?.logoUrl ? (
-                  <img src={companyQuery.data.logoUrl} alt={`Logo ${companyQuery.data.name}`} className="h-full w-full object-cover" />
-                ) : (
-                  <IconBuilding size={42} stroke={1.4} className="text-ink-muted" aria-hidden="true" />
-                )}
+                <CompanyLogo
+                  src={companyQuery.data?.logoUrl}
+                  alt={`Logo ${companyQuery.data?.name ?? ""}`}
+                  name={companyQuery.data?.name}
+                  fallbackIconSize={42}
+                  fallbackClassName="text-ink-muted"
+                />
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2">

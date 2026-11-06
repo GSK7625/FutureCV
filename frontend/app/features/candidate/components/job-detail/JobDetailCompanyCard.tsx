@@ -11,6 +11,7 @@ import {
   IconCheck,
   IconExternalLink,
 } from "@tabler/icons-react";
+import { CompanyLogo } from "~/components/shared/CompanyLogo";
 import type { Job } from "../../types";
 
 interface JobDetailCompanyCardProps {
@@ -26,17 +27,14 @@ export function JobDetailCompanyCard({ job }: JobDetailCompanyCardProps) {
 
       <div className="flex items-center gap-3 pb-4 border-b border-border-subtle">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border-subtle bg-surface-low p-1.5">
-          {job.companyLogo ? (
-            <img
-              src={job.companyLogo}
-              alt={job.company}
-              className="h-full w-full object-contain"
-            />
-          ) : (
-            <span className="text-headline-sm font-bold text-navy">
-              {companyInitial}
-            </span>
-          )}
+          <CompanyLogo
+            src={job.companyLogo}
+            alt={job.company}
+            name={job.company}
+            className="h-full w-full object-contain"
+            fallbackType="initial"
+            fallbackClassName="text-headline-sm"
+          />
         </div>
 
         <div className="min-w-0 flex-1">

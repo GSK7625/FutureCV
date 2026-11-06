@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { IconCheck, IconColumns, IconExternalLink, IconGripVertical, IconList, IconRefresh, IconSearch, IconSparkles, IconTrophy, IconUsers } from "@tabler/icons-react";
+import { IconCheck, IconColumns, IconExternalLink, IconList, IconRefresh, IconSearch, IconSparkles, IconTrophy, IconUsers } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, Button, Card, CardContent, EmptyState, Input, Skeleton } from "~/components/ui";
 import { QueryBoundary } from "~/components/shared/QueryBoundary";
@@ -347,11 +347,6 @@ function PipelineCandidateCard({
           Ứng tuyển {new Date(candidate.appliedAt).toLocaleDateString("vi-VN")}
         </span>
       </span>
-      <IconGripVertical
-        size={16}
-        className="text-ink-muted/40 transition-colors group-hover:text-gold shrink-0 self-center"
-        aria-hidden="true"
-      />
     </div>
   );
 }
@@ -493,7 +488,7 @@ function CandidateRankingView({
 
         <div className="shrink-0">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             disabled={refreshMutation.isPending || query.isLoading}
             onClick={() => refreshMutation.mutate()}
