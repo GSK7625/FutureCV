@@ -114,6 +114,15 @@ if (args.Contains("--migrate-only", StringComparer.Ordinal))
     return;
 }
 
+// One-shot demo data seeder command.
+if (args.Contains("--seed-demo-data", StringComparer.Ordinal))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+    await DatabaseSeeder.SeedAsync(scope.ServiceProvider, forceDemoData: true);
+    return;
+}
+
 app.UseExceptionHandler();
 
 // Seed database on startup (Roles, SuperAdmin, Master Reference Data)
