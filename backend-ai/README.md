@@ -2,6 +2,8 @@
 
 Tài liệu hướng dẫn cấu trúc, thiết lập và phát triển hệ thống tính toán trí tuệ nhân tạo (**AI Service**) của dự án **FutureCV**.
 
+> 💡 **Hướng dẫn cấu hình API Key & Môi trường:** Xem chi tiết từng bước tại [API_KEY_CONFIGURATION_GUIDE.md](./API_KEY_CONFIGURATION_GUIDE.md).
+
 ---
 
 ## 🏛️ 1. Kiến trúc hệ thống (Clean & Hexagonal Architecture)
