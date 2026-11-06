@@ -10,7 +10,7 @@ namespace FutureCV.Infrastructure.Persistence.Seeders;
 /// </summary>
 public static class DatabaseSeeder
 {
-    public static async Task SeedAsync(IServiceProvider serviceProvider)
+    public static async Task SeedAsync(IServiceProvider serviceProvider, bool forceDemoData = false)
     {
         using var scope = serviceProvider.CreateScope();
         var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger(nameof(DatabaseSeeder));
@@ -26,7 +26,7 @@ public static class DatabaseSeeder
             await ReferenceDataSeeder.SeedAsync(serviceProvider);
 
             // 3. Seed Realistic Demo Presentation Data (Companies, Recruiter, Candidates, Jobs, CV, Application, MatchResult)
-            if (scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("Seed:DemoData", false))
+            if (forceDemoData || scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("Seed:DemoData", false))
             {
                 await DemoDataSeeder.SeedAsync(serviceProvider);
             }
