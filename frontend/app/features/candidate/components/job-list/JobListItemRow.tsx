@@ -4,6 +4,7 @@
  * @architecture Pure presentation component (dumb UI).
  */
 
+import { memo } from "react";
 import { Link } from "react-router";
 import { IconMapPin, IconClock, IconBriefcase, IconHeart, IconHeartFilled } from "@tabler/icons-react";
 import { Badge } from "~/components/ui/Badge";
@@ -18,7 +19,7 @@ export interface JobListItemRowProps {
   onToggleSave?: () => void;
 }
 
-export function JobListItemRow({ job, saved, onToggleSave }: JobListItemRowProps) {
+export const JobListItemRow = memo(function JobListItemRow({ job, saved, onToggleSave }: JobListItemRowProps) {
   const companyInitial = job.company ? job.company.charAt(0).toUpperCase() : "J";
   const { data: savedJobIds } = useSavedJobIds();
   const { toggleSave, isPending } = useToggleSaveJob();
@@ -134,4 +135,4 @@ export function JobListItemRow({ job, saved, onToggleSave }: JobListItemRowProps
       </div>
     </article>
   );
-}
+});
