@@ -2,8 +2,8 @@ using System.Text;
 using FutureCV.Api.Middlewares;
 using FutureCV.Application;
 using FutureCV.Infrastructure;
-using FutureCV.Infrastructure.Persistence.Seeders;
 using FutureCV.Infrastructure.Persistence;
+using FutureCV.Infrastructure.Persistence.Seeders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Services ──────────────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHealthChecks();
 
 // Global Exception Handling & RFC 7807 ProblemDetails
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -138,6 +139,12 @@ app.MapGet("/health/ready", async (ApplicationDbContext db, CancellationToken ca
     await db.Database.CanConnectAsync(cancellationToken)
         ? Results.Ok(new { status = "ready" })
         : Results.StatusCode(StatusCodes.Status503ServiceUnavailable)).AllowAnonymous();
+app.MapHealthChecks("/health").AllowAnonymous();
+app.MapGet("/ready", async Task<IResult> (ApplicationDbContext db, CancellationToken cancellationToken) =>
+    await db.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok(new { status = "ready" })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable))
+    .AllowAnonymous();
 
 app.Run();
 

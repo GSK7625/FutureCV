@@ -3,5 +3,11 @@ build
 node_modules
 README.md
 .env*
-.git
+!.env.example
+coverage
 *.log
+.vite
+.git
+Docs
+test-results*
+Jenkinsfile

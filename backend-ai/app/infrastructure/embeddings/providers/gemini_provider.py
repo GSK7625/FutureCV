@@ -172,7 +172,7 @@ class GeminiEmbeddingProvider(EmbeddingPort):
             try:
                 coro = self._client.aio.models.embed_content(
                     model=self.model,
-                    contents=texts,  # type: ignore[arg-type]
+                    contents=texts,
                 )
                 return await asyncio.wait_for(coro, timeout=self.timeout)
 

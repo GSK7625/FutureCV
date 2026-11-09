@@ -1,0 +1,23 @@
+# Merge with docker-compose.yml after creating an inbound node in Jenkins.
+services:
+  ci-agent:
+    build:
+      context: ../jenkins/agent
+    container_name: futurecv-ci-agent
+    init: true
+    restart: unless-stopped
+    user: "1000:${DOCKER_GID:-0}"
+    environment:
+      JENKINS_URL: http://jenkins:8080
+      JENKINS_AGENT_NAME: futurecv-docker
+      JENKINS_SECRET: ${JENKINS_AGENT_SECRET:?Set JENKINS_AGENT_SECRET from the inbound node page}
+      JENKINS_WEB_SOCKET: "true"
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - futurecv_agent_work:/home/jenkins/agent
+    networks:
+      - jenkins
+
+volumes:
+  futurecv_agent_work:

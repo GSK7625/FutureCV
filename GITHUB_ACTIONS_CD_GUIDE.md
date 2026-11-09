@@ -185,3 +185,18 @@ Các lệnh Git trong mục này chưa được thực hiện. Không stage `.de
 - https://docs.github.com/en/actions/reference/security/secure-use
 - https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
 - https://github.com/docker/desktop-feedback/issues/460 (workaround socket đã dùng, lỗi có thể tái phát)
+
+## 10. Tích hợp để push lên giao-dien-admin — 01/11/2026
+
+Theo yêu cầu mới của bạn, đích push là `giao-dien-admin`, thay cho việc chỉ giữ nhánh CI local.
+
+1. Kiểm tra trạng thái và fetch `origin/giao-dien-admin`. Nhánh remote đã có commit mới, đầu nhánh là `91ef920`, gồm Jenkins và các thay đổi AI; không force-push hoặc bỏ các commit này.
+2. Tạo commit `5e294c4` cho phần GitHub CI/CD đã làm. File kế hoạch `GITHUB_ACTIONS_CICD_PLAN.md` có sẵn không đưa vào commit; bỏ đánh dấu intent-to-add để Git có thể merge, giữ nguyên nội dung file trên máy.
+3. Merge remote vào nhánh làm việc, xử lý xung đột Dockerfile/nginx/healthcheck/npm/gitignore. Giữ mã AI mới từ remote, script `test:ci`, các file Jenkins và các endpoint `/health`, `/ready`; đồng thời giữ `/health/live`, `/health/ready` và `--migrate-only` dùng cho CD.
+4. Thống nhất build context backend là `backend/` để cả Jenkins và GitHub Actions dùng cùng Dockerfile. Dockerfile copy `global.json` trước restore để chọn đúng SDK. Giữ frontend chạy bằng image nginx unprivileged của nhánh remote, pin Node build 24.20.0 và giữ healthcheck `/healthz`; nginx cũng hỗ trợ `/health` cho luồng Jenkins. Phiên bản nginx trong mục 2 là bản đã đo ở lần deploy trước, chưa phải runtime đã xác nhận của bản sau merge.
+5. Bổ sung `deploy/compose.yml` vào phần commit tích hợp; file này phải có trên repo để script deploy hoạt động. Secrets và `.deploy/` vẫn bị Git bỏ qua.
+6. Kiểm tra sau merge: frontend typecheck và **28 test đạt**, backend build và **73 test đạt**, AI **600 test đạt**. Lần frontend trong sandbox lỗi loader Vite; chạy ngoài sandbox đạt. actionlint và kiểm tra whitespace đạt.
+7. Lần thử build/deploy Docker sau merge dừng ngay ở kiểm tra engine: pipe `dockerDesktopLinuxEngine` không tồn tại. Chưa chạy lại build/nginx smoke cho source sau merge; không lấy kết quả deploy trước merge làm bằng chứng cho image mới. Log: `.ci-results/push-merge-deploy.log`.
+8. Hoàn tất merge commit và đẩy `HEAD:refs/heads/giao-dien-admin` bằng push thông thường. Kết quả push được báo trong chat sau khi GitHub xác nhận. Không tự tạo PR hoặc merge master.
+
+Các hướng dẫn “chưa commit/push” ở mục trước ghi lại trạng thái tại mốc dựng local; khi xem bản đã push cần đọc thêm mục này. Workflow hiện kích hoạt CI khi PR vào master hoặc push các nhánh đã khai báo; chỉ push `giao-dien-admin` không tự chạy CD. CD vẫn chạy từ master và job runner vẫn chờ cấu hình quyền như mục 6.

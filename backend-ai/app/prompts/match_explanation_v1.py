@@ -270,14 +270,8 @@ def validate_grounding(
     allowed_matched = {_clean_skill_for_grounding(x) for x in matched_skills if x.strip()}
     allowed_missing = {_clean_skill_for_grounding(x) for x in missing_skills if x.strip()}
 
-    returned_strengths = {
-        _clean_skill_for_grounding(item.item)
-        for item in explanation.strengths
-    }
-    returned_gaps = {
-        _clean_skill_for_grounding(item.requirement)
-        for item in explanation.gaps
-    }
+    returned_strengths = {_clean_skill_for_grounding(item.item) for item in explanation.strengths}
+    returned_gaps = {_clean_skill_for_grounding(item.requirement) for item in explanation.gaps}
 
     # All strength items must be in allowed_matched
     if not returned_strengths.issubset(allowed_matched):
@@ -290,11 +284,7 @@ def validate_grounding(
     # Critical missing skills coverage:
     # All missing required skills up to 10 must be represented in returned gaps
     if missing_required_skills:
-        critical_missing = {
-            _clean_skill_for_grounding(s)
-            for s in missing_required_skills[:10]
-            if s.strip()
-        }
+        critical_missing = {_clean_skill_for_grounding(s) for s in missing_required_skills[:10] if s.strip()}
         if not critical_missing.issubset(returned_gaps):
             return False
 
@@ -319,8 +309,7 @@ def build_deterministic_structured_explanation(
         summary = "Mức độ phù hợp thấp. Ứng viên chưa đáp ứng một số kỹ năng bắt buộc của vị trí."
     elif final_score < 60:
         summary = (
-            "Phù hợp một phần. Ứng viên đáp ứng một số tiêu chí "
-            "nhưng vẫn còn thiếu hụt các yêu cầu cốt lõi của vị trí."
+            "Phù hợp một phần. Ứng viên đáp ứng một số tiêu chí nhưng vẫn còn thiếu hụt các yêu cầu cốt lõi của vị trí."
         )
     elif final_score < 80:
         summary = "Mức độ phù hợp tốt. Ứng viên đáp ứng phần lớn các kỹ năng và yêu cầu của vị trí tuyển dụng."
