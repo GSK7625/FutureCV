@@ -628,7 +628,8 @@ public class ApplicationService : IApplicationService
                 matchResult.EducationComparison,
                 matchResult.ProjectDomainRelevance,
                 IsAiPreview: true,
-                MatchSource: "ai"
+                MatchSource: "ai",
+                ExplanationDetails: matchResult.ExplanationDetails
             );
 
         }

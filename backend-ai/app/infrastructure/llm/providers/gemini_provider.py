@@ -80,7 +80,7 @@ def _convert_to_gemini_schema(raw_schema: dict[str, Any]) -> dict[str, Any]:
                     continue
                 res[k] = convert(v)
             return res
-        elif isinstance(node, list):
+        if isinstance(node, list):
             return [convert(x) for x in node]
         return node
 

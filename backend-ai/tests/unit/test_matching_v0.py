@@ -32,7 +32,7 @@ def test_matching_v0_weights_permanent_lock():
 
 def test_compute_overall_match_score_v0_perfect():
     """Verify v0 formula with 100 on all components yields 100."""
-    skill_res = SkillMatchResult(skill_score=100.0, matched_skills=["Python"], missing_skills=[])
+    skill_res = SkillMatchResult(skill_score=100.0, matched_required_skills=["Python"], missing_required_skills=[])
     exp_res = ExperienceMatchResult(score=100.0, candidate_years=5.0, required_years=3.0, comparison_text="Valid")
     edu_res = EducationMatchResult(score=100.0, comparison_text="Valid")
 
@@ -57,7 +57,7 @@ def test_compute_overall_match_score_v0_weighted_calculation():
     Education: 50.0 * 0.20 = 10.0
     Total = 40.0 + 18.0 + 10.0 = 68.0 -> 68
     """
-    skill_res = SkillMatchResult(skill_score=80.0, matched_skills=["Python"], missing_skills=[])
+    skill_res = SkillMatchResult(skill_score=80.0, matched_required_skills=["Python"], missing_required_skills=[])
     exp_res = ExperienceMatchResult(score=60.0, candidate_years=3.0, required_years=5.0, comparison_text="Shortage")
     edu_res = EducationMatchResult(score=50.0, comparison_text="Mismatch")
 

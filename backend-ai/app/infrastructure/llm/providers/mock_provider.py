@@ -125,6 +125,58 @@ class MockLlmProvider(LlmPort):
                 }
             )
 
+        if response_model.__name__ == "MatchExplanation":
+            import re
+            m_matched = re.search(r"Matched skills:\s*\n([^\n]+)", prompt)
+            m_missing = re.search(r"Missing required skills:\s*\n([^\n]+)", prompt)
+            matched_str = m_matched.group(1).strip() if m_matched else ""
+            missing_str = m_missing.group(1).strip() if m_missing else ""
+
+            matched_list = [s.strip() for s in matched_str.split(",") if s.strip() and s.strip() != "Không có"]
+            missing_list = [s.strip() for s in missing_str.split(",") if s.strip() and s.strip() != "Không có"]
+
+            summary = "Mức độ phù hợp tốt. Ứng viên đáp ứng phần lớn các kỹ năng và yêu cầu của vị trí tuyển dụng."
+            if "Mức độ phù hợp thấp" in prompt or "Score band: low" in prompt:
+                summary = "Mức độ phù hợp thấp. Ứng viên chưa đáp ứng một số kỹ năng bắt buộc của vị trí."
+            elif "Phù hợp một phần" in prompt or "Score band: partial" in prompt:
+                summary = (
+                    "Phù hợp một phần. Ứng viên đáp ứng một số tiêu chí "
+                    "nhưng vẫn còn thiếu hụt các yêu cầu cốt lõi của vị trí."
+                )
+            elif "Mức độ phù hợp cao" in prompt or "Score band: strong" in prompt:
+                summary = (
+                    "Mức độ phù hợp cao theo các tiêu chí đã được hệ thống đánh giá. "
+                    "Vẫn cần xác minh các yêu cầu chưa có đủ bằng chứng trong CV."
+                )
+
+            strengths = []
+            for s in matched_list[:3]:
+                clean_s = re.sub(r"\s*\((?:preferred|ưu tiên)\)", "", s, flags=re.IGNORECASE).strip()
+                strengths.append({
+                    "item": clean_s,
+                    "statement": f"CV có đề cập kỹ năng {clean_s}.",
+                    "evidence_source": "cv.skills",
+                    "evidence_text": clean_s,
+                })
+            gaps = []
+            for s in missing_list[:3]:
+                clean_s = re.sub(r"\s*\((?:preferred|ưu tiên)\)", "", s, flags=re.IGNORECASE).strip()
+                gaps.append({
+                    "requirement": clean_s,
+                    "statement": f"Chưa đủ bằng chứng về kỹ năng bắt buộc {clean_s}.",
+                })
+
+            return response_model.model_validate(
+                {
+                    "summary": summary,
+                    "strengths": strengths,
+                    "gaps": gaps,
+                    "recommendations": [
+                        "Tiếp tục hoàn thiện các kỹ năng chuyên môn cốt lõi."
+                    ],
+                }
+            )
+
         mock_data: dict[str, Any] = {}
         for field_name, field_info in response_model.model_fields.items():
             annotation = field_info.annotation
