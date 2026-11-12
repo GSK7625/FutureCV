@@ -15,6 +15,22 @@ namespace FutureCV.Domain.Tests.IntegrationTests;
 public class CareerAssistantServiceTests
 {
     [Fact]
+    public async Task RejectsOversizedJobBeforeCallingPython()
+    {
+        using var db = Db();
+        var candidate = new Candidate { UserId = Guid.NewGuid(), FullName = "Candidate" };
+        var job = new Job { Title = "Backend", Description = new string('x', 20001), ApprovalStatus = FutureCV.Domain.Enums.JobApprovalStatus.Approved };
+        db.Candidates.Add(candidate);
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+        var client = new Client();
+        var result = await Service(db, client).ChatAsync(candidate.UserId, new("Advice", [], JobId: job.Id));
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ServiceErrorType.Validation, result.ErrorType);
+        Assert.Null(client.Request);
+    }
+
+    [Fact]
     public async Task RejectsDeletedCandidate()
     {
         using var db = Db();
