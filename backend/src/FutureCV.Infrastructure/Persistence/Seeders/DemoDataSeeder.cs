@@ -10,12 +10,12 @@ namespace FutureCV.Infrastructure.Persistence.Seeders;
 
 /// <summary>
 /// Seeds realistic demo/presentation data for FutureCV:
-/// - Companies: FPT Software (Verified), VNG Corporation (Verified)
+/// - Companies: FPT Software (Verified), VNG Corporation (Verified) with public CDN logos
 /// - Recruiter user and profile linked to FPT Software
-/// - Candidate 1 (Nguyen Van A): Fully populated profile, education, experience, primary CV, AI evaluation
+/// - Candidate 1 (Nguyen Van A): Fully populated profile, education, experience, candidate skills
 /// - Candidate 2 (Tran Thi B): Fresh candidate account for live submission testing
-/// - Jobs: Senior .NET Backend Developer (FPT, Approved), Frontend React Engineer (VNG, Approved), AI Intern (FPT, Pending for Admin demo)
-/// - JobApplication: Candidate 1 -> Job 1 (Status: Interview, MatchScore: 85%, detailed skill breakdown, 3-step status timeline)
+/// - 10 Jobs across diverse categories, levels, and locations (8 Approved, 2 Pending for Admin demo)
+/// - CV, AI evaluation, and JobApplications are left unseeded to allow live presentation uploads
 /// Idempotent: checks for existence before adding.
 /// </summary>
 public static class DemoDataSeeder
@@ -45,7 +45,7 @@ public static class DemoDataSeeder
             {
                 Name = "FPT Software",
                 TaxCode = "0101778162",
-                LogoUrl = "https://res.cloudinary.com/x4fjhajm/image/upload/v1/futurecv/fpt_software_logo.png",
+                LogoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/FPT_logo_2010.svg/1200px-FPT_logo_2010.svg.png",
                 Scale = "10000+ nhân viên",
                 Industry = "Công nghệ thông tin / Phần mềm",
                 WebsiteUrl = "https://fptsoftware.com",
@@ -59,7 +59,7 @@ public static class DemoDataSeeder
             {
                 Name = "VNG Corporation",
                 TaxCode = "0303538435",
-                LogoUrl = "https://res.cloudinary.com/x4fjhajm/image/upload/v1/futurecv/vng_logo.png",
+                LogoUrl = "https://upload.wikimedia.org/wikipedia/vi/thumb/9/91/VNG_Corporation_logo.svg/1200px-VNG_Corporation_logo.svg.png",
                 Scale = "1000 - 5000 nhân viên",
                 Industry = "Công nghệ thông tin / Game & Internet",
                 WebsiteUrl = "https://vng.com.vn",
@@ -585,112 +585,6 @@ public static class DemoDataSeeder
             if (agileSkill != null) await context.JobSkills.AddAsync(new JobSkill { JobId = job10.Id, SkillId = agileSkill.Id, IsRequired = true });
             if (gitSkill != null) await context.JobSkills.AddAsync(new JobSkill { JobId = job10.Id, SkillId = gitSkill.Id, IsRequired = false });
 
-            await context.SaveChangesAsync();
-
-            // -----------------------------------------------------------------
-            // 6. Seed Candidate 1 CV, CvParser, and CvEvaluation
-            // -----------------------------------------------------------------
-            var cv = new CandidateCv
-            {
-                CandidateId = cand1Profile.Id,
-                Title = "CV_NguyenVanA_SeniorDotNet.pdf",
-                FileType = "PDF",
-                FileUrl = "https://res.cloudinary.com/x4fjhajm/image/upload/v1/futurecv/demo_cv_nguyen_van_a.pdf",
-                PublicId = "demo_cv_nguyen_van_a",
-                FileSizeBytes = 245600,
-                Source = "Upload",
-                ParseStatus = "Completed",
-                ParsedAt = DateTime.UtcNow.AddDays(-10),
-                IsPrimary = true,
-                IsDeleted = false
-            };
-
-            await context.CandidateCvs.AddAsync(cv);
-            await context.SaveChangesAsync();
-
-            var cvParser = new CvParser
-            {
-                CvId = cv.Id,
-                RawText = "NGUYỄN VĂN A\nSenior .NET Backend Developer\nEmail: nguyenvana@gmail.com | SĐT: 0912345678\nKinh nghiệm 4 năm chuyên sâu về C#, .NET 8, PostgreSQL, Microservices...",
-                ParsedDataJson = "{\"full_name\":\"Nguyễn Văn A\",\"email\":\"nguyenvana@gmail.com\",\"phone\":\"0912345678\",\"skills\":[\"C#\",\".NET Core / .NET 8\",\"PostgreSQL\",\"Docker\",\"Git\"],\"experience_years\":4}",
-                ModelVersion = "1.0",
-                ParsedAt = DateTime.UtcNow.AddDays(-10),
-                IsVerifiedByUser = true,
-                VerifiedAt = DateTime.UtcNow.AddDays(-10)
-            };
-
-            var cvEvaluation = new CvEvaluation
-            {
-                CvId = cv.Id,
-                CvScore = 88,
-                StrengthsJson = "[\"Hơn 4 năm kinh nghiệm chuyên sâu với hệ sinh thái .NET và CSDL PostgreSQL\",\"Kinh nghiệm thực chiến với kiến trúc Microservices và Containerization (Docker)\",\"Cấu trúc CV khoa học, các dự án nêu bật được kỹ năng giải quyết bài toán tải cao\"]",
-                WeaknessesJson = "[\"Chưa có chứng chỉ Cloud quốc tế chính thức (AWS Certified Solutions Architect hoặc Azure Developer)\"]",
-                ImprovementsJson = "[\"Bổ sung các chỉ số đo lường hiệu năng định lượng (ví dụ: giảm latency bao nhiêu %, tăng throughput ra sao)\",\"Bổ sung các dự án triển khai thực tế trên nền tảng Cloud\"]",
-                MissingSkillsJson = "[\"Kubernetes\", \"AWS\"]",
-                ModelVersion = "1.0",
-                GeneratedAt = DateTime.UtcNow.AddDays(-10)
-            };
-
-            await context.CvParsers.AddAsync(cvParser);
-            await context.CvEvaluations.AddAsync(cvEvaluation);
-            await context.SaveChangesAsync();
-
-            // -----------------------------------------------------------------
-            // 7. Seed JobApplication with MatchResult & ApplicationStatusHistory
-            // -----------------------------------------------------------------
-            var application = new JobApplication
-            {
-                CandidateId = cand1Profile.Id,
-                JobId = job1.Id,
-                CvId = cv.Id,
-                CoverLetter = "Kính gửi Bộ phận Tuyển dụng FPT Software, tôi là Nguyễn Văn A. Với hơn 4 năm kinh nghiệm làm việc chuyên sâu với .NET 8 và PostgreSQL, tôi tin rằng kỹ năng và kinh nghiệm thực chiến của mình rất phù hợp với vị trí Senior .NET Backend Developer tại FPT.",
-                Status = ApplicationStatus.Interview,
-                AppliedAt = DateTime.UtcNow.AddDays(-7),
-                Rating = 5,
-                EvaluationLabel = "Ứng viên rất tiềm năng (Top Match)",
-                PrivateNotes = "Ứng viên có tư duy kiến trúc tốt, trả lời lưu loát vòng phỏng vấn kỹ thuật ngày 15/09. Đã lên lịch phỏng vấn vòng 2 với Tech Lead.",
-                MatchScore = 85,
-                MatchedSkillsJson = "[\"C#\", \".NET Core / .NET 8\", \"PostgreSQL\", \"Docker\", \"Git / GitHub / GitLab\"]",
-                MissingSkillsJson = "[\"Amazon Web Services (AWS)\"]",
-                MatchExplanation = "Ứng viên sở hữu 4 năm kinh nghiệm vững vàng với .NET 8 và PostgreSQL, đáp ứng hầu hết các yêu cầu kỹ thuật cốt lõi của vị trí. Điểm còn khuyết là kinh nghiệm triển khai hạ tầng trên AWS.",
-                IsDeleted = false
-            };
-
-            await context.Applications.AddAsync(application);
-            await context.SaveChangesAsync();
-
-            // Seed status progression timeline
-            var history1 = new ApplicationStatusHistory
-            {
-                ApplicationId = application.Id,
-                FromStatus = null,
-                ToStatus = ApplicationStatus.Applied.ToString(),
-                ChangedById = cand1User.Id,
-                Reason = "Ứng viên nộp hồ sơ ứng tuyển trực tuyến",
-                ChangedAt = DateTime.UtcNow.AddDays(-7)
-            };
-
-            var history2 = new ApplicationStatusHistory
-            {
-                ApplicationId = application.Id,
-                FromStatus = ApplicationStatus.Applied.ToString(),
-                ToStatus = ApplicationStatus.Screening.ToString(),
-                ChangedById = recruiterUser.Id,
-                Reason = "HR FPT Software đã duyệt hồ sơ và đánh giá phù hợp",
-                ChangedAt = DateTime.UtcNow.AddDays(-5)
-            };
-
-            var history3 = new ApplicationStatusHistory
-            {
-                ApplicationId = application.Id,
-                FromStatus = ApplicationStatus.Screening.ToString(),
-                ToStatus = ApplicationStatus.Interview.ToString(),
-                ChangedById = recruiterUser.Id,
-                Reason = "Mời ứng viên tham gia phỏng vấn vòng chuyên môn kỹ thuật",
-                ChangedAt = DateTime.UtcNow.AddDays(-2)
-            };
-
-            await context.ApplicationStatusHistories.AddRangeAsync(history1, history2, history3);
             await context.SaveChangesAsync();
 
             logger?.LogInformation("Demo presentation data seeded successfully.");
