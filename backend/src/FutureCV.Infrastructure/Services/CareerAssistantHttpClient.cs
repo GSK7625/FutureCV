@@ -19,19 +19,19 @@ public sealed class CareerAssistantHttpClient(HttpClient httpClient, IOptions<Ai
     {
         try
         {
-        using var message = new HttpRequestMessage(HttpMethod.Post, "api/v1/career/chat");
-        message.Headers.Add("X-Internal-API-Key", options.Value.ApiKey);
-        message.Headers.Add("X-Correlation-ID", Guid.NewGuid().ToString("N"));
-        message.Content = JsonContent.Create(request, options: JsonOptions);
-        using var response = await httpClient.SendAsync(message, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            return ServiceResult.InfrastructureError<CareerChatResponse>("Career Assistant tam thoi khong kha dung. Vui long thu lai.");
-        var result = await response.Content.ReadFromJsonAsync<CareerChatResponse>(JsonOptions, cancellationToken);
-        return result is null || string.IsNullOrWhiteSpace(result.Reply) || result.Reply.Length > 16000 ||
-            result.SuggestedFollowups is null || result.SuggestedFollowups.Count > 6 ||
-            result.SuggestedFollowups.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 4000)
-            ? ServiceResult.InfrastructureError<CareerChatResponse>("Career Assistant khong tra ve noi dung.")
-            : ServiceResult.Success(result);
+            using var message = new HttpRequestMessage(HttpMethod.Post, "api/v1/career/chat");
+            message.Headers.Add("X-Internal-API-Key", options.Value.ApiKey);
+            message.Headers.Add("X-Correlation-ID", Guid.NewGuid().ToString("N"));
+            message.Content = JsonContent.Create(request, options: JsonOptions);
+            using var response = await httpClient.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return ServiceResult.InfrastructureError<CareerChatResponse>("Career Assistant tam thoi khong kha dung. Vui long thu lai.");
+            var result = await response.Content.ReadFromJsonAsync<CareerChatResponse>(JsonOptions, cancellationToken);
+            return result is null || string.IsNullOrWhiteSpace(result.Reply) || result.Reply.Length > 16000 ||
+                result.SuggestedFollowups is null || result.SuggestedFollowups.Count > 6 ||
+                result.SuggestedFollowups.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 4000)
+                ? ServiceResult.InfrastructureError<CareerChatResponse>("Career Assistant khong tra ve noi dung.")
+                : ServiceResult.Success(result);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
