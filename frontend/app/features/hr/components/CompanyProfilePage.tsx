@@ -14,7 +14,6 @@ import type { CompanyProfileInput } from "../types";
 
 const emptyForm: CompanyProfileInput = {
   name: "",
-  taxCode: "",
   scale: "",
   industry: "",
   websiteUrl: "",
@@ -35,7 +34,6 @@ export function CompanyProfilePage() {
     if (!companyQuery.data) return;
     setValues({
       name: companyQuery.data.name,
-      taxCode: companyQuery.data.taxCode,
       scale: companyQuery.data.scale ?? "",
       industry: companyQuery.data.industry ?? "",
       websiteUrl: companyQuery.data.websiteUrl ?? "",
@@ -134,11 +132,8 @@ export function CompanyProfilePage() {
             )}
 
             <form className="grid gap-5 sm:grid-cols-2" onSubmit={handleSubmit} noValidate>
-              <Field label="Tên công ty" htmlFor="company-name" required error={errors.name}>
+              <Field label="Tên công ty" htmlFor="company-name" required error={errors.name} className="sm:col-span-2">
                 <Input id="company-name" value={values.name} onChange={(event) => setField("name", event.target.value)} error={errors.name} />
-              </Field>
-              <Field label="Mã số thuế" htmlFor="company-tax-code" required={mode === "create"} error={errors.taxCode} hint={mode === "update" ? "Mã số thuế không thể thay đổi." : undefined}>
-                <Input id="company-tax-code" value={values.taxCode} onChange={(event) => setField("taxCode", event.target.value)} error={errors.taxCode} readOnly={mode === "update"} className={mode === "update" ? "bg-surface-low" : undefined} />
               </Field>
               <Field label="Ngành nghề" htmlFor="company-industry" error={errors.industry}>
                 <Input id="company-industry" value={values.industry} onChange={(event) => setField("industry", event.target.value)} error={errors.industry} />
