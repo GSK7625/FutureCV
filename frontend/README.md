@@ -1,5 +1,7 @@
 # FutureCV — Frontend
 
+Career Assistant ban dau: [su dung va gioi han](../docs/career-assistant.md).
+
 > **Tech Stack:** React 19 · React Router v8 · Zustand v5 · TanStack Query v5 · TypeScript · Tailwind CSS v4 · Vite
 
 ---
