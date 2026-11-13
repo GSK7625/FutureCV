@@ -23,7 +23,7 @@ API controller mong -> Application/Features/CareerAssistant (DTO, validator, ser
 11. Dieu huong va cau hoi goi y.
 12. Tai lieu su dung va kiem tra tong the.
 
-Moi moc co kiem tra tuong ung. Commit dung ngay tac gia theo lich duoc yeu cau (27/8-13/11/2026), ngay committer giu thoi diem tao that. Cac moc nay duoc trien khai trong cung mot dot; khong phai bang chung cong viec da dien ra vao cac ngay tac gia.
+Moi moc co kiem tra tuong ung. Commit dung ngay tac gia theo lich duoc yeu cau (27/8-13/11/2026), ngay committer cung duoc dat theo lich yeu cau. Ca hai moc la metadata duoc dat lai, khong phai thoi diem thuc te tao va day code len GitHub. Cac moc nay duoc trien khai trong cung mot dot; khong phai bang chung cong viec da dien ra vao cac ngay tac gia.
 
 ## Kiem tra
 
