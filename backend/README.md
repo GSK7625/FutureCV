@@ -1,5 +1,7 @@
 # 🚀 FutureCV Backend (.NET 8 Clean Architecture)
 
+Career Assistant ban dau: [cau hinh, API va pham vi con lai](../docs/career-assistant.md).
+
 Tài liệu hướng dẫn cấu trúc, thiết lập và phát triển hệ thống Backend dự án **FutureCV**.
 
 ---

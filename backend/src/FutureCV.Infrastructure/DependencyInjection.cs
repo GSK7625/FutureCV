@@ -76,6 +76,13 @@ public static class DependencyInjection
 
         // Register AI Service & AI Matching feature settings
         services.Configure<AiServiceOptions>(configuration.GetSection(AiServiceOptions.SectionName));
+        services.AddHttpClient<FutureCV.Application.Features.CareerAssistant.Interfaces.ICareerAssistantClient, CareerAssistantHttpClient>((provider, client) =>
+        {
+            var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiServiceOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds > 0 ? options.TimeoutSeconds : 90);
+            client.MaxResponseContentBufferSize = 1_048_576;
+        });
         services.Configure<AiMatchingFeatureOptions>(configuration.GetSection(AiMatchingFeatureOptions.SectionName));
 
         // Register AI Matching HTTP Client
