@@ -35,7 +35,10 @@ Phan hoi thanh cong:
 
 - Cau hoi va moi tin nhan toi da 4000 ky tu; history toi da 20 tin nhan, role chi `user` hoac `assistant`.
 - Frontend gui 20 tin gan nhat; noi dung moi tin trong history duoc gioi han 4000 ky tu. Python career hien chi dua 10 tin gan nhat vao prompt.
-- Frontend giu toi da 40 tin hien thi trong bo nho trang; doi CV/Job se xoa cuoc tro chuyen. Cau hoi loi duoc giu lai de gui lai. Tai lai trang se mat lich su.
+- Frontend giu toi da 40 tin moi cuoc; doi CV/Job se bat dau cuoc tro chuyen moi, van giu cac cuoc da luu. Cau hoi loi duoc giu lai de gui lai.
+- Sau moi cau tra loi thanh cong, frontend luu toi da 5 cuoc gan nhat vao trinh duyet theo tai khoan. Tai lai trang roi chon cuoc da luu de doc va tiep tuc voi CV/Job cu. Co nut xoa kem xac nhan. Cuoc thu 6 thay cuoc cu nhat.
+- Lich su chi o trinh duyet hien tai, chua dong bo thiet bi va khong ma hoa rieng; tren may dung chung nen xoa sau khi dung. Tong du lieu luu gioi han 1.000.000 ky tu JSON. Khi het dung luong/bi chan, giao dien bao loi va giu noi dung tren trang, khong gia vo da luu.
+- Du lieu cu khong doc duoc se khong bi ghi de; chat van dung duoc nhung tam ngung luu. Cac tab tai cung tai khoan doc danh sach moi nhat truoc khi ghi va cap nhat danh sach khi tab khac thay doi. Neu cuoc dang mo da duoc sua/xoa o tab khac, tu choi ghi de va giu cau tra loi hien tai tren trang. Hai thao tac ghi chinh xac dong thoi van theo quy tac last-write-wins cua localStorage; luu server la buoc tiep theo neu can dong bo tin cay.
 - `cvId` phai thuoc ung vien hien tai, chua bi xoa, co trang thai `Parsed` va du lieu parser hop le. Ten, email va so dien thoai o cac truong danh tinh duoc bo truoc khi gui ngu canh CV sang Python.
 - Ngu canh CV chi gom summary, skills va dates/years kinh nghiem theo dung cac truong Python career su dung. Khong gui toan bo PDF, thong tin lien he hay ho so ung vien khac.
 - Job phai cong khai, da duyet, dang mo, chua het han va khong bi cam/xoa. Noi dung CV/Job vuot gioi han Python bi tu choi voi thong bao de nguoi dung doi ngu canh.
@@ -46,6 +49,7 @@ Phan hoi thanh cong:
 
 ```text
 React route -> CareerAssistantPage -> careerAssistantService -> fetcher
+                                -> history.ts -> browser localStorage
 ASP.NET controller -> ICareerAssistantService -> IApplicationDbContext
                                             -> ICareerAssistantClient
 Infrastructure HTTP adapter -> FastAPI /api/v1/career/chat
@@ -65,12 +69,13 @@ Module nam trong Application/Features/CareerAssistant. Controller chi lay danh t
 ## Kiem tra da chay
 
 - Backend build va toan bo 109 test: dat (32 test moi so voi baseline 77).
-- Frontend typecheck, 30 test va production build: dat.
+- Frontend typecheck, 34 test va production build: dat.
 - Browser voi API mo phong: gui chat, history, cau hoi goi y, doi CV xoa ngu canh, giu cau hoi khi loi, render van ban khong thuc thi HTML, man hinh mobile 390px: dat.
+- Bo sung browser checks: tai lai/mo lai/tiep tuc dung CV cu, tao cuoc moi, xac nhan xoa, tach tai khoan, loi quota, tab co du lieu cu, luu giu du lieu khong doc duoc: dat.
 - Ra soat rieng ve kien truc va quyen truy cap: da sua truong hop Candidate bi xoa va ngu canh vuot gioi han Python.
 
 Chua chay luong that qua PostgreSQL -> .NET -> Python -> provider tra phi. Cac test browser dung phan hoi API mo phong, khong chung minh chat that hoat dong voi cau hinh cua moi may.
 
 ## Ngay commit
 
-14 commit tren nhanh nay duoc tao trong dot lam viec hien tai. Ngay tac gia va ngay committer deu duoc dat theo lich yeu cau tu 27/8 den 13/11/2026, moi tuan 1-2 commit. Day la ngay metadata duoc dat lai, khong phai thoi diem thuc te tao va day code len GitHub. Nhanh bat dau tu master hien tai, khong phai snapshot cua repo vao ngay 27/8. Khong viet lai lich su master.
+14 commit dau tien tren nhanh nay duoc tao trong dot lam viec hien tai. Ngay tac gia va ngay committer cua 14 commit do deu duoc dat theo lich yeu cau tu 27/8 den 13/11/2026, moi tuan 1-2 commit. Day la ngay metadata duoc dat lai, khong phai thoi diem thuc te tao va day code len GitHub. Cac commit bo sung lich su trinh duyet dung ngay thuc te 16/11/2026. Nhanh bat dau tu master hien tai, khong phai snapshot cua repo vao ngay 27/8. Khong viet lai lich su master.
