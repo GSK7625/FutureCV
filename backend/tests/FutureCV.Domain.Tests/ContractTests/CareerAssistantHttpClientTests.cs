@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using FutureCV.Application.Features.AiMatching.DTOs;
 using FutureCV.Application.Features.CareerAssistant.DTOs;
 using FutureCV.Infrastructure.Configurations;
 using FutureCV.Infrastructure.Services;
@@ -78,5 +79,36 @@ public class CareerAssistantHttpClientTests
         Assert.True(result.IsSuccess);
         Assert.Equal("Learn testing", result.Data!.Reply);
         Assert.Equal("How?", Assert.Single(result.Data.SuggestedFollowups));
+    }
+
+    [Fact]
+    public async Task SendsMatchResultFieldsInSnakeCasePayload()
+    {
+        var matchResult = new AiMatchResultDto(
+            MatchScore: 78,
+            MatchedSkills: ["C#"],
+            MissingSkills: ["Kubernetes"],
+            ExperienceComparison: "Meets 2 years",
+            EducationComparison: "Bachelor",
+            ProjectDomainRelevance: "Relevant API projects",
+            MatchExplanation: "Good match");
+
+        var client = Client(async (request, ct) =>
+        {
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+            var mr = body.RootElement.GetProperty("context").GetProperty("match_result");
+            Assert.Equal(78, mr.GetProperty("match_score").GetInt32());
+            Assert.Equal("C#", Assert.Single(mr.GetProperty("matched_skills").EnumerateArray()).GetString());
+            Assert.Equal("Kubernetes", Assert.Single(mr.GetProperty("missing_skills").EnumerateArray()).GetString());
+            Assert.Equal("Meets 2 years", mr.GetProperty("experience_comparison").GetString());
+            Assert.Equal("Bachelor", mr.GetProperty("education_comparison").GetString());
+            Assert.Equal("Relevant API projects", mr.GetProperty("project_domain_relevance").GetString());
+            Assert.Equal("Good match", mr.GetProperty("match_explanation").GetString());
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"reply":"Focus on Kubernetes","suggested_followups":[]}""") };
+        });
+
+        var result = await client.ChatAsync(new("Advice", [], new(null, null, matchResult)));
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Focus on Kubernetes", result.Data!.Reply);
     }
 }

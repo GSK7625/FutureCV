@@ -37,7 +37,8 @@ public sealed record StructuredCvDataDto(
     List<string> Skills,
     List<CvExperienceDto> Experiences,
     List<CvEducationDto> Educations,
-    List<CvProjectDto> Projects);
+    List<CvProjectDto> Projects,
+    List<string>? Certificates = null);
 
 public sealed record CvStructuredDataResponse(
     Guid CvId,

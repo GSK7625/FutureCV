@@ -18,4 +18,5 @@ test("rejects blank and oversized questions", () => {
   assert.throws(() => prepareChat(" ", []));
   assert.throws(() => prepareChat("a".repeat(4001), []));
   assert.equal(prepareChat("a".repeat(4000), []).message.length, 4000);
+  assert.equal(prepareChat("Hello", [], "", "", "conv-123").conversationId, "conv-123");
 });

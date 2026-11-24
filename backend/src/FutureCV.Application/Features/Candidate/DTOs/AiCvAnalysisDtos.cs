@@ -189,6 +189,21 @@ public static class FastApiCvMapper
             }
         }
 
+        // 5. Certificates (preserve only real non-empty values when present)
+        List<string>? certificates = null;
+        if (source.Certificates != null && source.Certificates.Count > 0)
+        {
+            var cleanedCerts = source.Certificates
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Select(c => c.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (cleanedCerts.Count > 0)
+            {
+                certificates = cleanedCerts;
+            }
+        }
+
         return new StructuredCvDataDto(
             source.FullName ?? string.Empty,
             source.Email,
@@ -197,7 +212,8 @@ public static class FastApiCvMapper
             combinedSkills,
             experiences,
             educations,
-            projects
+            projects,
+            certificates
         );
     }
 

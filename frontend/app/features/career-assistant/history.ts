@@ -10,6 +10,7 @@ export interface SavedConversation {
 }
 
 type HistoryStorage = Pick<Storage, "getItem" | "setItem">;
+type RemovableHistoryStorage = HistoryStorage & Pick<Storage, "removeItem">;
 const key = (userId: string) => `futurecv-career-history:${userId}`;
 
 function isConversation(value: unknown): value is SavedConversation {
@@ -50,5 +51,14 @@ export function saveHistory(userId: string, conversations: SavedConversation[], 
     return true;
   } catch {
     return false;
+  }
+}
+
+export function clearHistory(userId: string, storage?: RemovableHistoryStorage): void {
+  if (!userId) return;
+  try {
+    (storage ?? window.localStorage).removeItem(key(userId));
+  } catch {
+    // Ignore storage removal errors in restricted browser contexts.
   }
 }
