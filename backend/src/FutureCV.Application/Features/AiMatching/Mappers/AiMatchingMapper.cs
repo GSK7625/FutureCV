@@ -93,8 +93,14 @@ public static class AiMatchingMapper
             }
         }
 
-        // Certificates resolution: strictly empty for selected CV data (never fabricate or fallback)
-        var certificates = new List<string>();
+        // Certificates resolution: use only certificates present on the selected CV data (never fabricate or fallback)
+        var certificates = structuredCv.Certificates != null && structuredCv.Certificates.Count > 0
+            ? structuredCv.Certificates
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Select(c => c.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : new List<string>();
 
         // Projects resolution: skip unnamed projects rather than inventing placeholder names
         var projects = new List<AiProjectDto>();

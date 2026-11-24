@@ -263,6 +263,80 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.ToTable("CandidateSkills", (string)null);
                 });
 
+            modelBuilder.Entity("FutureCV.Domain.Entities.CareerConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CvId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid?>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CvId");
+
+                    b.HasIndex("JobId");
+
+                    b.HasIndex("CandidateId", "IsDeleted", "UpdatedAt");
+
+                    b.ToTable("CareerConversations", (string)null);
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.CareerMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.ToTable("CareerMessages", (string)null);
+                });
+
             modelBuilder.Entity("FutureCV.Domain.Entities.Certificate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1431,6 +1505,42 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("Skill");
                 });
 
+            modelBuilder.Entity("FutureCV.Domain.Entities.CareerConversation", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.Candidate", "Candidate")
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FutureCV.Domain.Entities.CandidateCv", "Cv")
+                        .WithMany()
+                        .HasForeignKey("CvId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FutureCV.Domain.Entities.Job", "Job")
+                        .WithMany()
+                        .HasForeignKey("JobId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Candidate");
+
+                    b.Navigation("Cv");
+
+                    b.Navigation("Job");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.CareerMessage", b =>
+                {
+                    b.HasOne("FutureCV.Domain.Entities.CareerConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("FutureCV.Domain.Entities.Certificate", b =>
                 {
                     b.HasOne("FutureCV.Domain.Entities.Candidate", "Candidate")
@@ -1774,6 +1884,11 @@ namespace FutureCV.Infrastructure.Persistence.Migrations
                     b.Navigation("CvParser");
 
                     b.Navigation("Evaluation");
+                });
+
+            modelBuilder.Entity("FutureCV.Domain.Entities.CareerConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("FutureCV.Domain.Entities.EmploymentType", b =>

@@ -121,3 +121,99 @@ def test_career_chat_endpoint():
     assert "reply" in data
     assert len(data["reply"]) > 0
     assert "suggested_followups" in data
+
+
+def test_career_chat_endpoint_with_match_result_and_missing_match_result():
+    """Verify /api/v1/career/chat grounds on match_result or discloses absence when missing."""
+    with_match = {
+        "message": "Giải thích điểm phù hợp của tôi.",
+        "history": [],
+        "context": {
+            "cv": {"skills": ["Python", "FastAPI"]},
+            "job": {"title": "Python Dev", "required_skills": ["Python", "FastAPI", "Docker"]},
+            "match_result": {
+                "match_score": 76,
+                "matched_skills": ["Python", "FastAPI"],
+                "missing_skills": ["Docker"],
+                "experience_comparison": "2 năm phù hợp.",
+                "education_comparison": "Cử nhân CNTT.",
+                "project_domain_relevance": "Dự án API liên quan.",
+                "match_explanation": "Khớp 2/3 kỹ năng bắt buộc.",
+            },
+        },
+    }
+    resp_ok = client.post("/api/v1/career/chat", json=with_match)
+    assert resp_ok.status_code == 200
+    assert "76/100" in resp_ok.json()["reply"]
+
+    without_match = {
+        "message": "Tôi phù hợp không?",
+        "history": [],
+        "context": {
+            "cv": {"skills": ["Python"]},
+            "job": {"title": "Python Dev", "required_skills": ["Python", "Docker"]},
+            "match_result": None,
+        },
+    }
+    resp_no_match = client.post("/api/v1/career/chat", json=without_match)
+    assert resp_no_match.status_code == 200
+    assert "không có điểm Matching chính thức" in resp_no_match.json()["reply"]
+
+
+def test_career_chat_endpoint_with_enriched_cv_and_evaluation():
+    """Verify /api/v1/career/chat accepts enriched CV fields and cv_evaluation."""
+    payload = {
+        "message": "Tôi nên cải thiện điểm CV như thế nào?",
+        "history": [],
+        "context": {
+            "cv": {
+                "career_summary": "Backend Developer",
+                "skills": ["C#", ".NET"],
+                "work_experience": [
+                    {
+                        "job_title": "Backend Engineer",
+                        "company": "FutureTech",
+                        "years_of_experience": 3.0,
+                        "description": "Developed REST APIs",
+                    }
+                ],
+                "education": [{"degree": "Bachelor", "institution": "HUST", "field_of_study": "IT"}],
+                "projects": [{"name": "Payment API", "technologies": [".NET", "Redis"]}],
+                "certificates": ["AWS SAA"],
+            },
+            "cv_evaluation": {
+                "cv_score": 84,
+                "strengths": ["Good API experience"],
+                "weaknesses": ["Missing metrics"],
+                "improvement_suggestions": ["Add latency numbers"],
+            },
+        },
+    }
+    response = client.post("/api/v1/career/chat", json=payload)
+    assert response.status_code == 200
+    assert "84/100" in response.json()["reply"]
+
+
+def test_career_chat_endpoint_english_cover_letter_and_dynamic_followups():
+    """Verify /api/v1/career/chat supports English Cover Letter and returns dynamic contextual follow-ups."""
+    payload = {
+        "message": "Viết Cover Letter bằng tiếng Anh cho vị trí này.",
+        "history": [],
+        "context": {
+            "cv": {
+                "career_summary": "Backend Engineer",
+                "skills": ["Python", "FastAPI"],
+                "work_experience": [{"job_title": "Backend Engineer", "company": "TechCo", "years_of_experience": 2.0}],
+            },
+            "job": {
+                "title": "Python Backend Developer",
+                "required_skills": ["Python", "FastAPI", "Docker"],
+            },
+        },
+    }
+    response = client.post("/api/v1/career/chat", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "Dear Hiring Manager" in data["reply"]
+    assert 2 <= len(data["suggested_followups"]) <= 3
+    assert "<<<FOLLOWUPS>>>" not in data["reply"]

@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadHistory, saveHistory, type SavedConversation } from "./history.ts";
+import { clearHistory, loadHistory, saveHistory, type SavedConversation } from "./history.ts";
 
 function storage() {
   const data = new Map<string, string>();
-  return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
+  return {
+    data,
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => { data.set(key, value); },
+    removeItem: (key: string) => { data.delete(key); },
+  };
 }
 const conversation: SavedConversation = { id: "conversation-1", title: "Improve CV", cvId: "", jobId: "", updatedAt: "2026-11-16T10:00:00Z", messages: [{ role: "user", content: "Improve CV" }, { role: "assistant", content: "Learn testing" }] };
 
@@ -52,4 +57,13 @@ test("bounds saved conversations and preserves previous storage on write failure
   assert.equal(saveHistory("a", [], blocked), false);
   assert.equal(store.getItem("futurecv-career-history:a"), previous);
   assert.equal(loadHistory("a", { ...store, getItem: () => { throw new Error("Blocked"); } }), null);
+});
+
+test("clears browser history only for the specified account", () => {
+  const store = storage();
+  saveHistory("a", [conversation], store);
+  saveHistory("b", [conversation], store);
+  clearHistory("a", store);
+  assert.deepEqual(loadHistory("a", store), []);
+  assert.deepEqual(loadHistory("b", store), [conversation]);
 });

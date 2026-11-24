@@ -30,5 +30,27 @@ public class CareerChatValidationTests
         Assert.False(validator.Validate(new CareerChatRequest("Hi", null!)).IsValid);
         Assert.False(validator.Validate(new CareerChatRequest("Hi", [null!])).IsValid);
         Assert.False(validator.Validate(new CareerChatRequest("Hi", [], Guid.Empty)).IsValid);
+        Assert.False(validator.Validate(new CareerChatRequest("Hi", [], ConversationId: Guid.Empty)).IsValid);
+    }
+
+    [Fact]
+    public void ValidatesConversationManagementRequests()
+    {
+        var createValidator = new CreateCareerConversationRequestValidator();
+        Assert.True(createValidator.Validate(new CreateCareerConversationRequest()).IsValid);
+        Assert.False(createValidator.Validate(new CreateCareerConversationRequest("   ")).IsValid);
+        Assert.False(createValidator.Validate(new CreateCareerConversationRequest(new string('t', 121))).IsValid);
+        Assert.False(createValidator.Validate(new CreateCareerConversationRequest(CvId: Guid.Empty)).IsValid);
+
+        var renameValidator = new RenameCareerConversationRequestValidator();
+        Assert.True(renameValidator.Validate(new RenameCareerConversationRequest("Valid title")).IsValid);
+        Assert.False(renameValidator.Validate(new RenameCareerConversationRequest(" ")).IsValid);
+        Assert.False(renameValidator.Validate(new RenameCareerConversationRequest(new string('t', 121))).IsValid);
+
+        var importValidator = new ImportCareerConversationsRequestValidator();
+        Assert.False(importValidator.Validate(new ImportCareerConversationsRequest([])).IsValid);
+        Assert.True(importValidator.Validate(new ImportCareerConversationsRequest([
+            new ImportCareerConversationItemRequest("Old chat", null, null, null, [new("user", "Hello"), new("assistant", new string('a', 5000))])
+        ])).IsValid);
     }
 }

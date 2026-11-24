@@ -47,6 +47,8 @@ public class ApplicationDbContext
     public DbSet<JobApplication> Applications => Set<JobApplication>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
     public DbSet<JobReport> JobReports => Set<JobReport>();
+    public DbSet<CareerConversation> CareerConversations => Set<CareerConversation>();
+    public DbSet<CareerMessage> CareerMessages => Set<CareerMessage>();
 
 
     public override int SaveChanges()

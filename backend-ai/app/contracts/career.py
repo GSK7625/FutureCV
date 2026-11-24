@@ -1,13 +1,24 @@
 """Contracts for Career Assistant conversational feature."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.contracts.common import ResponseMeta
 from app.contracts.cv import StructuredCv
 from app.contracts.job import StructuredJob
 from app.contracts.matching import MatchResult
+
+
+class CareerCvEvaluation(BaseModel):
+    """Latest CV quality evaluation from AI CV Analyzer for the selected CV."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    cv_score: int | None = Field(default=None, ge=0, le=100, description="CV quality score (0 to 100)")
+    strengths: list[Annotated[str, Field(max_length=500)]] = Field(default_factory=list, max_length=20)
+    weaknesses: list[Annotated[str, Field(max_length=500)]] = Field(default_factory=list, max_length=20)
+    improvement_suggestions: list[Annotated[str, Field(max_length=500)]] = Field(default_factory=list, max_length=20)
 
 
 class ChatMessage(BaseModel):
@@ -37,6 +48,10 @@ class CareerAssistantContext(BaseModel):
     cv: StructuredCv | None = Field(default=None, description="Current candidate structured CV")
     job: StructuredJob | None = Field(default=None, description="Job currently being viewed or targeted")
     match_result: MatchResult | None = Field(default=None, description="Pre-computed match result if available")
+    cv_evaluation: CareerCvEvaluation | None = Field(
+        default=None,
+        description="Pre-computed CV evaluation (score, strengths, weaknesses, improvements) if available",
+    )
 
 
 class CareerAssistantRequest(BaseModel):

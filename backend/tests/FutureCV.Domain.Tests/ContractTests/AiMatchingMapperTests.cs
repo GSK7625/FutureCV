@@ -46,7 +46,8 @@ public class AiMatchingMapperTests
                     Description: "NLP platform",
                     Technologies: "Python, FastAPI, PyTorch"
                 )
-            ]
+            ],
+            Certificates: ["AWS Certified Solutions Architect", "  AWS Certified Solutions Architect  ", ""]
         );
 
         var result = AiMatchingMapper.ToAiStructuredCv(structuredCv);
@@ -64,6 +65,7 @@ public class AiMatchingMapperTests
         Assert.Single(result.Projects);
         Assert.Equal(3, result.Projects[0].Technologies.Count);
         Assert.Contains("PyTorch", result.Technologies);
+        Assert.Equal(["AWS Certified Solutions Architect"], result.Certificates);
     }
 
     [Fact]

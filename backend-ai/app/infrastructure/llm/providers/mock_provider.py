@@ -76,6 +76,9 @@ class MockLlmProvider(LlmPort):
                 f"còn thiếu trước khi nộp hồ sơ."
             )
 
+        if "<<<BEGIN UNTRUSTED CAREER CONTEXT>>>" in prompt:
+            return self._generate_career_mock_reply(prompt)
+
         if "CV Review" in prompt or "phản hồi" in prompt or "đánh giá" in prompt.lower():
             return "Ứng viên có nền tảng vững chắc về kỹ năng công nghệ và dự án thực tế."
         if "giải thích" in prompt.lower() or "phù hợp" in prompt.lower():
@@ -85,6 +88,178 @@ class MockLlmProvider(LlmPort):
             )
         return (
             "Chào bạn, tôi là FutureCV Career Assistant. Tôi sẵn sàng hỗ trợ giải đáp mọi thắc mắc sự nghiệp của bạn."
+        )
+
+    @staticmethod
+    def _generate_career_mock_reply(prompt: str) -> str:
+        """Generate grounded, structured mock career counseling across the 5 MVP workflows."""
+        import json
+
+        skills_m = re.search(r"Kỹ năng ứng viên:\s*([^\n\r]+)", prompt)
+        years_m = re.search(r"Tổng số năm kinh nghiệm:\s*([^\n\r]+)", prompt)
+        job_title_m = re.search(r"Vị trí công việc đang quan tâm:\s*([^\n\r]+)", prompt)
+        score_m = re.search(r"Điểm phù hợp hiện tại:\s*(\d+)/100", prompt)
+        matched_m = re.search(r"Kỹ năng đã khớp:\s*([^\n\r]+)", prompt)
+        missing_m = re.search(r"Kỹ năng còn thiếu:\s*([^\n\r]+)", prompt)
+        cv_score_m = re.search(r"Điểm đánh giá CV \(AI CV Analyzer\):\s*(\d+)/100", prompt)
+        missing_data_m = re.search(r"Thiếu dữ liệu bắt buộc:\s*([^\n\r.]+)", prompt)
+
+        skills = skills_m.group(1).strip() if skills_m else ""
+        years = years_m.group(1).strip() if years_m else ""
+        job_title = job_title_m.group(1).strip() if job_title_m else "vị trí mục tiêu"
+
+        if missing_data_m:
+            missing_desc = missing_data_m.group(1).strip()
+            body = (
+                f"**Thông tin còn thiếu**\n"
+                f"Hiện hệ thống chưa có đủ {missing_desc} để tư vấn chính xác.\n\n"
+                f"**Đề xuất của AI**\n"
+                f"Vui lòng chọn hoặc bổ sung {missing_desc} để tôi có thể đưa ra phân tích "
+                f"và nội dung cá nhân hóa dựa trên dữ liệu thực tế."
+            )
+            followups = [
+                f"Sau khi bổ sung {missing_desc}, bạn muốn đánh giá mức độ phù hợp hay viết Cover Letter?",
+                "Bạn có thể chia sẻ kỹ năng và kinh nghiệm chính hiện tại của mình không?",
+            ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        if "Nghiệp vụ 4" in prompt:
+            wants_en = "TIẾNG ANH" in prompt
+            facts = f"Kỹ năng thực tế: {skills or 'theo CV đã chọn'}; kinh nghiệm: {years or 'theo CV đã chọn'}."
+            if wants_en:
+                exp_val = years or "as detailed in my CV"
+                skill_val = skills or "relevant technologies"
+                body = (
+                    f"**Dữ liệu thực tế sử dụng**\n- Vị trí: {job_title}\n- {facts}\n\n"
+                    f"**Đề xuất của AI (English Cover Letter Draft)**\n"
+                    f"Dear Hiring Manager,\n\n"
+                    f"I am writing to express my interest in the {job_title} position. "
+                    f"With practical experience ({exp_val}) and hands-on skills in {skill_val}, "
+                    "I am eager to contribute effectively to your team. "
+                    "[Please add specific project metrics if available.]\n\n"
+                    "Sincerely,\n[Your Name]"
+                )
+                followups = [
+                    "Bạn có muốn rút gọn bản Cover Letter tiếng Anh này cho email ứng tuyển không?",
+                    "Hãy viết lại Career Summary bằng tiếng Anh cho đồng bộ với Cover Letter này.",
+                ]
+            else:
+                exp_val = years or "theo CV"
+                skill_val = skills or "đã trình bày trong CV"
+                body = (
+                    f"**Dữ liệu thực tế sử dụng**\n- Vị trí: {job_title}\n- {facts}\n\n"
+                    f"**Đề xuất của AI (Mẫu Cover Letter tiếng Việt)**\n"
+                    f"Kính gửi Anh/Chị Tuyển dụng,\n\n"
+                    f"Tôi viết thư này để ứng tuyển vị trí {job_title}. "
+                    f"Dựa trên kinh nghiệm thực tế ({exp_val}) và các kỹ năng {skill_val}, "
+                    "tôi mong muốn đóng góp vào mục tiêu phát triển của quý công ty. "
+                    "[Bổ sung số liệu/thành tích thực tế nếu có.]\n\n"
+                    "Trân trọng,\n[Họ và tên của bạn]"
+                )
+                followups = [
+                    f"Bạn có muốn tôi chuyển Cover Letter cho vị trí {job_title} sang tiếng Anh không?",
+                    "Hãy kiểm tra lại Career Summary trong CV để đồng bộ với thư ứng tuyển này.",
+                ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        if "Nghiệp vụ 3" in prompt:
+            skill_txt = skills or "công nghệ thông tin"
+            exp_txt = years or "thực tế qua các dự án"
+            body = (
+                f"**Dữ liệu thực tế từ CV**\n"
+                f"- Kỹ năng hiện có: {skills or 'chưa liệt kê'}\n"
+                f"- Kinh nghiệm: {years or 'chưa xác định'}\n\n"
+                f"**Đề xuất của AI (Career Summary gợi ý)**\n"
+                f"Ứng viên có nền tảng về {skill_txt} với kinh nghiệm {exp_txt}, "
+                "hướng tới việc đóng góp vào các hệ thống chất lượng cao. "
+                "[Tự bổ sung số liệu kết quả thực tế nếu có.]"
+            )
+            followups = [
+                f"Bạn có muốn điều chỉnh Career Summary này hướng tới vị trí {job_title} không?",
+                "Hãy viết Cover Letter dựa trên Career Summary vừa cập nhật.",
+            ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        if "Nghiệp vụ 2" in prompt:
+            missing_txt = missing_m.group(1).strip() if missing_m else "các kỹ năng còn thiếu theo JD"
+            body = (
+                f"**Dữ liệu thực tế**\n"
+                f"- Kỹ năng đã có: {skills or 'theo CV'}\n"
+                f"- Kỹ năng còn thiếu: {missing_txt}\n\n"
+                f"**Đề xuất của AI**\n"
+                f"Ưu tiên học và thực hành dự án nhỏ với {missing_txt}, sau đó cập nhật mô tả dự án thật trong CV."
+            )
+            followups = [
+                f"Xây dựng lộ trình học tập cụ thể để bổ sung {missing_txt}.",
+                "Tôi nên nhấn mạnh kỹ năng đã có nào trong Career Summary?",
+            ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        if "Nghiệp vụ 5" in prompt:
+            missing_txt = missing_m.group(1).strip() if missing_m else "kỹ năng mục tiêu theo định hướng"
+            body = (
+                f"**Dữ liệu thực tế**\n"
+                f"- Nền tảng hiện tại: {skills or 'theo CV'} ({years or 'mới bắt đầu'})\n"
+                f"- Khoảng trống cần bù đắp: {missing_txt}\n\n"
+                f"**Đề xuất của AI (Lộ trình phát triển)**\n"
+                f"1. Giai đoạn 1 (1-4 tuần): Củng cố nền tảng và học trọng tâm {missing_txt}.\n"
+                f"2. Giai đoạn 2 (4-8 tuần): Xây dựng dự án thực hành gắn với yêu cầu của {job_title}.\n"
+                f"3. Giai đoạn 3: Cập nhật CV và luyện phỏng vấn kỹ thuật."
+            )
+            followups = [
+                f"Gợi ý đề tài dự án thực hành cho {job_title}.",
+                "Viết lại Career Summary phù hợp với lộ trình phát triển này.",
+            ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        if score_m:
+            score = score_m.group(1)
+            matched_part = f" Kỹ năng đã khớp: {matched_m.group(1).strip()}." if matched_m else ""
+            missing_part = f" Kỹ năng còn thiếu: {missing_m.group(1).strip()}." if missing_m else ""
+            body = (
+                f"**Dữ liệu thực tế (MatchResult chính thức)**\n"
+                f"Theo kết quả Matching hiện tại, điểm phù hợp của bạn là {score}/100.{matched_part}{missing_part}\n\n"
+                f"**Đề xuất của AI**\n"
+                f"Hãy ưu tiên bổ sung phần còn thiếu và làm nổi bật các kỹ năng khớp trong CV."
+            )
+            followups = [
+                "Phân tích chi tiết các kỹ năng còn thiếu và cách cải thiện.",
+                f"Viết Cover Letter cho vị trí {job_title} từ kết quả này.",
+            ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        if "Trạng thái Matching:" in prompt:
+            body = (
+                "**Lưu ý**\nHiện không có điểm Matching chính thức cho cặp CV và việc làm này.\n\n"
+                "**Đề xuất của AI**\nDựa trên thông tin CV và mô tả công việc, bạn nên đối chiếu "
+                "các kỹ năng yêu cầu và làm nổi bật kinh nghiệm liên quan."
+            )
+            followups = [
+                "Phân tích kỹ năng còn thiếu giữa CV và mô tả công việc này.",
+                "Viết lại Career Summary cho phù hợp hơn với vị trí này.",
+            ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        if cv_score_m:
+            body = (
+                f"**Dữ liệu thực tế**\nĐiểm đánh giá CV (AI CV Analyzer): {cv_score_m.group(1)}/100.\n\n"
+                "**Đề xuất của AI**\nDựa trên đánh giá CV hiện tại cùng kinh nghiệm, học vấn và dự án "
+                "của bạn, hãy ưu tiên hoàn thiện các điểm yếu và đề xuất cải thiện đã được ghi nhận."
+            )
+            followups = [
+                "Viết lại Career Summary giúp cải thiện điểm CV.",
+                "Xây dựng lộ trình nâng cao hồ sơ nghề nghiệp từ đánh giá này.",
+            ]
+            return f"{body}\n\n<<<FOLLOWUPS>>>\n{json.dumps(followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
+
+        default_followups = [
+            "Bạn muốn tôi viết lại Career Summary hay đánh giá CV hiện tại?",
+            "Bạn có muốn chọn một việc làm để phân tích kỹ năng còn thiếu không?",
+        ]
+        return (
+            "Chào bạn, tôi là FutureCV Career Assistant. "
+            "Tôi sẵn sàng tư vấn cải thiện CV và định hướng nghề nghiệp dựa trên thông tin bạn đã chọn.\n\n"
+            f"<<<FOLLOWUPS>>>\n{json.dumps(default_followups, ensure_ascii=False)}\n<<<END FOLLOWUPS>>>"
         )
 
     async def generate_structured(
